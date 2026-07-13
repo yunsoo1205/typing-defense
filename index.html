@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>또박또박 타자 수비대 · 한글 타자 연습</title>
+<title>웨이하이한국학교 타자 수비대</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
 <style>
 /* =========================================================
-   1. 색상 · 폰트 토큰 (여기 값만 바꿔도 전체 분위기가 바뀝니다)
+   1. 색상 · 폰트 · 크기 토큰
    ========================================================= */
 :root{
   --sky:      #CFEBFF;
@@ -17,20 +17,25 @@
   --butter:   #FFF3C9;
   --cream:    #FFFDF5;
   --grass:    #B7E4A8;
-  --berry:    #FF8FA8;
-  --grape:    #9B8CF0;
+  --berry:    #FF8FA8;   /* 회복 마법 */
+  --ice:      #58BFF0;   /* 얼음 마법 */
+  --flame:    #FF9736;   /* 불 마법 */
+  --meteor:   #B06CE8;   /* 별똥별 소환 */
+  --grape:    #9B8CF0;   /* 마법사 기본 마법 */
   --mint:     #6FD3B8;
   --ink:      #5A4A63;
   --ink-soft: #8C7E95;
 
   --font-display: 'Jua', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --font-body:    'Gowun Dodum', 'Apple SD Gothic Neo', sans-serif;
-  --radius: 22px;
-  --shadow: 0 6px 0 rgba(90,74,99,.12), 0 12px 24px rgba(90,74,99,.14);
+
+  --app-width:  1180px;                        /* 게임창 최대 너비 */
+  --field-h:    clamp(430px, 62vh, 640px);     /* 게임 화면 높이 */
+  --shadow: 0 6px 0 rgba(90,74,99,.12), 0 12px 28px rgba(90,74,99,.16);
 }
 *{ box-sizing:border-box; margin:0; padding:0; }
 body{
-  min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:16px;
+  min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:12px;
   font-family:var(--font-body); color:var(--ink);
   background:linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 55%, #C9EFC0 100%);
   background-attachment:fixed; -webkit-font-smoothing:antialiased;
@@ -40,29 +45,38 @@ body{
    2. 레이아웃 · HUD
    ========================================================= */
 #app{
-  width:min(960px,100%); background:var(--cream);
-  border:4px solid #fff; border-radius:calc(var(--radius) + 8px);
+  width:min(var(--app-width), 100%); background:var(--cream);
+  border:4px solid #fff; border-radius:30px;
   box-shadow:var(--shadow); overflow:hidden; position:relative;
 }
 #hud{
-  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-  padding:14px 18px; background:var(--butter); border-bottom:4px dashed #fff;
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+  padding:12px 18px; background:var(--butter); border-bottom:4px dashed #fff;
 }
 .hud-chip{
   display:flex; align-items:center; gap:8px;
-  background:#fff; border-radius:999px; padding:8px 16px;
+  background:#fff; border-radius:999px; padding:7px 15px;
   box-shadow:0 3px 0 rgba(90,74,99,.10);
 }
 .hud-label{ font-size:13px; color:var(--ink-soft); }
-.hud-value{ font-family:var(--font-display); font-size:22px; line-height:1; }
+.hud-value{ font-family:var(--font-display); font-size:21px; line-height:1; }
 #stage-chip{ background:var(--grape); color:#fff; }
 #stage-chip .hud-label{ color:rgba(255,255,255,.85); }
 #stage-name{ font-family:var(--font-body); font-size:13px; opacity:.9; }
 #name-chip{ background:var(--mint); color:#fff; }
 #name-chip .hud-label{ color:rgba(255,255,255,.85); }
-#hearts{ margin-left:auto; display:flex; gap:4px; font-size:26px; line-height:1; }
+#code-chip .hud-value{ font-size:16px; letter-spacing:.06em; }
+#speed-chip{ background:var(--berry); color:#fff; }
+#speed-chip .hud-label{ color:rgba(255,255,255,.85); }
+#status-chip{ background:var(--ink); color:#fff; font-family:var(--font-display); font-size:16px; }
+#mute-btn{ border:none; cursor:pointer; font-size:18px; line-height:1; padding:8px 14px; }
+#mute-btn.off{ background:#EDE7F1; opacity:.75; }
+.hud-chip.hidden{ display:none; }
+
+#hearts{ margin-left:auto; display:flex; gap:3px; font-size:24px; line-height:1; }
 #hearts span{ transition:transform .25s, opacity .25s; }
-#hearts span.lost{ opacity:.25; transform:scale(.75) rotate(-14deg); filter:grayscale(1); }
+#hearts span.lost{ opacity:.18; transform:scale(.75); filter:grayscale(1); }
+#hearts span.gain{ animation:hop .4s; }
 
 #progress{ height:10px; background:#F0E6C8; }
 #progress-fill{
@@ -75,38 +89,48 @@ body{
    3. 게임 화면
    ========================================================= */
 #field{
-  position:relative; height:430px; overflow:hidden; cursor:text;
+  position:relative; height:var(--field-h); overflow:hidden; cursor:text;
   background:
-    radial-gradient(circle at 18% 22%, rgba(255,255,255,.7) 0 26px, transparent 27px),
-    radial-gradient(circle at 24% 18%, rgba(255,255,255,.7) 0 20px, transparent 21px),
-    radial-gradient(circle at 72% 15%, rgba(255,255,255,.55) 0 22px, transparent 23px),
-    linear-gradient(180deg, var(--sky) 0%, #E6F6FF 62%, var(--grass) 62%, var(--grass) 100%);
+    radial-gradient(circle at 18% 20%, rgba(255,255,255,.7) 0 28px, transparent 29px),
+    radial-gradient(circle at 24% 16%, rgba(255,255,255,.7) 0 21px, transparent 22px),
+    radial-gradient(circle at 74% 13%, rgba(255,255,255,.55) 0 24px, transparent 25px),
+    linear-gradient(180deg, var(--sky) 0%, #E6F6FF 64%, var(--grass) 64%, var(--grass) 100%);
 }
 #field::after{
-  content:""; position:absolute; left:0; right:0; bottom:0; height:38%;
+  content:""; position:absolute; left:0; right:0; bottom:0; height:36%;
   background:repeating-linear-gradient(90deg, transparent 0 26px, rgba(255,255,255,.18) 26px 30px);
   pointer-events:none;
 }
+#field.quake{ animation:shake .4s; }
+
+/* 마법 효과 레이어 */
+#fx{ position:absolute; inset:0; z-index:6; pointer-events:none; opacity:0; transition:opacity .2s; }
+#fx.frozen{ opacity:1; background:linear-gradient(180deg, rgba(88,191,240,.42), rgba(200,238,255,.30)); }
+#fx.fever { opacity:1; background:radial-gradient(circle at 50% 60%, rgba(255,151,54,.32), rgba(255,143,168,.18)); animation:pulse 1s ease-in-out infinite; }
+#field.frozen .monster .body{ animation-play-state:paused; }
+
+/* 마법사 기지 */
 #base{
-  position:absolute; left:14px; bottom:24px; z-index:3;
+  position:absolute; left:16px; bottom:24px; z-index:3;
   display:flex; flex-direction:column; align-items:center;
   filter:drop-shadow(0 6px 6px rgba(90,74,99,.18));
 }
-#cat{ font-size:52px; line-height:1; }
-#castle{ font-size:44px; line-height:1; margin-top:-6px; }
+#wizard{ font-size:58px; line-height:1; transition:transform .12s; }
+#school{ font-size:46px; line-height:1; margin-top:-6px; }
 #base.hurt{ animation:shake .45s; }
-#base.happy #cat{ animation:hop .3s; }
+#base.casting #wizard{ animation:cast .28s; }
 #danger-line{
-  position:absolute; top:0; bottom:0; left:96px; width:4px; z-index:2; opacity:.5;
+  position:absolute; top:0; bottom:0; left:100px; width:4px; z-index:2; opacity:.5;
   background:repeating-linear-gradient(180deg, var(--berry) 0 10px, transparent 10px 20px);
 }
 
+/* ---- 몬스터 ---- */
 .monster{
   position:absolute; z-index:2; display:flex; flex-direction:column; align-items:center; gap:2px;
   transform:translateY(-50%); will-change:left;
 }
 .monster .word{
-  font-family:var(--font-display); font-size:26px; padding:6px 14px;
+  font-family:var(--font-display); font-size:28px; padding:6px 15px;
   background:#fff; border:3px solid var(--ink); border-radius:14px; white-space:nowrap;
   box-shadow:0 4px 0 rgba(90,74,99,.18); transition:background .12s, transform .12s;
 }
@@ -115,17 +139,64 @@ body{
   transform:translateY(-3px) scale(1.06);
 }
 .monster .body{
-  font-size:40px; line-height:1; animation:bob 1.1s ease-in-out infinite;
+  font-size:44px; line-height:1; animation:bob 1.1s ease-in-out infinite;
   filter:drop-shadow(0 4px 4px rgba(90,74,99,.18));
 }
 .monster.pop{ animation:pop .35s forwards; pointer-events:none; }
 
-.shot{
-  position:absolute; z-index:4; font-size:26px; pointer-events:none;
-  transition:left .16s linear, top .16s linear;
+/* ---- 아이템(마법 두루마리): 한눈에 알아보게 ---- */
+.monster.item{ color:var(--grape); }                 /* currentColor = 아이템 고유색 */
+.monster.item.heal  { color:var(--berry);  }
+.monster.item.freeze{ color:var(--ice);    }
+.monster.item.fire  { color:var(--flame);  }
+.monster.item.meteor{ color:var(--meteor); }
+
+.itemtag{
+  font-family:var(--font-display); font-size:13px; color:#fff;
+  background:currentColor; padding:3px 12px; border-radius:999px;
+  box-shadow:0 3px 0 rgba(90,74,99,.20);
+  animation:tag-jump 1s ease-in-out infinite;
+}
+.itemtag span{ color:#fff; }                          /* 글자는 항상 흰색 */
+
+.monster.item .word{
+  border-color:currentColor; border-width:4px;
+  background:#fff;
+  animation:item-glow 1s ease-in-out infinite alternate;
+}
+.halo{ position:relative; display:grid; place-items:center; width:76px; height:76px; }
+.halo::before{
+  content:""; position:absolute; width:66px; height:66px; border-radius:50%;
+  background:radial-gradient(circle, currentColor 0%, transparent 68%);
+  opacity:.35; animation:halo-pulse 1.1s ease-in-out infinite;
+}
+.halo::after{
+  content:""; position:absolute; width:74px; height:74px; border-radius:50%;
+  border:3px dashed currentColor; opacity:.9; animation:spin 4.5s linear infinite;
+}
+.halo .body{ position:relative; z-index:1; }
+
+/* ---- 마법 발사 · 폭발 ---- */
+.bolt{
+  position:absolute; z-index:5; width:22px; height:22px; border-radius:50%;
+  background:radial-gradient(circle, #fff 20%, var(--grape) 65%, transparent 72%);
+  box-shadow:0 0 16px 7px rgba(155,140,240,.55);
+  transform:translate(-50%,-50%);
+  transition:left .16s linear, top .16s linear; pointer-events:none;
+}
+.burst{
+  position:absolute; z-index:5; width:12px; height:12px; border-radius:50%;
+  border:5px solid var(--grape); transform:translate(-50%,-50%);
+  animation:burst .45s ease-out forwards; pointer-events:none;
+}
+.meteor-fall{
+  position:absolute; z-index:7; font-size:40px; pointer-events:none;
+  transform:translate(-50%,-50%) rotate(35deg);
+  transition:left .2s cubic-bezier(.5,0,.9,.5), top .2s cubic-bezier(.5,0,.9,.5);
+  filter:drop-shadow(0 0 12px rgba(255,151,54,.9));
 }
 .popup{
-  position:absolute; z-index:5; pointer-events:none; text-align:center;
+  position:absolute; z-index:8; pointer-events:none; text-align:center;
   font-family:var(--font-display); color:var(--ink);
   text-shadow:0 2px 0 #fff, 0 0 6px #fff;
   animation:float-up .9s ease-out forwards;
@@ -136,7 +207,7 @@ body{
 /* =========================================================
    4. 입력창
    ========================================================= */
-#dock{ padding:16px 18px 20px; background:var(--butter); border-top:4px dashed #fff; }
+#dock{ padding:14px 18px 18px; background:var(--butter); border-top:4px dashed #fff; }
 #input-row{ display:flex; gap:10px; align-items:center; }
 #answer{
   flex:1; min-width:0; font-family:var(--font-display); font-size:26px;
@@ -148,60 +219,111 @@ body{
 #answer.wrong{ animation:shake .4s; border-color:var(--berry); }
 #answer::placeholder{ font-family:var(--font-body); font-size:17px; color:#C4B8CB; }
 #enter-key{
-  font-family:var(--font-display); font-size:18px; padding:14px 22px;
+  font-family:var(--font-display); font-size:18px; padding:14px 24px;
   border:none; border-radius:999px; background:var(--grape); color:#fff;
   box-shadow:0 4px 0 #7C6BD8; cursor:pointer;
 }
 #enter-key:active{ transform:translateY(3px); box-shadow:0 1px 0 #7C6BD8; }
-#hint{ margin-top:10px; font-size:14px; color:var(--ink-soft); text-align:center; }
+#hint{ margin-top:8px; font-size:14px; color:var(--ink-soft); text-align:center; }
 
 /* =========================================================
    5. 오버레이
    ========================================================= */
 .overlay{
   position:absolute; inset:0; z-index:10; overflow-y:auto;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
-  text-align:center; padding:22px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+  text-align:center; padding:18px;
   background:rgba(255,253,245,.95); backdrop-filter:blur(2px);
 }
 .overlay.hidden{ display:none; }
-.overlay h1{ font-family:var(--font-display); font-size:36px; font-weight:400; }
-.overlay h2{ font-family:var(--font-display); font-size:28px; font-weight:400; }
-.overlay p{ font-size:15px; color:var(--ink-soft); line-height:1.7; }
-.big-emoji{ font-size:56px; line-height:1; }
+.overlay h1{ font-family:var(--font-display); font-size:33px; font-weight:400; line-height:1.3; }
+.overlay h2{ font-family:var(--font-display); font-size:26px; font-weight:400; }
+.overlay p{ font-size:14.5px; color:var(--ink-soft); line-height:1.65; }
+.big-emoji{ font-size:44px; line-height:1; }
 
 .btn{
-  font-family:var(--font-display); font-size:20px; padding:13px 32px;
+  font-family:var(--font-display); font-size:19px; padding:12px 28px;
   border:none; border-radius:999px; background:var(--berry); color:#fff;
   box-shadow:0 5px 0 #E9738E; cursor:pointer;
 }
 .btn:active{ transform:translateY(4px); box-shadow:0 1px 0 #E9738E; }
 .btn.alt{ background:var(--grape); box-shadow:0 5px 0 #7C6BD8; }
 .btn.alt:active{ box-shadow:0 1px 0 #7C6BD8; }
+.btn.mint{ background:var(--mint); box-shadow:0 5px 0 #56BFA3; }
+.btn.mint:active{ box-shadow:0 1px 0 #56BFA3; }
 .btn.ghost{
   background:#fff; color:var(--ink-soft); box-shadow:0 4px 0 rgba(90,74,99,.12);
-  font-size:15px; padding:9px 20px;
+  font-size:14px; padding:8px 18px;
 }
-.btn-row{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
-.btn:focus-visible, #answer:focus-visible, input:focus-visible{ outline:3px solid var(--grape); outline-offset:3px; }
+.btn-row{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.btn.hidden{ display:none; }
+.finish-row{ margin-top:2px; padding-top:10px; border-top:2px dashed #E6DDEC; width:min(460px,100%); }
+.btn:focus-visible, input:focus-visible{ outline:3px solid var(--grape); outline-offset:3px; }
 
+/* 스토리 · 마법 도감 */
+.story{
+  max-width:620px; font-size:15px; line-height:1.75; color:var(--ink);
+  background:var(--butter); border-radius:16px; padding:12px 18px;
+}
+.spellbook{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+  gap:8px; width:min(720px, 100%);
+}
+.spell{
+  display:flex; align-items:center; gap:10px; text-align:left;
+  background:#fff; border-radius:14px; padding:9px 12px;
+  border-left:6px solid currentColor;
+  box-shadow:0 3px 0 rgba(90,74,99,.10);
+}
+.spell.heal  { color:var(--berry);  }
+.spell.freeze{ color:var(--ice);    }
+.spell.fire  { color:var(--flame);  }
+.spell.meteor{ color:var(--meteor); grid-column:1 / -1; }   /* 메테오는 아랫줄 전체 폭 */
+.spell .ico{ font-size:26px; }
+.spell .txt{ color:var(--ink); font-size:13.5px; line-height:1.45; }
+.spell .txt b{ font-family:var(--font-display); font-weight:400; font-size:15px; }
+
+/* 배속 선택 */
+#speed-picker{ display:flex; gap:7px; flex-wrap:wrap; justify-content:center; }
+.speed-btn{
+  font-family:var(--font-display); font-size:15px; padding:8px 14px;
+  border:3px solid #E6DDEC; border-radius:999px;
+  background:#fff; color:var(--ink-soft); cursor:pointer; transition:transform .12s;
+}
+.speed-btn.on{ background:var(--grape); border-color:var(--grape); color:#fff; transform:scale(1.06); }
+
+/* 닉네임 · 학급 코드 */
 #nickname{
   font-family:var(--font-display); font-size:22px; text-align:center;
-  padding:12px 20px; width:min(280px,80%);
+  padding:12px 20px; width:min(300px, 82%);
   border:4px solid var(--mint); border-radius:999px;
   background:#fff; color:var(--ink); outline:none;
 }
+.code-area{
+  margin-top:4px; padding-top:10px; width:min(460px,100%);
+  border-top:2px dashed #E6DDEC;
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+}
+.code-area label{ font-size:12.5px; color:var(--ink-soft); }
+.code-row{ display:flex; gap:6px; align-items:center; }
+#roomcode{
+  font-family:var(--font-display); font-size:16px; text-align:center;
+  padding:8px 14px; width:150px; letter-spacing:.08em; text-transform:uppercase;
+  border:3px solid #E6DDEC; border-radius:999px; background:#fff; color:var(--ink); outline:none;
+}
+#roomcode:focus{ border-color:var(--grape); }
 
 /* 랭킹표 */
 .rank-box{
-  width:min(420px,100%); background:#fff; border-radius:18px; padding:12px 14px;
+  width:min(460px,100%); background:#fff; border-radius:18px; padding:10px 14px;
   box-shadow:0 4px 0 rgba(90,74,99,.10); text-align:left;
 }
 .rank-box h3{
-  font-family:var(--font-display); font-size:17px; font-weight:400;
-  margin-bottom:8px; text-align:center; color:var(--ink-soft);
+  font-family:var(--font-display); font-size:16px; font-weight:400;
+  margin-bottom:6px; text-align:center; color:var(--ink-soft);
 }
-.rank-row{ display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:10px; font-size:15px; }
+.rank-list{ max-height:140px; overflow-y:auto; }
+.rank-row{ display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:10px; font-size:15px; }
 .rank-row + .rank-row{ margin-top:2px; }
 .rank-row.me{ background:var(--butter); }
 .rank-row .medal{ width:26px; font-family:var(--font-display); }
@@ -220,19 +342,26 @@ body{
 /* =========================================================
    6. 애니메이션
    ========================================================= */
-@keyframes bob   { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-6px); } }
-@keyframes pop   { to { transform:translateY(-50%) scale(1.6); opacity:0; } }
-@keyframes hop   { 50%{ transform:translateY(-14px) rotate(-8deg); } }
-@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
-@keyframes float-up { to { transform:translateY(-50px); opacity:0; } }
+@keyframes bob       { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-6px); } }
+@keyframes pop       { to { transform:translateY(-50%) scale(1.6); opacity:0; } }
+@keyframes hop       { 50%{ transform:translateY(-14px) rotate(-8deg); } }
+@keyframes cast      { 50%{ transform:translateX(10px) rotate(-14deg) scale(1.12); } }
+@keyframes shake     { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+@keyframes float-up  { to { transform:translateY(-50px); opacity:0; } }
+@keyframes pulse     { 0%,100%{ opacity:.75; } 50%{ opacity:1; } }
+@keyframes burst     { to { width:100px; height:100px; opacity:0; border-width:2px; } }
+@keyframes spin      { to { transform:rotate(360deg); } }
+@keyframes halo-pulse{ 0%,100%{ transform:scale(.85); opacity:.3; } 50%{ transform:scale(1.1); opacity:.55; } }
+@keyframes item-glow { from{ box-shadow:0 4px 0 rgba(90,74,99,.18); } to{ box-shadow:0 4px 0 rgba(90,74,99,.18), 0 0 18px 4px currentColor; } }
+@keyframes tag-jump  { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-4px); } }
 
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } }
 @media (max-width:640px){
-  #field{ height:360px; }
+  :root{ --field-h: 400px; }
   .monster .word{ font-size:22px; }
   .monster .body{ font-size:32px; }
-  #hearts{ font-size:22px; }
-  .overlay h1{ font-size:28px; }
+  #hearts{ font-size:20px; }
+  .overlay h1{ font-size:25px; }
 }
 </style>
 </head>
@@ -246,8 +375,12 @@ body{
       <span id="stage-name">모음 자리</span>
     </div>
     <div class="hud-chip" id="name-chip">
-      <span class="hud-label">선수</span>
+      <span class="hud-label">마법사</span>
       <span class="hud-value" id="who" style="font-size:17px;">-</span>
+    </div>
+    <div class="hud-chip hidden" id="code-chip">
+      <span class="hud-label">코드</span>
+      <span class="hud-value" id="code-view">-</span>
     </div>
     <div class="hud-chip">
       <span class="hud-label">점수</span>
@@ -257,6 +390,12 @@ body{
       <span class="hud-label">처치</span>
       <span class="hud-value"><span id="kills">0</span>/<span id="goal">10</span></span>
     </div>
+    <div class="hud-chip hidden" id="speed-chip">
+      <span class="hud-label">배속</span>
+      <span class="hud-value" id="speed-view">1.0×</span>
+    </div>
+    <div class="hud-chip hidden" id="status-chip"><span id="status-view"></span></div>
+    <button class="hud-chip" id="mute-btn" title="소리 켜기 / 끄기">🔊</button>
     <div id="hearts" aria-label="남은 라이프"></div>
   </header>
 
@@ -264,23 +403,65 @@ body{
 
   <section id="field">
     <div id="danger-line"></div>
-    <div id="base"><div id="cat">🐱</div><div id="castle">🏰</div></div>
+    <div id="fx"></div>
+    <div id="base"><div id="wizard">🧙</div><div id="school">🏫</div></div>
 
-    <!-- 시작 화면: 닉네임 + 랭킹 -->
+    <!-- ① 시작 화면 -->
     <div class="overlay" id="start-screen">
-      <div class="big-emoji">🐱🛡️</div>
-      <h1>또박또박 타자 수비대</h1>
-      <p>몬스터 글자를 입력하고 <b>Enter</b>! 빨리 맞힐수록 보너스 점수를 받아요.<br>⌨️ 한/영 키를 눌러 <b>한글 입력</b> 상태로 바꿔 주세요.</p>
-      <input id="nickname" maxlength="8" placeholder="닉네임 (최대 8자)" />
-      <button class="btn" id="start-btn">시작하기</button>
+      <div class="big-emoji">🧙‍♂️🏫</div>
+      <h1>웨이하이한국학교 타자 수비대</h1>
+      <p>학교가 몬스터에게 둘러싸였어요.<br>여러분은 <b>글자 마법사</b>! 이름을 알려 주세요.</p>
+      <input id="nickname" maxlength="8" placeholder="마법사 이름" />
+      <button class="btn" id="to-howto-btn">🪄 마법 배우러 가기</button>
+
       <div class="rank-box">
-        <h3>🏆 명예의 전당 TOP 10</h3>
-        <div id="rank-list-start"></div>
+        <h3>🏆 <span id="rank-title-start">명예의 전당</span> TOP 10</h3>
+        <div class="rank-list" id="rank-list-start"></div>
       </div>
-      <button class="btn ghost" id="clear-rank-btn">랭킹 지우기</button>
+
+      <div class="code-area">
+        <label for="roomcode">친구들과 랭킹을 함께 보고 싶다면 <b>학급 코드</b>를 입력하세요 (안 써도 괜찮아요)</label>
+        <div class="code-row">
+          <input id="roomcode" maxlength="10" placeholder="코드" />
+          <button class="btn ghost" id="clear-rank-btn">이 코드 랭킹 지우기</button>
+        </div>
+      </div>
     </div>
 
-    <!-- 단계 시작 안내 -->
+    <!-- ② 게임 방법 화면 -->
+    <div class="overlay hidden" id="howto-screen">
+      <h2>🧙 마법사 출동!</h2>
+      <p class="story">
+        웨이하이한국학교에 몬스터 떼가 몰려왔어요! 몬스터들은 머리 위에 <b>글자</b>를 이고 다니는데,
+        그 글자를 똑같이 <b>입력하고 Enter</b>를 누르면 마법이 날아가 몬스터가 펑! 하고 사라집니다.<br>
+        몬스터가 학교에 닿으면 하트가 하나 줄고, 하트가 다 없어지면 학교가 무너져요. 지켜 주세요!
+      </p>
+      <p style="font-size:13.5px;">✨ 반짝이는 테두리에 <b>마법 이름표</b>가 달린 두루마리는 <b>마법 아이템</b>이에요. 글자를 입력하면 마법을 얻어요!</p>
+      <div class="spellbook">
+        <div class="spell heal">
+          <span class="ico">💗</span>
+          <span class="txt"><b>회복 마법 (힐)</b><br>하트를 1개 채워 줘요. 최대 5개까지!</span>
+        </div>
+        <div class="spell freeze">
+          <span class="ico">❄️</span>
+          <span class="txt"><b>얼음 마법 (프리즈)</b><br>3초 동안 몬스터가 얼어붙어 멈춰요.</span>
+        </div>
+        <div class="spell fire">
+          <span class="ico">🔥</span>
+          <span class="txt"><b>불 마법 (피버)</b><br>6초 동안 점수가 2배로 불타올라요.</span>
+        </div>
+        <div class="spell meteor">
+          <span class="ico">☄️</span>
+          <span class="txt"><b>별똥별 소환 (메테오)</b><br>화면의 몬스터를 별똥별로 몽땅 날려요!</span>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn ghost" id="back-btn">← 뒤로</button>
+        <button class="btn" id="start-btn">🪄 마법 시작!</button>
+      </div>
+    </div>
+
+    <!-- ③ 단계 시작 안내 -->
     <div class="overlay hidden" id="banner">
       <div class="big-emoji" id="banner-emoji">🐛</div>
       <h2 id="banner-title"></h2>
@@ -288,26 +469,31 @@ body{
       <div class="samples" id="banner-samples"></div>
     </div>
 
-    <!-- 단계 완료: 다시 도전 / 다음 단계 -->
+    <!-- ④ 단계 완료 -->
     <div class="overlay hidden" id="clear-screen">
       <div class="big-emoji">🎊</div>
       <h2 id="clear-title"></h2>
       <p id="clear-desc"></p>
+      <p style="font-size:13px;">다시 도전할 속도를 골라요. <b>빠를수록 점수 배율도 그만큼 커져요!</b></p>
+      <div id="speed-picker"></div>
       <div class="btn-row">
         <button class="btn" id="again-btn">🔁 이 단계 다시 도전</button>
         <button class="btn alt" id="next-btn">▶ 다음 단계로</button>
       </div>
-      <p style="font-size:13px;">다시 도전해도 점수는 계속 쌓여요. 하트도 1개 회복!</p>
+      <p style="font-size:13px;">다시 도전해도 점수는 계속 쌓여요 · 다음 단계로 가면 속도는 1배로 돌아갑니다.</p>
+      <div class="btn-row finish-row">
+        <button class="btn mint" id="finish-btn">🏆 그만하고 랭킹 등록</button>
+      </div>
     </div>
 
-    <!-- 게임 종료 + 랭킹 -->
+    <!-- ⑤ 게임 종료 -->
     <div class="overlay hidden" id="end-screen">
       <div class="big-emoji" id="end-emoji">😿</div>
       <h1 id="end-title">게임 오버</h1>
       <p id="end-desc"></p>
       <div class="rank-box">
-        <h3>🏆 명예의 전당 TOP 10</h3>
-        <div id="rank-list-end"></div>
+        <h3>🏆 <span id="rank-title-end">명예의 전당</span> TOP 10</h3>
+        <div class="rank-list" id="rank-list-end"></div>
       </div>
       <button class="btn" id="retry-btn">처음부터 다시 하기</button>
     </div>
@@ -329,105 +515,179 @@ body{
    ========================================================================= */
 const STAGES = [
   {
-    num: 1,
-    name: "모음 자리",
+    num: 1, name: "모음 자리",
     desc: "오른손 자리 연습! 모음 하나씩 또박또박 눌러 보세요.",
     words: ["ㅏ","ㅑ","ㅓ","ㅕ","ㅗ","ㅛ","ㅜ","ㅠ","ㅡ","ㅣ","ㅐ","ㅔ"],
-    monsters: ["🐛","🐌","🐞"],
-    speed: 58, spawnEvery: 2.4
+    monsters: ["🐛","🐌","🐞"], speed: 58, spawnEvery: 2.4
   },
   {
-    num: 2,
-    name: "자음 자리",
+    num: 2, name: "자음 자리",
     desc: "왼손 자리 연습! 자음 하나씩 눌러 보세요.",
     words: ["ㅂ","ㅈ","ㄷ","ㄱ","ㅅ","ㅁ","ㄴ","ㅇ","ㄹ","ㅎ","ㅋ","ㅌ","ㅊ","ㅍ"],
-    monsters: ["🐜","🕷️","🦗"],
-    speed: 68, spawnEvery: 2.2
+    monsters: ["🐜","🕷️","🦗"], speed: 68, spawnEvery: 2.2
   },
   {
-    num: 3,
-    name: "글자 조합 (받침 없음)",
+    num: 3, name: "글자 조합 (받침 없음)",
     desc: "자음 + 모음을 이어서 한 글자를 만들어요.",
     words: ["바","자","거","더","나","미","구","로","가","다","사","마",
             "서","저","비","시","지","누","두","무","노","소","조","코",
             "토","포","하","기","리","니","히","야","여","요","유","츠"],
-    monsters: ["👾","🦠","🐙"],
-    speed: 78, spawnEvery: 2.1
+    monsters: ["👾","🦠","🐙"], speed: 78, spawnEvery: 2.1
   },
   {
-    num: 4,
-    name: "두 글자 단어 (받침 없음)",
+    num: 4, name: "두 글자 단어 (받침 없음)",
     desc: "이제 낱말이에요! 받침 없는 두 글자에 도전.",
     words: ["나비","기차","나무","사자","고기","두부","바다","오리","여우",
             "다리","머리","허리","하마","모자","우유","지도","소파","야구",
             "파도","이모","시소","가수","노래","배추","치마","우비"],
-    monsters: ["🦑","🐲","👹"],
-    speed: 88, spawnEvery: 2.0
+    monsters: ["🦑","🐲","👹"], speed: 88, spawnEvery: 2.0
   },
   {
-    num: 5,
-    name: "받침 단어",
+    num: 5, name: "받침 단어",
     desc: "마지막 단계! 받침이 하나 붙은 낱말이에요.",
     words: ["나방","가방","수박","구름","바람","공장","사람","하늘","그림",
             "우산","이불","수건","소금","사탕","지붕","자석","마을","저녁",
             "도장","무릎","학교","노을","시장","부엌"],
-    monsters: ["👺","🤖","👻"],
-    speed: 100, spawnEvery: 1.9
+    monsters: ["👺","🤖","👻"], speed: 100, spawnEvery: 1.9
   }
 ];
 
 /* ------------------------- 게임 규칙 상수 ------------------------- */
-const KILLS_PER_STAGE = 10;   // 한 단계에서 잡아야 하는 몬스터 수
-const MAX_LIFE        = 3;    // 하트 개수
-const BASE_X          = 96;   // 기지 경계선(px) — 여기 닿으면 라이프 감소
-const BONUS_WINDOW    = 6;    // 이 시간(초) 안에 잡으면 보너스. 빠를수록 많이!
-const HEART_ON_CLEAR  = true; // 단계 완료 시 하트 1개 회복
-const RANK_KEY        = "hangul-typing-defense-rank";
-const RANK_SIZE       = 10;
+const KILLS_PER_STAGE = 10;   // 한 단계에서 잡아야 하는 몬스터 수 (아이템은 안 셈)
+const START_LIFE      = 3;    // 시작 하트
+const MAX_LIFE        = 5;    // 하트 최대치
+const BASE_X          = 100;  // 학교 경계선(px)
+const BONUS_WINDOW    = 6;    // 이 시간(초) 안에 잡으면 속도 보너스
+const HEART_ON_CLEAR  = true; // 단계 완료 시 하트 1개 회복 (START_LIFE 까지만)
+
+/* ------------------------- 마법 아이템 ------------------------- */
+const ITEM_CHANCE = 0.16;     // 몬스터 대신 아이템이 나올 확률
+const ITEMS = {
+  heal:   { emoji:"💗", tag:"💗 회복 마법", weight:4 },
+  freeze: { emoji:"❄️", tag:"❄️ 얼음 마법", weight:3 },
+  fire:   { emoji:"🔥", tag:"🔥 불 마법",   weight:3 },
+  meteor: { emoji:"☄️", tag:"☄️ 별똥별 소환", weight:1.4 }
+};
+const FREEZE_SEC     = 3;     // 얼음 마법 지속(초)
+const FEVER_SEC      = 6;     // 불 마법 지속(초)
+const FEVER_MULT     = 2;     // 불 마법 중 점수 배율
+const HEART_FULL_PTS = 100;   // 하트가 꽉 찼을 때 회복 마법이 주는 점수
+
+/* ------------------------- 배속 (재도전 전용) ------------------------- */
+const SPEED_CHOICES = [1.0, 1.2, 1.5, 1.8, 2.0];   // 속도 = 점수 배율
+
+/* ------------------------- 랭킹 ------------------------- */
+const DEFAULT_CODE = "WHKS";
+const RANK_PREFIX  = "rank:";
+const RANK_SIZE    = 10;
 
 /* =========================================================================
-   랭킹 저장소
-   (Claude 미리보기에서는 window.storage, 다운로드한 파일에서는 localStorage 사용)
+   ★★★ 여기 두 줄만 채우면 전 세계 랭킹이 공유됩니다 ★★★
+   Supabase 대시보드 → Project Settings → API 에서 복사해 오세요.
+   비워 두면 이 컴퓨터 안에만 기록이 저장됩니다(게임은 그대로 동작).
    ========================================================================= */
-let memoryRanks = [];
+const SUPABASE_URL = "https://dbcydfbduservhiwiwgj.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ojqIzp7fD06E50JraS4i-g_uLU8p8pS";   // publishable(구 anon) 키 — 공개돼도 안전합니다
 
-const RankStore = {
-  async load(){
-    if (window.storage){
-      try {
-        const r = await window.storage.get(RANK_KEY);
-        return r ? JSON.parse(r.value) : [];
-      } catch(e){ return []; }          // 저장된 기록이 없으면 빈 목록
-    }
-    try {
-      const raw = localStorage.getItem(RANK_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch(e){ return memoryRanks; }
-  },
-  async save(list){
-    if (window.storage){
-      try { await window.storage.set(RANK_KEY, JSON.stringify(list)); return; } catch(e){}
-    }
-    try { localStorage.setItem(RANK_KEY, JSON.stringify(list)); }
-    catch(e){ memoryRanks = list; }
-  },
-  async add(entry){
-    const list = await RankStore.load();
-    list.push(entry);
-    list.sort((a,b) => b.score - a.score);
-    const top = list.slice(0, RANK_SIZE);
-    await RankStore.save(top);
-    return top;
-  },
-  async clear(){
-    if (window.storage){
-      try { await window.storage.delete(RANK_KEY); } catch(e){}
-    }
-    try { localStorage.removeItem(RANK_KEY); } catch(e){}
-    memoryRanks = [];
+const SUPA = {
+  get on(){ return !!(SUPABASE_URL && SUPABASE_KEY); },
+  headers(extra){
+    return Object.assign({
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + SUPABASE_KEY,
+      "Content-Type": "application/json"
+    }, extra || {});
   }
 };
 
+/* =========================================================================
+   랭킹 저장소 — 학급 코드별로 따로 저장됩니다.
+   ① Supabase 를 설정했으면: 인터넷 너머로 진짜 공유 랭킹 (같은 코드 = 같은 순위표)
+   ② 설정 안 했거나 접속 실패: 이 브라우저 안에만 저장 (게임은 멈추지 않아요)
+   ========================================================================= */
+const memoryRanks = {};
+
+/* --- ① Supabase --- */
+async function supaLoad(code){
+  const q = `${SUPABASE_URL}/rest/v1/scores`
+          + `?select=id,name,score,stage`
+          + `&code=eq.${encodeURIComponent(code)}`
+          + `&order=score.desc&limit=${RANK_SIZE}`;
+  const res = await fetch(q, { headers: SUPA.headers() });
+  if (!res.ok) throw new Error("load failed");
+  return await res.json();
+}
+async function supaInsert(code, entry){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
+    method: "POST",
+    headers: SUPA.headers({ "Prefer": "return=representation" }),
+    body: JSON.stringify({ code, name: entry.name, score: entry.score, stage: entry.stage })
+  });
+  if (!res.ok) throw new Error("insert failed");
+  const rows = await res.json();
+  return rows[0];                       // 서버가 매긴 id 를 돌려받습니다
+}
+
+/* --- ② 로컬 저장 (폴백) --- */
+function localKey(code){ return RANK_PREFIX + code; }
+
+async function localLoad(code){
+  const key = localKey(code);
+  if (window.storage){
+    try {
+      const r = await window.storage.get(key, true);
+      return r ? JSON.parse(r.value) : [];
+    } catch(e){ return []; }
+  }
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e){ return memoryRanks[key] || []; }
+}
+async function localSave(code, list){
+  const key = localKey(code);
+  if (window.storage){
+    try { await window.storage.set(key, JSON.stringify(list), true); return; } catch(e){}
+  }
+  try { localStorage.setItem(key, JSON.stringify(list)); }
+  catch(e){ memoryRanks[key] = list; }
+}
+
+/* --- 공통 입구 --- */
+async function loadRanks(code){
+  if (SUPA.on){
+    try { return await supaLoad(code); }
+    catch(e){ console.warn("랭킹 서버에 연결하지 못했어요. 로컬 기록을 보여줍니다.", e); }
+  }
+  return await localLoad(code);
+}
+
+async function addRank(code, entry){
+  if (SUPA.on){
+    try {
+      const saved = await supaInsert(code, entry);
+      entry.id = saved.id;                       // 내 기록을 순위표에서 강조하려고 id 를 맞춰 둡니다
+      return await supaLoad(code);
+    } catch(e){ console.warn("랭킹 등록 실패 — 로컬에 저장합니다.", e); }
+  }
+  const list = await localLoad(code);
+  list.push(entry);
+  list.sort((a,b) => b.score - a.score);
+  const top = list.slice(0, RANK_SIZE);
+  await localSave(code, top);
+  return top;
+}
+
+async function clearRanks(code){
+  if (SUPA.on){
+    alert("공유 랭킹은 여기서 지울 수 없어요.\nSupabase 대시보드에서 선생님이 직접 지워 주세요.");
+    return;
+  }
+  const key = localKey(code);
+  if (window.storage){ try { await window.storage.delete(key, true); } catch(e){} }
+  try { localStorage.removeItem(key); } catch(e){}
+  delete memoryRanks[key];
+}
 function renderRanks(list, boxId, highlightId){
   const box = document.getElementById(boxId);
   if (!list || list.length === 0){
@@ -447,27 +707,216 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c =>
     ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 }
+function cleanCode(v){
+  return (v || "").toUpperCase().replace(/[^A-Z0-9가-힣]/g, "").slice(0, 10) || DEFAULT_CODE;
+}
+
+/* =========================================================================
+   🎵 사운드 — 음원 파일 없이 Web Audio API로 직접 소리를 만듭니다.
+      (인터넷 연결이나 외부 파일이 전혀 필요 없어요)
+   ========================================================================= */
+const NOTE = {
+  C3:130.81, D3:146.83, E3:164.81, F3:174.61, G3:196.00, A3:220.00, B3:246.94,
+  C4:261.63, E4:329.63, G4:392.00, A4:440.00,
+  C5:523.25, D5:587.33, E5:659.25, F5:698.46, G5:783.99, A5:880.00,
+  C6:1046.50, D6:1174.66, E6:1318.51
+};
+
+const Sound = {
+  ctx:null, master:null, musicGain:null, sfxGain:null, muted:false, _noise:null,
+
+  init(){                                  // 사용자가 버튼을 누른 순간 오디오를 켭니다
+    if (this.ctx){ if (this.ctx.state === "suspended") this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    this.master    = this.ctx.createGain(); this.master.gain.value = this.muted ? 0 : 0.9;
+    this.musicGain = this.ctx.createGain(); this.musicGain.gain.value = 0.20;
+    this.sfxGain   = this.ctx.createGain(); this.sfxGain.gain.value   = 0.55;
+    this.master.connect(this.ctx.destination);
+    this.musicGain.connect(this.master);
+    this.sfxGain.connect(this.master);
+  },
+  toggleMute(){
+    this.muted = !this.muted;
+    if (this.master) this.master.gain.value = this.muted ? 0 : 0.9;
+    return this.muted;
+  },
+  noise(){                                 // 폭발음에 쓰는 잡음 버퍼
+    if (this._noise) return this._noise;
+    const b = this.ctx.createBuffer(1, this.ctx.sampleRate, this.ctx.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    this._noise = b;
+    return b;
+  },
+  /* 음 하나 재생 */
+  blip(freq, at, dur, wave, vol, dest){
+    if (!this.ctx || !freq) return;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = wave || "triangle";
+    o.frequency.setValueAtTime(freq, at);
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.linearRampToValueAtTime(vol, at + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    o.connect(g); g.connect(dest || this.sfxGain);
+    o.start(at); o.stop(at + dur + 0.03);
+  },
+  /* 주파수가 미끄러지는 소리 */
+  sweep(from, to, dur, wave, vol, filterType){
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain(), f = this.ctx.createBiquadFilter();
+    o.type = wave; f.type = filterType || "bandpass"; f.frequency.value = 1400; f.Q.value = 5;
+    o.frequency.setValueAtTime(from, t);
+    o.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(f); f.connect(g); g.connect(this.sfxGain);
+    o.start(t); o.stop(t + dur + 0.03);
+  },
+  /* 쾅 하는 폭발음 */
+  boom(dur, vol, cutoff){
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const s = this.ctx.createBufferSource(), g = this.ctx.createGain(), f = this.ctx.createBiquadFilter();
+    s.buffer = this.noise();
+    f.type = "lowpass";
+    f.frequency.setValueAtTime(cutoff || 900, t);
+    f.frequency.exponentialRampToValueAtTime(120, t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(this.sfxGain);
+    s.start(t); s.stop(t + dur);
+  }
+};
+
+/* ---- 배경음악: 상황에 따라 곡이 바뀝니다 ---- */
+const TRACKS = {
+  normal: {   // 평소: 통통 튀는 행진곡
+    bpm:112, wave:"triangle", bassWave:"sine", vol:0.5,
+    lead:["E5",0,"G5",0,"A5",0,"G5",0,"E5",0,"D5",0,"C5",0,"D5",0],
+    bass:["C3",0,0,0,"G3",0,0,0,"A3",0,0,0,"F3",0,0,0]
+  },
+  freeze: {   // ❄️ 얼음 마법: 느리고 반짝이는 소리
+    bpm:60, wave:"sine", bassWave:"sine", vol:0.42,
+    lead:["C6",0,0,0,"G5",0,0,0,"A5",0,0,0,"E6",0,0,0],
+    bass:["F3",0,0,0,0,0,0,0,"C3",0,0,0,0,0,0,0]
+  },
+  fever: {    // 🔥 불 마법: 빠르고 뜨거운 질주
+    bpm:158, wave:"sawtooth", bassWave:"square", vol:0.34,
+    lead:["C5","E5","G5","C6","G5","E5","A5","C6","G5","E5","F5","A5","G5","E5","C5","D5"],
+    bass:["C3","C3","G3","G3","A3","A3","F3","F3","C3","C3","G3","G3","A3","A3","F3","F3"]
+  }
+};
+
+const Music = {
+  mood:"normal", step:0, nextTime:0, timer:null, playing:false,
+
+  start(){
+    Sound.init();
+    if (!Sound.ctx) return;
+    this.playing = true; this.step = 0; this.mood = "normal";
+    this.nextTime = Sound.ctx.currentTime + 0.06;
+    clearInterval(this.timer);
+    this.timer = setInterval(() => this.tick(), 25);
+  },
+  stop(){ this.playing = false; clearInterval(this.timer); },
+  setMood(m){                                  // 아이템 효과에 따라 곡 교체
+    if (m === this.mood || !TRACKS[m]) return;
+    this.mood = m; this.step = 0;
+    if (Sound.ctx) this.nextTime = Math.max(this.nextTime, Sound.ctx.currentTime + 0.02);
+  },
+  tick(){
+    if (!this.playing || !Sound.ctx) return;
+    const t = TRACKS[this.mood];
+    const stepDur = 60 / t.bpm / 2;            // 8분음표 간격
+    while (this.nextTime < Sound.ctx.currentTime + 0.12){
+      const i = this.step % 16;
+      if (t.lead[i]) Sound.blip(NOTE[t.lead[i]], this.nextTime, stepDur * 0.95, t.wave, t.vol, Sound.musicGain);
+      if (t.bass[i]) Sound.blip(NOTE[t.bass[i]], this.nextTime, stepDur * 1.5, t.bassWave, t.vol * 0.8, Sound.musicGain);
+      this.nextTime += stepDur;
+      this.step++;
+    }
+  }
+};
+
+/* ---- 효과음: 마법마다 다른 소리 ---- */
+const SFX = {
+  cast(){                                    // 🪄 기본 마법: 슝!
+    Sound.sweep(1500, 320, 0.15, "square", 0.32);
+  },
+  wrong(){                                   // ❌ 틀렸을 때: 삑
+    Sound.sweep(190, 95, 0.18, "sawtooth", 0.22, "lowpass");
+  },
+  heal(){                                    // 💗 회복: 맑게 올라가는 아르페지오
+    if (!Sound.ctx) return;
+    const t = Sound.ctx.currentTime;
+    ["C5","E5","G5","C6"].forEach((n, i) =>
+      Sound.blip(NOTE[n], t + i * 0.07, 0.28, "sine", 0.32));
+  },
+  freeze(){                                  // ❄️ 얼음: 차갑게 반짝
+    if (!Sound.ctx) return;
+    const t = Sound.ctx.currentTime;
+    ["E6","C6","G5","E6"].forEach((n, i) =>
+      Sound.blip(NOTE[n], t + i * 0.06, 0.5, "sine", 0.26));
+    Sound.sweep(3000, 1200, 0.5, "triangle", 0.12);
+  },
+  fire(){                                    // 🔥 불: 화르륵 타오름
+    Sound.sweep(220, 1400, 0.35, "sawtooth", 0.28, "lowpass");
+    Sound.boom(0.35, 0.18, 2200);
+  },
+  meteor(){                                  // ☄️ 별똥별 소환: 크고 낮은 굉음
+    Sound.sweep(900, 60, 0.7, "sawtooth", 0.3, "lowpass");
+    Sound.boom(0.8, 0.45, 1600);
+  },
+  meteorHit(){                               // 별똥별 하나가 떨어질 때
+    Sound.boom(0.28, 0.3, 1200);
+  },
+  damage(){                                  // 💔 학교가 공격받음
+    Sound.sweep(300, 60, 0.4, "square", 0.3, "lowpass");
+  },
+  stageClear(){                              // 🎊 단계 통과 팡파레
+    if (!Sound.ctx) return;
+    const t = Sound.ctx.currentTime;
+    ["C5","E5","G5","C6","G5","C6"].forEach((n, i) =>
+      Sound.blip(NOTE[n], t + i * 0.12, 0.34, "triangle", 0.34));
+  },
+  gameEnd(win){
+    if (!Sound.ctx) return;
+    const t = Sound.ctx.currentTime;
+    const tune = win ? ["C5","E5","G5","C6","E6","G5","C6"]
+                     : ["G4","E4","C4","A3","G3"];
+    tune.forEach((n, i) =>
+      Sound.blip(NOTE[n], t + i * 0.16, 0.42, win ? "triangle" : "sine", 0.32));
+  }
+};
 
 /* =========================================================================
    요소 · 상태
    ========================================================================= */
 const $ = (id) => document.getElementById(id);
-const field = $("field"), input = $("answer"), base = $("base"), cat = $("cat");
+const field = $("field"), input = $("answer"), base = $("base"), wizard = $("wizard"), fx = $("fx");
 
 let state = null;
 let lastTime = 0, rafId = null;
+let pickedSpeed = 1.0;
 
-function newGame(nickname){
+function newGame(nickname, code){
   return {
-    nickname,
+    nickname, code,
     stageIndex: 0,
-    score: 0,                                   // 누적 점수 (재도전해도 계속 쌓임)
-    life: MAX_LIFE,
+    score: 0,                       // 누적 점수 (재도전해도 계속 쌓임)
+    life: START_LIFE,
     kills: 0,
-    stageScore: 0,                              // 이번 도전에서 얻은 점수
-    runs: Array(STAGES.length).fill(0),         // 단계별 도전 횟수
-    bag: [],                                    // 단어 주머니(섞어서 하나씩 꺼내 씀)
+    stageScore: 0,
+    speedMult: 1.0,                 // 배속 = 점수 배율
+    runs: Array(STAGES.length).fill(0),
+    bag: [],
     monsters: [],
+    freezeUntil: 0,                 // 얼음 마법 종료 시각
+    feverUntil: 0,                  // 불 마법 종료 시각
+    pauseUntil: 0,                  // 메테오 연출 동안 잠깐 멈춤
     running: false,
     spawnTimer: 0.6
   };
@@ -481,10 +930,15 @@ function drawHud(){
   $("stage-num").textContent  = stage.num;
   $("stage-name").textContent = stage.name;
   $("who").textContent        = state.nickname;
+  $("code-view").textContent  = state.code;
+  $("code-chip").classList.remove("hidden");
   $("score").textContent      = state.score;
   $("kills").textContent      = state.kills;
   $("goal").textContent       = KILLS_PER_STAGE;
-  $("progress-fill").style.width = (state.kills / KILLS_PER_STAGE * 100) + "%";
+  $("progress-fill").style.width = Math.min(100, state.kills / KILLS_PER_STAGE * 100) + "%";
+
+  $("speed-view").textContent = state.speedMult.toFixed(1) + "×";
+  $("speed-chip").classList.toggle("hidden", state.speedMult === 1.0);
 
   $("hearts").innerHTML = "";
   for (let i = 0; i < MAX_LIFE; i++){
@@ -495,8 +949,28 @@ function drawHud(){
   }
 }
 
+function drawStatus(now){
+  const frozen = state.freezeUntil > now;
+  const fever  = state.feverUntil  > now;
+  const chip = $("status-chip");
+
+  if (!frozen && !fever) chip.classList.add("hidden");
+  else {
+    chip.classList.remove("hidden");
+    const parts = [];
+    if (frozen) parts.push(`❄️ 얼음 ${((state.freezeUntil - now)/1000).toFixed(1)}초`);
+    if (fever)  parts.push(`🔥 피버 ${((state.feverUntil  - now)/1000).toFixed(1)}초`);
+    $("status-view").textContent = parts.join("  ");
+  }
+  fx.className = frozen ? "frozen" : (fever ? "fever" : "");
+  field.classList.toggle("frozen", frozen);
+
+  // 얼음 마법 중에는 얼음 음악, 불 마법 중에는 피버 음악
+  Music.setMood(frozen ? "freeze" : (fever ? "fever" : "normal"));
+}
+
 /* =========================================================================
-   단어 뽑기 — 주머니를 섞어 하나씩 꺼내면 같은 단어가 몰리지 않습니다
+   단어 뽑기
    ========================================================================= */
 function drawWord(){
   if (state.bag.length === 0){
@@ -509,32 +983,49 @@ function drawWord(){
   return state.bag.pop();
 }
 
+function pickItemType(){
+  const keys = Object.keys(ITEMS);
+  const total = keys.reduce((s,k) => s + ITEMS[k].weight, 0);
+  let r = Math.random() * total;
+  for (const k of keys){ r -= ITEMS[k].weight; if (r <= 0) return k; }
+  return keys[0];
+}
+
 /* =========================================================================
-   몬스터
+   몬스터 · 아이템 등장
    ========================================================================= */
 function spawnMonster(){
   const stage = STAGES[state.stageIndex];
-  const word = drawWord();
-  const face = stage.monsters[Math.floor(Math.random() * stage.monsters.length)];
+  const word  = drawWord();
+  const itemType = Math.random() < ITEM_CHANCE ? pickItemType() : null;
 
   const el = document.createElement("div");
-  el.className = "monster";
-  el.innerHTML = `<div class="word"></div><div class="body">${face}</div>`;
+  el.className = "monster" + (itemType ? ` item ${itemType}` : "");
+
+  if (itemType){
+    el.innerHTML =
+      `<div class="itemtag"><span>${ITEMS[itemType].tag}</span></div>
+       <div class="word"></div>
+       <div class="halo"><div class="body">${ITEMS[itemType].emoji}</div></div>`;
+  } else {
+    const face = stage.monsters[Math.floor(Math.random() * stage.monsters.length)];
+    el.innerHTML = `<div class="word"></div><div class="body">${face}</div>`;
+  }
   el.querySelector(".word").textContent = word;
 
   const lane = Math.floor(Math.random() * 5);
-  const top  = field.clientHeight * (0.28 + lane * 0.13);
+  const top  = field.clientHeight * (0.26 + lane * 0.13);
   const x    = field.clientWidth + 20;
   el.style.left = x + "px";
   el.style.top  = top + "px";
   field.appendChild(el);
 
-  state.monsters.push({ el, word, x, top, bornAt: performance.now() });
+  state.monsters.push({ el, word, x, top, itemType, bornAt: performance.now() });
 }
 
 function moveMonsters(dt){
   const stage = STAGES[state.stageIndex];
-  const speed = stage.speed * (field.clientWidth / 900);   // 화면 폭에 맞춰 보정
+  const speed = stage.speed * state.speedMult * (field.clientWidth / 1100);
 
   for (let i = state.monsters.length - 1; i >= 0; i--){
     const m = state.monsters[i];
@@ -543,13 +1034,13 @@ function moveMonsters(dt){
     if (m.x <= BASE_X){
       m.el.remove();
       state.monsters.splice(i, 1);
-      loseLife();
+      if (!m.itemType) loseLife();          // 아이템은 놓쳐도 하트가 깎이지 않아요
     }
   }
 }
 
 /* =========================================================================
-   입력 · 처치 · 속도 보너스
+   입력 · 마법 발사
    ========================================================================= */
 function submitAnswer(){
   const typed = input.value.trim();
@@ -557,72 +1048,173 @@ function submitAnswer(){
   highlightAimed();
   if (!typed || !state || !state.running) return;
 
-  let target = null;                       // 같은 글자가 여럿이면 기지에 가까운 것부터
+  let target = null;                    // 같은 글자면 학교에 가까운 것부터
   for (const m of state.monsters){
     if (m.word === typed && (!target || m.x < target.x)) target = m;
   }
-  if (target) killMonster(target);
+  if (target) castSpell(target);
   else {
+    SFX.wrong();
     input.classList.remove("wrong");
     void input.offsetWidth;
     input.classList.add("wrong");
   }
 }
 
-function killMonster(m){
+function castSpell(m){
   const stage = STAGES[state.stageIndex];
+  const now   = performance.now();
 
-  /* --- 점수 = 기본 점수 + 속도 보너스 (등장 후 빨리 잡을수록 큼) --- */
-  const seconds = (performance.now() - m.bornAt) / 1000;
+  fireBolt(m);
+  wizardCast();
+  if (!m.itemType) SFX.cast();           // 일반 공격 효과음 (아이템은 각자 소리가 따로 있어요)
+
+  if (m.itemType === "meteor"){          // ☄️ 별똥별 소환
+    SFX.meteor();
+    removeMonster(m, "☄️");
+    showPopup(m, "☄️", "별똥별 소환!");
+    summonMeteors(now);
+    drawHud();
+    return;
+  }
+  if (m.itemType){                       // 💗 ❄️ 🔥
+    removeMonster(m, "✨");
+    useItem(m, now);
+    drawHud();
+    return;
+  }
+
+  /* 일반 몬스터: (기본 + 속도 보너스) × 배속 × 피버 */
+  const seconds = (now - m.bornAt) / 1000;
   const basePts = 10 * stage.num;
-  const ratio   = Math.max(0, 1 - seconds / BONUS_WINDOW);
-  const bonus   = Math.round(basePts * ratio);
-  const gained  = basePts + bonus;
+  const bonus   = Math.round(basePts * Math.max(0, 1 - seconds / BONUS_WINDOW));
+  const fever   = state.feverUntil > now ? FEVER_MULT : 1;
+  const gained  = Math.round((basePts + bonus) * state.speedMult * fever);
 
-  let tag = "";
-  if (seconds < 1.5)    tag = `⚡ 번개같이! +${bonus}`;
-  else if (seconds < 3) tag = `✨ 빠르다! +${bonus}`;
-  else if (bonus > 0)   tag = `+${bonus} 보너스`;
+  const tags = [];
+  if (seconds < 1.5)       tags.push("⚡ 번개같이!");
+  else if (seconds < 3)    tags.push("✨ 빠르다!");
+  if (fever > 1)           tags.push(`🔥×${FEVER_MULT}`);
+  if (state.speedMult > 1) tags.push(`×${state.speedMult.toFixed(1)}`);
 
   state.score      += gained;
   state.stageScore += gained;
   state.kills      += 1;
 
-  showPopup(m, gained, tag);
-  shootStar(m);
-
-  m.el.classList.add("pop");
-  m.el.querySelector(".word").textContent = "💥";
-  setTimeout(() => m.el.remove(), 350);
-  state.monsters = state.monsters.filter(x => x !== m);
-
-  cat.textContent = "😻";
-  base.classList.add("happy");
-  setTimeout(() => { cat.textContent = "🐱"; base.classList.remove("happy"); }, 320);
-
+  removeMonster(m, "💥");
+  showPopup(m, `+${gained}`, tags.join(" "));
   drawHud();
   if (state.kills >= KILLS_PER_STAGE) stageCleared();
 }
 
-function showPopup(m, gained, tag){
-  const p = document.createElement("div");
-  p.className = "popup";
-  p.innerHTML = `<span class="gain">+${gained}</span>${tag ? `<span class="tag">${tag}</span>` : ""}`;
-  p.style.left = (m.x - 20) + "px";
-  p.style.top  = (m.top - 40) + "px";
-  field.appendChild(p);
-  setTimeout(() => p.remove(), 900);
+function removeMonster(m, mark){
+  m.el.classList.add("pop");
+  m.el.querySelector(".word").textContent = mark;
+  setTimeout(() => m.el.remove(), 350);
+  state.monsters = state.monsters.filter(x => x !== m);
 }
 
-function shootStar(m){
-  const star = document.createElement("div");
-  star.className = "shot";
-  star.textContent = "⭐";
-  star.style.left = "70px";
-  star.style.top  = (field.clientHeight - 70) + "px";
-  field.appendChild(star);
-  requestAnimationFrame(() => { star.style.left = m.x + "px"; star.style.top = m.top + "px"; });
-  setTimeout(() => star.remove(), 260);
+/* --- 마법 아이템 효과 --- */
+function useItem(m, now){
+  if (m.itemType === "heal")   SFX.heal();
+  if (m.itemType === "freeze") SFX.freeze();
+  if (m.itemType === "fire")   SFX.fire();
+
+  if (m.itemType === "heal"){
+    if (state.life < MAX_LIFE){
+      state.life += 1;
+      showPopup(m, "💗 +1", "회복 마법!");
+      const hearts = $("hearts").children;
+      if (hearts[state.life - 1]) hearts[state.life - 1].classList.add("gain");
+    } else {
+      state.score += HEART_FULL_PTS;
+      showPopup(m, `+${HEART_FULL_PTS}`, "하트가 가득! 대신 점수");
+    }
+  }
+  else if (m.itemType === "freeze"){
+    state.freezeUntil = Math.max(state.freezeUntil, now) + FREEZE_SEC * 1000;
+    showPopup(m, "❄️", `얼음 마법! ${FREEZE_SEC}초 정지`);
+  }
+  else if (m.itemType === "fire"){
+    state.feverUntil = Math.max(state.feverUntil, now) + FEVER_SEC * 1000;
+    showPopup(m, "🔥", `불 마법! ${FEVER_SEC}초 점수 ${FEVER_MULT}배`);
+  }
+}
+
+/* --- ☄️ 별똥별 소환: 화면의 몬스터를 전부 날려버립니다 --- */
+function summonMeteors(now){
+  const targets = state.monsters.filter(m => !m.itemType);   // 다른 아이템은 남겨 둬요
+  if (targets.length === 0) return;
+
+  state.pauseUntil = now + 120 + targets.length * 35;        // 연출 동안 아주 잠깐만 멈춤
+  const stage = STAGES[state.stageIndex];
+  const fever = state.feverUntil > now ? FEVER_MULT : 1;
+
+  targets.forEach((m, i) => {
+    setTimeout(() => {
+      if (!state || !state.monsters.includes(m)) return;
+
+      dropMeteor(m);                                          // 별똥별 낙하 연출
+      const gained = Math.round(10 * stage.num * state.speedMult * fever);
+      state.score      += gained;
+      state.stageScore += gained;
+      state.kills      += 1;
+
+      removeMonster(m, "💥");
+      showPopup(m, `+${gained}`, "☄️");
+      field.classList.add("quake");
+      setTimeout(() => field.classList.remove("quake"), 400);
+
+      drawHud();
+      if (state.kills >= KILLS_PER_STAGE && state.running) stageCleared();
+    }, 40 + i * 35);
+  });
+}
+
+function dropMeteor(m){
+  const met = document.createElement("div");
+  met.className = "meteor-fall";
+  met.textContent = "☄️";
+  met.style.left = (m.x + 110) + "px";
+  met.style.top  = "-60px";
+  field.appendChild(met);
+  requestAnimationFrame(() => { met.style.left = m.x + "px"; met.style.top = m.top + "px"; });
+  setTimeout(() => { SFX.meteorHit(); burstAt(m.x, m.top, "var(--flame)"); met.remove(); }, 210);
+}
+
+/* --- 마법 발사 연출 --- */
+function fireBolt(m){
+  const bolt = document.createElement("div");
+  bolt.className = "bolt";
+  bolt.style.left = "74px";
+  bolt.style.top  = (field.clientHeight - 78) + "px";
+  field.appendChild(bolt);
+  requestAnimationFrame(() => { bolt.style.left = m.x + "px"; bolt.style.top = m.top + "px"; });
+  setTimeout(() => { burstAt(m.x, m.top, "var(--grape)"); bolt.remove(); }, 170);
+}
+function burstAt(x, y, color){
+  const b = document.createElement("div");
+  b.className = "burst";
+  b.style.left = x + "px";
+  b.style.top  = y + "px";
+  b.style.borderColor = color;
+  field.appendChild(b);
+  setTimeout(() => b.remove(), 460);
+}
+function wizardCast(){
+  wizard.textContent = "🧙‍♂️";
+  base.classList.add("casting");
+  setTimeout(() => { wizard.textContent = "🧙"; base.classList.remove("casting"); }, 300);
+}
+
+function showPopup(m, gain, tag){
+  const p = document.createElement("div");
+  p.className = "popup";
+  p.innerHTML = `<span class="gain">${gain}</span>${tag ? `<span class="tag">${tag}</span>` : ""}`;
+  p.style.left = (m.x - 20) + "px";
+  p.style.top  = (m.top - 44) + "px";
+  field.appendChild(p);
+  setTimeout(() => p.remove(), 900);
 }
 
 function highlightAimed(){
@@ -638,9 +1230,10 @@ function highlightAimed(){
    ========================================================================= */
 function loseLife(){
   state.life -= 1;
-  cat.textContent = "🙀";
+  SFX.damage();
+  wizard.textContent = "😰";
   base.classList.add("hurt");
-  setTimeout(() => { cat.textContent = "🐱"; base.classList.remove("hurt"); }, 450);
+  setTimeout(() => { wizard.textContent = "🧙"; base.classList.remove("hurt"); }, 450);
   drawHud();
   if (state.life <= 0) endGame(false);
 }
@@ -650,14 +1243,17 @@ function clearMonsters(){
   state.monsters = [];
 }
 
-/* 단계 완료 → 다시 도전 / 다음 단계 선택 */
 function stageCleared(){
   const stage = STAGES[state.stageIndex];
   state.running = false;
+  state.freezeUntil = state.feverUntil = state.pauseUntil = 0;
   clearMonsters();
+  SFX.stageClear();
+  Music.setMood("normal");
 
-  if (HEART_ON_CLEAR && state.life < MAX_LIFE){ state.life += 1; }
+  if (HEART_ON_CLEAR && state.life < START_LIFE) state.life += 1;   // 기본 하트까지만 회복
   drawHud();
+  drawStatus(performance.now());
 
   const isLast = state.stageIndex >= STAGES.length - 1;
   const runs   = state.runs[state.stageIndex];
@@ -666,25 +1262,47 @@ function stageCleared(){
   $("clear-desc").innerHTML =
     `이번 도전 <b>${state.stageScore}점</b> 획득 · 누적 <b>${state.score}점</b>` +
     (runs > 1 ? `<br>이 단계 ${runs}번째 도전이에요 👏` : "");
-  $("next-btn").textContent = isLast ? "🏆 기록 등록하고 끝내기" : "▶ 다음 단계로";
+  $("next-btn").classList.toggle("hidden", isLast);
+  $("finish-btn").textContent = isLast ? "🏆 마스터 등록하고 끝내기" : "🏆 그만하고 랭킹 등록";
 
+  buildSpeedPicker();
   $("clear-screen").classList.remove("hidden");
 }
 
-/* 단계 시작 */
-function startStage(index){
+function buildSpeedPicker(){
+  pickedSpeed = 1.0;
+  const box = $("speed-picker");
+  box.innerHTML = "";
+  SPEED_CHOICES.forEach(s => {
+    const b = document.createElement("button");
+    b.className = "speed-btn" + (s === pickedSpeed ? " on" : "");
+    b.textContent = `${s.toFixed(1)}× 속도 · 점수 ${s.toFixed(1)}배`;
+    b.addEventListener("click", () => {
+      pickedSpeed = s;
+      [...box.children].forEach(c => c.classList.remove("on"));
+      b.classList.add("on");
+    });
+    box.appendChild(b);
+  });
+}
+
+function startStage(index, speedMult){
   state.stageIndex = index;
   state.kills = 0;
   state.stageScore = 0;
+  state.speedMult = speedMult;
   state.bag = [];
   state.spawnTimer = 0.4;
+  state.freezeUntil = state.feverUntil = state.pauseUntil = 0;
   state.runs[index] += 1;
   drawHud();
+  drawStatus(performance.now());
 
   const stage = STAGES[index];
   $("banner-emoji").textContent = stage.monsters[0];
   $("banner-title").textContent = `${stage.num}단계 · ${stage.name}`;
   $("banner-desc").textContent  = stage.desc +
+    (speedMult > 1 ? `  ⚡ ${speedMult.toFixed(1)}배속 · 점수 ${speedMult.toFixed(1)}배!` : "") +
     (state.runs[index] > 1 ? `  (${state.runs[index]}번째 도전)` : "");
   $("banner-samples").innerHTML = stage.words.slice(0, 6).map(w => `<span>${w}</span>`).join("");
   $("banner").classList.remove("hidden");
@@ -696,26 +1314,35 @@ function startStage(index){
   }, 2000);
 }
 
-/* 게임 종료 → 랭킹 등록 */
+/* cleared = true: 마지막 단계까지 깬 경우 / false: 하트 소진 / null: 스스로 그만두기 */
 async function endGame(cleared){
   state.running = false;
+  state.freezeUntil = state.feverUntil = state.pauseUntil = 0;
   clearMonsters();
+  drawStatus(performance.now());
+  Music.stop();
+  SFX.gameEnd(cleared !== false);          // 하트를 다 잃었을 때만 슬픈 음
 
   const entry = {
-    id: Date.now(),
+    id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
     name: state.nickname,
     score: state.score,
     stage: STAGES[state.stageIndex].num
   };
-  const top = await RankStore.add(entry);
+  const top  = await addRank(state.code, entry);
   const rank = top.findIndex(r => r.id === entry.id);
 
-  $("end-emoji").textContent = cleared ? "🎉" : "😿";
-  $("end-title").textContent = cleared ? "전부 지켜냈어요!" : "게임 오버";
+  $("end-emoji").textContent = cleared === false ? "😿" : (cleared ? "🎉" : "🧙‍♂️");
+  $("end-title").innerHTML   =
+    cleared === true  ? "축하합니다!<br>웨이하이한국학교 타자 마스터 달성!" :
+    cleared === false ? "게임 오버" : "수고했어요, 마법사!";
   $("end-desc").innerHTML =
-    `${escapeHtml(state.nickname)} 선수 최종 <b>${state.score}점</b>` +
-    (rank >= 0 ? ` · 명예의 전당 <b>${rank + 1}위</b>! 🎖️` : ` · 아쉽게 TOP ${RANK_SIZE} 밖이에요.`);
+    `${escapeHtml(state.nickname)} 마법사 최종 <b>${state.score}점</b>` +
+    (rank >= 0 ? ` · <b>${escapeHtml(state.code)}</b> 랭킹 <b>${rank + 1}위</b>! 🎖️`
+               : ` · 아쉽게 TOP ${RANK_SIZE} 밖이에요.`);
 
+  $("rank-title-end").textContent   = state.code;
+  $("rank-title-start").textContent = state.code;
   renderRanks(top, "rank-list-end", entry.id);
   renderRanks(top, "rank-list-start", entry.id);
   $("end-screen").classList.remove("hidden");
@@ -730,6 +1357,9 @@ function loop(now){
   lastTime = now;
   if (!state || !state.running) return;
 
+  drawStatus(now);
+  if (state.freezeUntil > now || state.pauseUntil > now) return;   // 얼음 마법 · 메테오 연출 중
+
   const stage = STAGES[state.stageIndex];
   state.spawnTimer -= dt;
   if (state.spawnTimer <= 0){
@@ -740,36 +1370,72 @@ function loop(now){
 }
 
 /* =========================================================================
-   시작 / 재시작 / 버튼
+   화면 전환 · 버튼
    ========================================================================= */
 function startGame(){
-  const nickname = ($("nickname").value.trim() || "이름없는용사").slice(0, 8);
+  const nickname = ($("nickname").value.trim() || "이름없는마법사").slice(0, 8);
+  const code     = cleanCode($("roomcode").value);
+  $("roomcode").value = code;
+
   cancelAnimationFrame(rafId);
   if (state) clearMonsters();
 
-  state = newGame(nickname);
+  Sound.init();
+  Music.start();
+
+  state = newGame(nickname, code);
   drawHud();
   $("start-screen").classList.add("hidden");
+  $("howto-screen").classList.add("hidden");
   $("end-screen").classList.add("hidden");
   $("clear-screen").classList.add("hidden");
   input.value = "";
   input.focus();
 
-  startStage(0);
+  startStage(0, 1.0);
   lastTime = performance.now();
   rafId = requestAnimationFrame(loop);
 }
 
-$("start-btn").addEventListener("click", startGame);
+async function refreshStartRanks(){
+  const code = cleanCode($("roomcode").value);
+  $("rank-title-start").textContent = code;
+  renderRanks(await loadRanks(code), "rank-list-start");
+}
 
-$("again-btn").addEventListener("click", () => {     // 같은 단계 반복 — 점수 누적
-  $("clear-screen").classList.add("hidden");
-  startStage(state.stageIndex);
+$("to-howto-btn").addEventListener("click", () => {
+  Sound.init();                                   // 첫 클릭 때 오디오를 깨워 둡니다
+  $("start-screen").classList.add("hidden");
+  $("howto-screen").classList.remove("hidden");
 });
-$("next-btn").addEventListener("click", () => {
+$("mute-btn").addEventListener("click", () => {
+  Sound.init();
+  const muted = Sound.toggleMute();
+  $("mute-btn").textContent = muted ? "🔇" : "🔊";
+  $("mute-btn").classList.toggle("off", muted);
+  input.focus();
+});
+$("back-btn").addEventListener("click", () => {
+  $("howto-screen").classList.add("hidden");
+  $("start-screen").classList.remove("hidden");
+});
+$("start-btn").addEventListener("click", startGame);
+$("roomcode").addEventListener("change", refreshStartRanks);
+$("roomcode").addEventListener("blur", refreshStartRanks);
+
+$("again-btn").addEventListener("click", () => {      // 같은 단계 반복 — 고른 배속 적용
   $("clear-screen").classList.add("hidden");
-  if (state.stageIndex >= STAGES.length - 1) endGame(true);
-  else startStage(state.stageIndex + 1);
+  startStage(state.stageIndex, pickedSpeed);
+});
+$("next-btn").addEventListener("click", () => {       // 다음 단계 — 항상 1배속
+  if (state.stageIndex >= STAGES.length - 1) return;  // 마지막 단계에는 다음이 없어요
+  $("clear-screen").classList.add("hidden");
+  startStage(state.stageIndex + 1, 1.0);
+});
+$("finish-btn").addEventListener("click", () => {     // 그만하고 랭킹 등록
+  const isLast = state.stageIndex >= STAGES.length - 1;
+  $("clear-screen").classList.add("hidden");
+  endGame(isLast ? true : null);
 });
 $("retry-btn").addEventListener("click", () => {
   $("end-screen").classList.add("hidden");
@@ -777,14 +1443,16 @@ $("retry-btn").addEventListener("click", () => {
   $("nickname").focus();
 });
 $("clear-rank-btn").addEventListener("click", async () => {
-  await RankStore.clear();
-  renderRanks([], "rank-list-start");
+  const code = cleanCode($("roomcode").value);
+  if (!confirm(`'${code}' 코드의 랭킹을 모두 지울까요? 같은 코드를 쓰는 친구들의 기록도 함께 사라집니다.`)) return;
+  await clearRanks(code);
+  refreshStartRanks();
 });
 $("enter-key").addEventListener("click", () => { submitAnswer(); input.focus(); });
 field.addEventListener("click", (e) => { if (!e.target.closest(".overlay")) input.focus(); });
 input.addEventListener("input", highlightAimed);
 $("nickname").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.isComposing) startGame();
+  if (e.key === "Enter" && !e.isComposing) $("to-howto-btn").click();
 });
 
 /* ---- 한글 IME 처리: 조합 중 Enter는 조합 확정에 먼저 쓰이므로 예약했다가 발사 ---- */
@@ -805,8 +1473,9 @@ input.addEventListener("keyup", (e) => {
   if (e.key === "Enter" && pendingEnter){ pendingEnter = false; submitAnswer(); }
 });
 
-/* 첫 화면에 랭킹 표시 */
-(async () => { renderRanks(await RankStore.load(), "rank-list-start"); })();
+/* 첫 화면 준비 */
+$("roomcode").value = DEFAULT_CODE;
+refreshStartRanks();
 </script>
 </body>
 </html>
