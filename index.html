@@ -318,6 +318,15 @@ body{
   background:var(--grape); border-color:var(--ink); color:#fff;
   box-shadow:0 4px 0 #7C6BD8;
 }
+/* 틀렸을 때: Backspace 를 빨갛게 */
+#kb-rows .key.hot-wrong{
+  background:#F2545B; border-color:var(--ink); color:#fff;
+  box-shadow:0 5px 0 #C93F45;
+  animation:wrong-pulse .5s ease-in-out infinite;
+}
+#kb-rows .key.hot-wrong .kor, #kb-rows .key.hot-wrong .eng{ color:#fff; }
+.kb-next.wrong{ background:#F2545B; box-shadow:0 3px 0 #C93F45; }
+@keyframes wrong-pulse{ 0%,100%{ transform:translateY(-3px) scale(1.12); } 50%{ transform:translateY(-3px) scale(1.2); } }
 @keyframes key-pulse{ 0%,100%{ box-shadow:0 5px 0 #E9738E; } 50%{ box-shadow:0 5px 0 #E9738E, 0 0 16px 4px var(--berry); } }
 
 @media (max-width:640px){
@@ -1171,9 +1180,9 @@ const KEYMAP = {
   "ㅒ":["o",1], "ㅖ":["p",1]
 };
 
-/* 자판 배열 (Enter, 양쪽 Shift 포함) */
+/* 자판 배열 (Backspace, Enter, 양쪽 Shift 포함) */
 const KB_ROWS = [
-  ["q","w","e","r","t","y","u","i","o","p"],
+  ["q","w","e","r","t","y","u","i","o","p","back"],
   ["a","s","d","f","g","h","j","k","l","enter"],
   ["shiftL","z","x","c","v","b","n","m","shiftR"],
   ["space"]
@@ -1187,7 +1196,7 @@ const FINGER = {
   h:"R2", j:"R2", k:"R3", l:"R4",
   z:"L5", x:"L4", c:"L3", v:"L2", b:"L2",
   n:"R2", m:"R2",
-  shiftL:"L5", shiftR:"R5", enter:"R5", space:"BOTH1"
+  shiftL:"L5", shiftR:"R5", enter:"R5", back:"R5", space:"BOTH1"
 };
 const FINGER_NAME = { 5:"새끼", 4:"약지", 3:"중지", 2:"검지", 1:"엄지" };
 
@@ -1254,6 +1263,9 @@ function buildKeyboard(){
       if (k === "shiftL" || k === "shiftR"){
         cls.push("wide");
         el.innerHTML = `<span class="eng">Shift</span><span class="kor">⇧</span>`;
+      } else if (k === "back"){
+        cls.push("enter");
+        el.innerHTML = `<span class="eng">Backspace</span><span class="kor">⌫ 지우기</span>`;
       } else if (k === "enter"){
         cls.push("enter");
         el.innerHTML = `<span class="eng">Enter</span><span class="kor">↵ 발사</span>`;
@@ -1312,12 +1324,19 @@ function updateKeyboard(){
                typedKeys.every((t, i) => mk[i].key === t.key && mk[i].shift === t.shift);
     if (ok && (!target || m.x < target.x)) target = m;
   }
-  if (!target){                                   // 맞는 게 없으면 가장 가까운 몬스터
+
+  /* 친 글자가 어떤 몬스터와도 맞지 않으면 → 틀렸으니 지워야 해요 */
+  const wrong = !target && typedKeys.length > 0 && state.monsters.length > 0;
+
+  if (!target && !wrong){                         // 화면이 비었으면 가장 가까운 몬스터
     for (const m of state.monsters) if (!target || m.x < target.x) target = m;
   }
 
   let hot = "", shiftKey = "", jamo = "–";
-  if (target){
+  if (wrong){
+    hot  = "back";
+    jamo = "⌫ 지우기";
+  } else if (target){
     const mk = textToKeys(target.word);
     if (typedKeys.length >= mk.length){           // 글자를 다 쳤다 → 이제 Enter!
       hot = "enter";
@@ -1330,11 +1349,12 @@ function updateKeyboard(){
     }
   }
 
-  const sig = hot + "|" + shiftKey;
+  const sig = hot + "|" + shiftKey + "|" + wrong;
   if (sig === lastHot) return;                    // 바뀔 때만 화면을 고칩니다
   lastHot = sig;
 
-  document.querySelectorAll("#kb-rows .key").forEach(el => el.classList.remove("hot", "hot-shift"));
+  document.querySelectorAll("#kb-rows .key").forEach(el =>
+    el.classList.remove("hot", "hot-shift", "hot-wrong"));
   document.querySelectorAll("#hands .finger").forEach(el => el.classList.remove("on"));
 
   const light = (k, cls) => {
@@ -1355,7 +1375,7 @@ function updateKeyboard(){
 
   let fingerText = "–";
   if (hot){
-    light(hot, ["hot"]);
+    light(hot, wrong ? ["hot", "hot-wrong"] : ["hot"]);
     fingerText = lightFinger(hot) || "–";
     if (shiftKey){
       light(shiftKey, ["hot", "hot-shift"]);
@@ -1365,6 +1385,10 @@ function updateKeyboard(){
   }
   $("kb-next").textContent   = jamo;
   $("kb-finger").textContent = fingerText;
+  $("kb-next").classList.toggle("wrong", wrong);
+  $("hint").textContent = wrong
+    ? "앗, 틀렸어요! ⌫ Backspace로 지우고 다시 해 보세요."
+    : "키보드에서 반짝이는 자리를 찾아 눌러 보세요. 다 치면 Enter!";
 }
 
 /* =========================================================================
