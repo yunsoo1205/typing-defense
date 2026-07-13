@@ -251,8 +251,26 @@ body{
 .key .eng{ font-size:9px; color:#C4B8CB; line-height:1; }
 .key .kor{ font-family:var(--font-display); font-size:17px; line-height:1.15; }
 .key.wide{ width:74px; }
+.key.enter{ width:74px; background:#F3EFFA; }
+.key.enter .kor{ font-size:13px; color:var(--grape); }
 .key.space{ width:230px; }
 .key.space .kor{ font-size:12px; color:var(--ink-soft); }
+
+/* 손가락 안내 */
+.kb-finger{
+  font-family:var(--font-display); font-size:15px;
+  background:var(--grape); color:#fff; border-radius:999px; padding:3px 14px;
+  box-shadow:0 3px 0 #7C6BD8;
+}
+#hands{ display:flex; justify-content:center; gap:34px; margin-top:8px; }
+#hands svg{ width:96px; height:82px; }
+.palm{ fill:#FFF6FA; stroke:#D8CCE0; stroke-width:2.5; }
+.finger{ fill:#fff; stroke:#D8CCE0; stroke-width:2.5; transition:fill .12s, stroke .12s; }
+.finger.on{
+  fill:var(--berry); stroke:var(--berry);
+  animation:key-pulse .8s ease-in-out infinite;
+}
+.hand-label{ font-family:var(--font-display); font-size:11px; fill:var(--ink-soft); }
 /* 지금 눌러야 할 자리 */
 .key.hot{
   background:var(--berry); border-color:var(--berry); color:#fff;
@@ -273,8 +291,8 @@ body{
   .key.space{ width:150px; }
   .key.wide{ width:52px; }
 }
-/* 🐣 견습 모드: 자판이 들어오므로 게임 화면을 낮춰 한눈에 보이게 합니다 */
-#app.practice{ --field-h: clamp(250px, 36vh, 360px); }
+/* 🐣 견습 모드: 자판과 손 그림이 들어오므로 게임 화면을 낮춰 한눈에 보이게 합니다 */
+#app.practice{ --field-h: clamp(220px, 30vh, 320px); }
 #app.practice #dock{ padding:10px 18px 12px; }
 #app.practice #hud{ padding:9px 18px; }
 #app.practice #answer{ font-size:22px; padding:10px 18px; }
@@ -611,8 +629,10 @@ body{
       <div class="kb-guide">
         <span class="kb-label">다음에 누를 자리</span>
         <span class="kb-next" id="kb-next">–</span>
+        <span class="kb-finger" id="kb-finger">–</span>
       </div>
       <div id="kb-rows"></div>
+      <div id="hands"></div>
     </div>
     <div id="input-row">
       <input id="answer" type="text" autocomplete="off" autocapitalize="off"
@@ -1116,13 +1136,29 @@ const KEYMAP = {
   "ㅒ":["o",1], "ㅖ":["p",1]
 };
 
-/* 자판 배열 */
+/* 자판 배열 (Enter, 양쪽 Shift 포함) */
 const KB_ROWS = [
   ["q","w","e","r","t","y","u","i","o","p"],
-  ["a","s","d","f","g","h","j","k","l"],
-  ["shift","z","x","c","v","b","n","m"],
+  ["a","s","d","f","g","h","j","k","l","enter"],
+  ["shiftL","z","x","c","v","b","n","m","shiftR"],
   ["space"]
 ];
+
+/* 어느 손가락으로 누르는지 (L=왼손 R=오른손, 5=새끼 4=약지 3=중지 2=검지 1=엄지) */
+const FINGER = {
+  q:"L5", w:"L4", e:"L3", r:"L2", t:"L2",
+  y:"R2", u:"R2", i:"R3", o:"R4", p:"R5",
+  a:"L5", s:"L4", d:"L3", f:"L2", g:"L2",
+  h:"R2", j:"R2", k:"R3", l:"R4",
+  z:"L5", x:"L4", c:"L3", v:"L2", b:"L2",
+  n:"R2", m:"R2",
+  shiftL:"L5", shiftR:"R5", enter:"R5", space:"BOTH1"
+};
+const FINGER_NAME = { 5:"새끼", 4:"약지", 3:"중지", 2:"검지", 1:"엄지" };
+
+/* 왼손 자리를 칠 때는 오른쪽 Shift, 오른손 자리를 칠 때는 왼쪽 Shift를 씁니다 */
+const LEFT_KEYS = "qwertasdfgzxcvb";
+function shiftKeyFor(key){ return LEFT_KEYS.includes(key) ? "shiftR" : "shiftL"; }
 
 /* 글자 하나를 낱자들로 쪼갭니다 */
 function splitJamo(ch){
@@ -1171,9 +1207,12 @@ function buildKeyboard(){
     row.forEach(k => {
       const el = document.createElement("div");
       el.dataset.key = k;
-      if (k === "shift"){
+      if (k === "shiftL" || k === "shiftR"){
         el.className = "key wide";
         el.innerHTML = `<span class="eng">Shift</span><span class="kor">⇧</span>`;
+      } else if (k === "enter"){
+        el.className = "key enter";
+        el.innerHTML = `<span class="eng">Enter</span><span class="kor">↵ 발사</span>`;
       } else if (k === "space"){
         el.className = "key space";
         el.innerHTML = `<span class="eng">Space</span><span class="kor">띄어쓰기</span>`;
@@ -1185,9 +1224,36 @@ function buildKeyboard(){
     });
     box.appendChild(r);
   });
+  buildHands();
 }
 
-/* 지금 눌러야 할 키를 반짝이게 */
+/* 손 그림 그리기 (왼손 / 오른손) */
+function buildHands(){
+  // [손가락번호, x, y, 높이] — 새끼는 짧고 중지는 길게
+  const FINGERS = [
+    [5,  4, 26, 34],
+    [4, 22, 14, 46],
+    [3, 40,  8, 52],
+    [2, 58, 18, 42]
+  ];
+  const hand = (side) => {
+    const flip = side === "R" ? ` transform="translate(104,0) scale(-1,1)"` : "";
+    const parts = FINGERS.map(([n, x, y, h]) =>
+      `<rect class="finger" id="f${side}${n}" x="${x}" y="${y}" width="14" height="${h}" rx="7"/>`
+    ).join("");
+    const thumb =
+      `<rect class="finger" id="f${side}1" x="76" y="46" width="13" height="26" rx="6.5"
+             transform="rotate(32 82 59)"/>`;
+    const palm = `<rect class="palm" x="2" y="58" width="74" height="26" rx="12"/>`;
+    return `<svg viewBox="0 0 104 92" aria-hidden="true">
+      <g${flip}>${palm}${parts}${thumb}</g>
+      <text class="hand-label" x="52" y="91" text-anchor="middle">${side === "L" ? "왼손" : "오른손"}</text>
+    </svg>`;
+  };
+  $("hands").innerHTML = hand("L") + hand("R");
+}
+
+/* 지금 눌러야 할 키와 손가락을 반짝이게 */
 let lastHot = "";
 function updateKeyboard(){
   if (!state || !state.practice) return;
@@ -1198,36 +1264,63 @@ function updateKeyboard(){
   // 지금까지 친 것과 앞부분이 맞는 몬스터 중, 학교에 가장 가까운 것
   for (const m of state.monsters){
     const mk = textToKeys(m.word);
-    const ok = typedKeys.every((t, i) => mk[i] && mk[i].key === t.key && mk[i].shift === t.shift);
-    if (ok && mk.length > typedKeys.length && (!target || m.x < target.x)) target = m;
+    const ok = mk.length >= typedKeys.length &&
+               typedKeys.every((t, i) => mk[i].key === t.key && mk[i].shift === t.shift);
+    if (ok && (!target || m.x < target.x)) target = m;
   }
   if (!target){                                   // 맞는 게 없으면 가장 가까운 몬스터
     for (const m of state.monsters) if (!target || m.x < target.x) target = m;
   }
 
-  let hot = "", shift = 0, jamo = "–";
+  let hot = "", shiftKey = "", jamo = "–";
   if (target){
     const mk = textToKeys(target.word);
-    const next = mk[Math.min(typedKeys.length, mk.length - 1)];
-    if (next){ hot = next.key; shift = next.shift; jamo = next.jamo; }
+    if (typedKeys.length >= mk.length){           // 글자를 다 쳤다 → 이제 Enter!
+      hot = "enter";
+      jamo = "Enter ↵";
+    } else {
+      const next = mk[typedKeys.length];
+      hot  = next.key;
+      jamo = next.jamo;
+      if (next.shift) shiftKey = shiftKeyFor(next.key);
+    }
   }
 
-  const sig = hot + shift;
+  const sig = hot + "|" + shiftKey;
   if (sig === lastHot) return;                    // 바뀔 때만 화면을 고칩니다
   lastHot = sig;
 
-  document.querySelectorAll("#kb-rows .key").forEach(el => {
-    el.classList.remove("hot", "hot-shift");
-  });
+  document.querySelectorAll("#kb-rows .key").forEach(el => el.classList.remove("hot", "hot-shift"));
+  document.querySelectorAll("#hands .finger").forEach(el => el.classList.remove("on"));
+
+  const light = (k, cls) => {
+    const el = document.querySelector(`#kb-rows .key[data-key="${k}"]`);
+    if (el) el.classList.add(...cls);
+  };
+  const lightFinger = (k) => {
+    const f = FINGER[k];
+    if (!f) return;
+    if (f === "BOTH1"){                           // 스페이스 = 엄지
+      document.querySelectorAll("#fL1, #fR1").forEach(el => el.classList.add("on"));
+      return "엄지손가락";
+    }
+    const el = document.getElementById("f" + f);
+    if (el) el.classList.add("on");
+    return `${f[0] === "L" ? "왼손" : "오른손"} ${FINGER_NAME[f[1]]}`;
+  };
+
+  let fingerText = "–";
   if (hot){
-    const el = document.querySelector(`#kb-rows .key[data-key="${hot}"]`);
-    if (el) el.classList.add("hot");
-    if (shift){
-      const sh = document.querySelector('#kb-rows .key[data-key="shift"]');
-      if (sh) sh.classList.add("hot", "hot-shift");
+    light(hot, ["hot"]);
+    fingerText = lightFinger(hot) || "–";
+    if (shiftKey){
+      light(shiftKey, ["hot", "hot-shift"]);
+      const sf = lightFinger(shiftKey);
+      fingerText = `${sf} (Shift) + ${fingerText}`;
     }
   }
-  $("kb-next").textContent = jamo;
+  $("kb-next").textContent   = jamo;
+  $("kb-finger").textContent = fingerText;
 }
 
 /* =========================================================================
