@@ -297,6 +297,15 @@ body{
 .mode-btn.on{ border-color:var(--berry); background:#FFF4F7; transform:scale(1.04); }
 .mode-btn.on b{ color:var(--berry); }
 
+/* 시작 단계 선택 */
+.stage-select{ display:flex; align-items:center; gap:8px; }
+.stage-select label{ font-size:13px; color:var(--ink-soft); }
+#start-stage{
+  font-family:var(--font-display); font-size:16px; padding:8px 14px;
+  border:3px solid var(--mint); border-radius:999px;
+  background:#fff; color:var(--ink); outline:none; cursor:pointer;
+}
+
 /* 배속 선택 */
 #speed-picker{ display:flex; gap:7px; flex-wrap:wrap; justify-content:center; }
 .speed-btn{
@@ -489,6 +498,10 @@ body{
           <span class="txt"><b>고급 마법사</b><br>모든 단계 2배속 · 점수도 2배!</span>
         </button>
       </div>
+      <div class="stage-select">
+        <label for="start-stage">시작할 단계</label>
+        <select id="start-stage"></select>
+      </div>
       <div class="btn-row">
         <button class="btn ghost" id="back-btn">← 뒤로</button>
         <button class="btn" id="start-btn">🪄 마법 시작!</button>
@@ -578,11 +591,56 @@ const STAGES = [
   },
   {
     num: 5, name: "받침 단어",
-    desc: "마지막 단계! 받침이 하나 붙은 낱말이에요.",
+    desc: "받침이 하나 붙은 낱말이에요.",
     words: ["나방","가방","수박","구름","바람","공장","사람","하늘","그림",
             "우산","이불","수건","소금","사탕","지붕","자석","마을","저녁",
             "도장","무릎","학교","노을","시장","부엌"],
     monsters: ["👺","🤖","👻"], speed: 100, spawnEvery: 1.9
+  },
+  {
+    num: 6, name: "쌍자음 (Shift 연습)",
+    desc: "새끼손가락으로 Shift를 누른 채 자음을 눌러요!",
+    words: ["까치","꿀벌","딸기","빵집","토끼","짜장","뿌리","씨앗","빨래",
+            "꼬리","뚜껑","싸움","쌀밥","뽀뽀","꽃잎","깜짝","짝꿍","꼭지",
+            "뻐꾸기","쌍둥이","뼈다귀","까마귀","뚝배기","씩씩","깡충","쭈글"],
+    monsters: ["😈","🦂","🐊"], speed: 95, spawnEvery: 2.2
+  },
+  {
+    num: 7, name: "복잡한 모음",
+    desc: "ㅗ+ㅏ=ㅘ 처럼 모음을 합쳐서 만들어요.",
+    words: ["과자","사과","화분","화가","과일","원숭이","원피스","의자","의사",
+            "회사","회의","왼손","왼발","최고","최선","위로","위기","귀신",
+            "뒤쪽","취미","권투","훨씬","돼지","궤도","희망","무늬","외투","쥐"],
+    monsters: ["🧟","🦖","🐉"], speed: 90, spawnEvery: 2.3
+  },
+  {
+    num: 8, name: "겹받침",
+    desc: "받침을 두 개나 붙이는 어려운 글자예요.",
+    words: ["읽다","앉다","밟다","없다","많다","짧다","굵다","맑다","젊다",
+            "앓다","핥다","읊다","갉다","얹다","잃다","싫다","옳다","붉다",
+            "값","닭","삶","흙","넋","몫","삯","여덟"],
+    monsters: ["👹","🦇","🕸️"], speed: 85, spawnEvery: 2.4
+  },
+  {
+    num: 9, name: "짧은 어절 (띄어쓰기)",
+    desc: "엄지로 스페이스바를 눌러 띄어 써요!",
+    words: ["나는 학생","밥을 먹다","하늘이 맑다","학교에 가다","책을 읽다",
+            "물을 마시다","노래를 부르다","친구와 놀다","손을 씻다","공을 차다",
+            "그림을 그리다","편지를 쓰다","사진을 찍다","이를 닦다","꽃이 피다",
+            "바람이 불다","눈이 내리다","문을 열다","자리에 앉다","신발을 신다",
+            "숙제를 하다","계단을 오르다","달리기를 하다","우유를 마시다"],
+    monsters: ["🛸","👽","🤖"], speed: 65, spawnEvery: 3.6
+  },
+  {
+    num: 10, name: "문장 완성",
+    desc: "마지막 단계! 문장을 끝까지 또박또박 쳐요.",
+    words: ["오늘도 좋은 하루","나는 타자를 잘 친다","우리 학교는 아름답다",
+            "친구와 사이좋게 지내요","아침에 일찍 일어나요","책을 읽으면 즐거워요",
+            "손을 깨끗이 씻어요","매일 조금씩 연습해요","우리는 한글을 사랑해요",
+            "노래를 크게 불러요","함께 하면 더 재미있어요","나는 날마다 자란다",
+            "웨이하이의 바다는 푸르다","열 손가락을 모두 써요","바른 자세로 앉아요",
+            "천천히 그리고 정확하게","실수해도 괜찮아요","오늘은 어제보다 빠르다"],
+    monsters: ["🐲","👾","🔥"], speed: 55, spawnEvery: 4.6
   }
 ];
 
@@ -591,8 +649,27 @@ const KILLS_PER_STAGE = 10;   // 한 단계에서 잡아야 하는 몬스터 수
 const START_LIFE      = 3;    // 시작 하트
 const MAX_LIFE        = 5;    // 하트 최대치
 const BASE_X          = 100;  // 학교 경계선(px)
-const BONUS_WINDOW    = 6;    // 이 시간(초) 안에 잡으면 속도 보너스
 const HEART_ON_CLEAR  = true; // 단계 완료 시 하트 1개 회복 (START_LIFE 까지만)
+
+/* ------------------------- 점수 공식 -------------------------
+   기본 점수 = (글자 수 × 8) + (단계 × 5)
+     · 1단계 'ㅏ'(1자)            →  8 + 5  =  13점
+     · 5단계 '수박'(2자)          → 16 + 25 =  41점
+     · 10단계 '오늘도 좋은 하루'(9자) → 72 + 50 = 122점
+   여기에 속도 보너스(최대 기본 점수만큼) × 배속 × 피버(2배)가 곱해집니다.
+   보너스 시간은 글자가 길수록 넉넉하게 주어집니다.
+------------------------------------------------------------- */
+const POINT_PER_CHAR  = 8;
+const POINT_PER_STAGE = 5;
+const BONUS_BASE_SEC  = 4;    // 보너스 시간 = 4초 + 글자당 1.2초
+const BONUS_PER_CHAR  = 1.2;
+
+function basePoints(word, stageNum){
+  return word.length * POINT_PER_CHAR + stageNum * POINT_PER_STAGE;
+}
+function bonusWindow(word){
+  return BONUS_BASE_SEC + word.length * BONUS_PER_CHAR;
+}
 
 /* ------------------------- 마법 아이템 ------------------------- */
 const ITEM_CHANCE = 0.16;     // 몬스터 대신 아이템이 나올 확률
@@ -1130,14 +1207,14 @@ function castSpell(m){
 
   /* 일반 몬스터: (기본 + 속도 보너스) × 배속 × 피버 */
   const seconds = (now - m.bornAt) / 1000;
-  const basePts = 10 * stage.num;
-  const bonus   = Math.round(basePts * Math.max(0, 1 - seconds / BONUS_WINDOW));
+  const basePts = basePoints(m.word, stage.num);
+  const bonus   = Math.round(basePts * Math.max(0, 1 - seconds / bonusWindow(m.word)));
   const fever   = state.feverUntil > now ? FEVER_MULT : 1;
   const gained  = Math.round((basePts + bonus) * state.speedMult * fever);
 
   const tags = [];
-  if (seconds < 1.5)       tags.push("⚡ 번개같이!");
-  else if (seconds < 3)    tags.push("✨ 빠르다!");
+  if (bonus > basePts * 0.7)      tags.push("⚡ 번개같이!");
+  else if (bonus > basePts * 0.4) tags.push("✨ 빠르다!");
   if (fever > 1)           tags.push(`🔥×${FEVER_MULT}`);
   if (state.speedMult > 1) tags.push(`×${state.speedMult.toFixed(1)}`);
 
@@ -1199,7 +1276,7 @@ function summonMeteors(now){
       if (!state || !state.monsters.includes(m)) return;
 
       dropMeteor(m);                                          // 별똥별 낙하 연출
-      const gained = Math.round(10 * stage.num * state.speedMult * fever);
+      const gained = Math.round(basePoints(m.word, stage.num) * state.speedMult * fever);
       state.score      += gained;
       state.stageScore += gained;
       state.kills      += 1;
@@ -1355,7 +1432,9 @@ function startStage(index, speedMult){
   $("banner-desc").textContent  = stage.desc +
     (speedMult > 1 ? `  ⚡ ${speedMult.toFixed(1)}배속 · 점수 ${speedMult.toFixed(1)}배!` : "") +
     (state.runs[index] > 1 ? `  (${state.runs[index]}번째 도전)` : "");
-  $("banner-samples").innerHTML = stage.words.slice(0, 6).map(w => `<span>${w}</span>`).join("");
+  $("banner-samples").innerHTML = stage.words
+    .slice(0, stage.words[0].length > 5 ? 2 : (stage.words[0].length > 2 ? 4 : 6))
+    .map(w => `<span>${w}</span>`).join("");
   $("banner").classList.remove("hidden");
 
   setTimeout(() => {
@@ -1455,10 +1534,19 @@ function startGame(){
   input.value = "";
   input.focus();
 
-  startStage(0, state.baseSpeed);
+  const startIndex = Math.max(0, Math.min(STAGES.length - 1, parseInt($("start-stage").value, 10) - 1 || 0));
+  startStage(startIndex, state.baseSpeed);
   lastTime = performance.now();
   rafId = requestAnimationFrame(loop);
 }
+
+/* 시작 단계 드롭다운 채우기 */
+STAGES.forEach(s => {
+  const o = document.createElement("option");
+  o.value = s.num;
+  o.textContent = `${s.num}단계 · ${s.name}`;
+  $("start-stage").appendChild(o);
+});
 
 let previewMode = 1.0;     // 시작 화면에서 보고 있는 랭킹의 난이도
 
