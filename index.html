@@ -26,6 +26,17 @@
   --ink:      #5A4A63;
   --ink-soft: #8C7E95;
 
+  /* 손가락별 색 (한컴타자연습처럼 자판과 손 그림의 색을 맞춥니다) */
+  --f-L5: #FFB3C7;   /* 왼손 새끼 */
+  --f-L4: #FFD09E;   /* 왼손 약지 */
+  --f-L3: #FBE79B;   /* 왼손 중지 */
+  --f-L2: #B7E4A8;   /* 왼손 검지 */
+  --f-R2: #9BDDD3;   /* 오른손 검지 */
+  --f-R3: #A9CDF5;   /* 오른손 중지 */
+  --f-R4: #C3B7F5;   /* 오른손 약지 */
+  --f-R5: #EFB4E8;   /* 오른손 새끼 */
+  --f-T:  #DCD4E4;   /* 엄지 */
+
   --font-display: 'Jua', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --font-body:    'Gowun Dodum', 'Apple SD Gothic Neo', sans-serif;
 
@@ -243,16 +254,29 @@ body{
 }
 .kb-row{ display:flex; justify-content:center; gap:4px; margin-bottom:4px; }
 .key{
+  position:relative;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   width:44px; height:44px; border-radius:9px;
   background:#fff; border:2px solid #E6DDEC; box-shadow:0 3px 0 rgba(90,74,99,.12);
   transition:transform .1s, background .1s;
 }
-.key .eng{ font-size:9px; color:#C4B8CB; line-height:1; }
+/* 손가락별 색 */
+.key.f-L5{ background:var(--f-L5); } .key.f-L4{ background:var(--f-L4); }
+.key.f-L3{ background:var(--f-L3); } .key.f-L2{ background:var(--f-L2); }
+.key.f-R2{ background:var(--f-R2); } .key.f-R3{ background:var(--f-R3); }
+.key.f-R4{ background:var(--f-R4); } .key.f-R5{ background:var(--f-R5); }
+.key.f-BOTH1{ background:var(--f-T); }
+/* 기본 자리(홈 포지션) */
+.key.home{ border-color:var(--ink); border-width:3px; }
+.key.bump::after{
+  content:""; position:absolute; bottom:5px;
+  width:14px; height:3px; border-radius:2px; background:var(--ink); opacity:.55;
+}
+.key .eng{ font-size:9px; color:rgba(90,74,99,.5); line-height:1; }
 .key .kor{ font-family:var(--font-display); font-size:17px; line-height:1.15; }
 .key.wide{ width:74px; }
-.key.enter{ width:74px; background:#F3EFFA; }
-.key.enter .kor{ font-size:13px; color:var(--grape); }
+.key.enter{ width:74px; }
+.key.enter .kor{ font-size:13px; }
 .key.space{ width:230px; }
 .key.space .kor{ font-size:12px; color:var(--ink-soft); }
 
@@ -265,22 +289,33 @@ body{
 #hands{ display:flex; justify-content:center; gap:34px; margin-top:8px; }
 #hands svg{ width:96px; height:82px; }
 .palm{ fill:#FFF6FA; stroke:#D8CCE0; stroke-width:2.5; }
-.finger{ fill:#fff; stroke:#D8CCE0; stroke-width:2.5; transition:fill .12s, stroke .12s; }
+.finger{
+  stroke:#C9BFD3; stroke-width:2; opacity:.45;
+  transition:opacity .12s, stroke .12s;
+}
+.finger.f-L5{ fill:var(--f-L5); } .finger.f-L4{ fill:var(--f-L4); }
+.finger.f-L3{ fill:var(--f-L3); } .finger.f-L2{ fill:var(--f-L2); }
+.finger.f-R2{ fill:var(--f-R2); } .finger.f-R3{ fill:var(--f-R3); }
+.finger.f-R4{ fill:var(--f-R4); } .finger.f-R5{ fill:var(--f-R5); }
+.finger.f-L1, .finger.f-R1{ fill:var(--f-T); }
+/* 지금 쓸 손가락 */
 .finger.on{
-  fill:var(--berry); stroke:var(--berry);
-  animation:key-pulse .8s ease-in-out infinite;
+  opacity:1; stroke:var(--ink); stroke-width:3;
+  animation:finger-pulse .8s ease-in-out infinite;
 }
 .hand-label{ font-family:var(--font-display); font-size:11px; fill:var(--ink-soft); }
-/* 지금 눌러야 할 자리 */
-.key.hot{
-  background:var(--berry); border-color:var(--berry); color:#fff;
-  transform:translateY(-3px) scale(1.1); box-shadow:0 5px 0 #E9738E;
+@keyframes finger-pulse{ 0%,100%{ stroke-width:3; } 50%{ stroke-width:5.5; } }
+/* 지금 눌러야 할 자리 (색깔 키 위에서도 확실히 보이게 우선순위를 높입니다) */
+#kb-rows .key.hot{
+  background:var(--berry); border-color:var(--ink); color:#fff;
+  transform:translateY(-3px) scale(1.12); box-shadow:0 5px 0 #E9738E;
   animation:key-pulse .8s ease-in-out infinite;
 }
-.key.hot .eng{ color:rgba(255,255,255,.8); }
+#kb-rows .key.hot .eng{ color:rgba(255,255,255,.85); }
+#kb-rows .key.hot .kor{ color:#fff; }
 /* Shift 를 함께 눌러야 할 때 */
-.key.hot-shift{
-  background:var(--grape); border-color:var(--grape); color:#fff;
+#kb-rows .key.hot-shift{
+  background:var(--grape); border-color:var(--ink); color:#fff;
   box-shadow:0 4px 0 #7C6BD8;
 }
 @keyframes key-pulse{ 0%,100%{ box-shadow:0 5px 0 #E9738E; } 50%{ box-shadow:0 5px 0 #E9738E, 0 0 16px 4px var(--berry); } }
@@ -1193,6 +1228,10 @@ function textToKeys(text){
   return keys;
 }
 
+/* 기본 자리(홈 포지션): ㅁㄴㅇㄹ / ㅗㅓㅏㅣ · 돌기가 있는 키: ㄹ(F), ㅓ(J) */
+const HOME_KEYS = ["a","s","d","f","h","j","k","l"];
+const BUMP_KEYS = ["f","j"];
+
 /* 자판 그리기 */
 function buildKeyboard(){
   const box = $("kb-rows");
@@ -1207,19 +1246,24 @@ function buildKeyboard(){
     row.forEach(k => {
       const el = document.createElement("div");
       el.dataset.key = k;
+
+      const cls = ["key", "f-" + (FINGER[k] || "")];       // 손가락 색
+      if (HOME_KEYS.includes(k)) cls.push("home");         // 기본 자리
+      if (BUMP_KEYS.includes(k)) cls.push("bump");         // 돌기
+
       if (k === "shiftL" || k === "shiftR"){
-        el.className = "key wide";
+        cls.push("wide");
         el.innerHTML = `<span class="eng">Shift</span><span class="kor">⇧</span>`;
       } else if (k === "enter"){
-        el.className = "key enter";
+        cls.push("enter");
         el.innerHTML = `<span class="eng">Enter</span><span class="kor">↵ 발사</span>`;
       } else if (k === "space"){
-        el.className = "key space";
+        cls.push("space");
         el.innerHTML = `<span class="eng">Space</span><span class="kor">띄어쓰기</span>`;
       } else {
-        el.className = "key";
         el.innerHTML = `<span class="eng">${k.toUpperCase()}</span><span class="kor">${label[k] || ""}</span>`;
       }
+      el.className = cls.join(" ");
       r.appendChild(el);
     });
     box.appendChild(r);
@@ -1239,10 +1283,10 @@ function buildHands(){
   const hand = (side) => {
     const flip = side === "R" ? ` transform="translate(104,0) scale(-1,1)"` : "";
     const parts = FINGERS.map(([n, x, y, h]) =>
-      `<rect class="finger" id="f${side}${n}" x="${x}" y="${y}" width="14" height="${h}" rx="7"/>`
+      `<rect class="finger f-${side}${n}" id="f${side}${n}" x="${x}" y="${y}" width="14" height="${h}" rx="7"/>`
     ).join("");
     const thumb =
-      `<rect class="finger" id="f${side}1" x="76" y="46" width="13" height="26" rx="6.5"
+      `<rect class="finger f-${side}1" id="f${side}1" x="76" y="46" width="13" height="26" rx="6.5"
              transform="rotate(32 82 59)"/>`;
     const palm = `<rect class="palm" x="2" y="58" width="74" height="26" rx="12"/>`;
     return `<svg viewBox="0 0 104 92" aria-hidden="true">
