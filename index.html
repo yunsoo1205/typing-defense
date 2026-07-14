@@ -879,6 +879,20 @@ async function getLearnerId(){
 }
 let LEARNER_ID = "unknown";
 
+/* 단어 단위 기록은 세션 내내 메모리에만 모아 두었다가, 게임이 끝날 때
+   딱 한 번의 요청으로 통째로 보냅니다. (요청 횟수는 늘지 않고, 저장되는
+   줄 수만 늘어납니다) */
+async function flushWordLog(rows){
+  if (!SUPA.on || !rows || rows.length === 0) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/word_events`, {
+      method: "POST",
+      headers: SUPA.headers({ "Prefer": "return=minimal" }),   // 응답 본문을 안 받아 트래픽을 아낍니다
+      body: JSON.stringify(rows)
+    });
+  } catch(e){ /* 통계 실패가 게임을 막으면 안 되므로 조용히 무시합니다 */ }
+}
+
 /* =========================================================================
    📊 이용 로그 — 랭킹과 별개로 '모든 플레이'(견습 포함, 승패 무관)를
    조용히 남깁니다. 실패해도 게임에는 절대 영향을 주지 않습니다.
@@ -1583,6 +1597,11 @@ function newGame(nickname, code, baseSpeed){
     startedAt: performance.now(),   // 이용 로그용: 이 판을 시작한 시각
     charsTyped: 0,                  // 이용 로그용: 정확히 입력한 글자 수 (CPM 계산)
     wrongPresses: 0,                // 이용 로그용: Backspace 누른 횟수 (정확도 계산)
+    wordLog: [],                    // 단어별 정답/오답 기록 (세션 끝에 한 번에 전송)
+    lastActionAt: performance.now(),// 직전 제출(또는 시작) 시각 → 반응시간 계산
+    attemptFirstKeyAt: null,        // 이번 시도의 첫 키 입력 시각
+    attemptLatencyMs: 0,            // 직전 제출 ~ 첫 키 입력까지 (반응시간)
+    attemptBackspaces: 0,           // 이번 시도에서 지운 횟수
     running: false,
     spawnTimer: 0.6
   };
@@ -1724,7 +1743,35 @@ function submitAnswer(){
     input.classList.remove("wrong");
     void input.offsetWidth;
     input.classList.add("wrong");
+
+    /* 어떤 몬스터도 못 맞혔어요. 가장 가까운 몬스터를 '노렸던 단어'로 보고 오답 기록을 남깁니다 */
+    let nearest = null;
+    for (const m of state.monsters) if (!nearest || m.x < nearest.x) nearest = m;
+    if (nearest) logWordAttempt(nearest.word, typed, false);
   }
+}
+
+/* 단어 하나를 끝냈을 때(정답/오답 모두) 기록을 남기고 다음 시도를 위해 초기화합니다.
+   메테오로 자동 처치된 것들은 직접 친 게 아니므로 기록하지 않습니다. */
+function logWordAttempt(expectedWord, typedFinal, correct){
+  const now = performance.now();
+  state.wordLog.push({
+    learner_id:      LEARNER_ID,
+    school:           SCHOOL,
+    code:             state.code,
+    mode:             state.practice ? "practice" : (state.baseSpeed > 1 ? "advanced" : "basic"),
+    stage:            STAGES[state.stageIndex].num,
+    expected_word:    expectedWord,
+    typed_final:      typedFinal,
+    correct,
+    latency_ms:       Math.max(0, Math.min(60000, state.attemptLatencyMs)),
+    attempt_ms:       Math.max(0, Math.min(120000, Math.round(now - (state.attemptFirstKeyAt ?? now)))),
+    backspace_count:  Math.min(50, state.attemptBackspaces)
+  });
+  state.lastActionAt       = now;
+  state.attemptFirstKeyAt  = null;
+  state.attemptLatencyMs   = 0;
+  state.attemptBackspaces  = 0;
 }
 
 function castSpell(m){
@@ -1767,6 +1814,8 @@ function castSpell(m){
   state.stageScore += gained;
   state.kills      += 1;
   state.charsTyped += m.word.length;    // CPM 계산용
+
+  logWordAttempt(m.word, m.word, true);
 
   removeMonster(m, "💥");
   showPopup(m, `+${gained}`, tags.join(" "));
@@ -1887,6 +1936,12 @@ function showPopup(m, gain, tag){
 function highlightAimed(){
   if (!state) return;
   const typed = input.value.trim();
+
+  if (state.attemptFirstKeyAt === null && input.value.length > 0){
+    state.attemptFirstKeyAt = performance.now();
+    state.attemptLatencyMs  = Math.round(state.attemptFirstKeyAt - state.lastActionAt);
+  }
+
   for (const m of state.monsters){
     m.el.classList.toggle("aimed", typed.length > 0 && m.word.startsWith(typed));
   }
@@ -2023,8 +2078,10 @@ async function endGame(cleared){
     duration_s:   Math.min(7200, Math.round((performance.now() - state.startedAt) / 1000)),
     chars_typed:  state.charsTyped,
     wrong_presses: state.wrongPresses,
-    cpm:          Math.round(state.charsTyped / minutes)   // 분당 타수 (참고용으로 미리 계산해 둡니다)
+    cpm:          Math.round(state.charsTyped / minutes),  // 분당 타수 (참고용으로 미리 계산해 둡니다)
+    run_number:   state.runs[state.stageIndex]              // 이 단계를 몇 번째 도전 중이었는지 (재도전율용)
   });
+  flushWordLog(state.wordLog);   // 단어별 정답/오답 기록을 한 번에 전송
 
   /* 🐣 견습 모드: 랭킹에 올리지 않습니다 */
   if (state.practice){
@@ -2272,7 +2329,9 @@ input.addEventListener("keydown", (e) => {
 
 /* 이용 로그: 모드와 무관하게 Backspace 횟수를 정확도 계산용으로 셉니다 */
 input.addEventListener("keydown", (e) => {
-  if (e.key === "Backspace" && state) state.wrongPresses += 1;
+  if (e.key !== "Backspace" || !state) return;
+  state.wrongPresses += 1;
+  state.attemptBackspaces += 1;
 });
 
 /* 첫 화면 준비 */
