@@ -854,6 +854,27 @@ const SUPA = {
 };
 
 /* =========================================================================
+   🙋 익명 학습자 ID — 로그인 없이도 '같은 아이가 여러 번 했을 때'를
+   구분하기 위한 무작위 문자열입니다. 이름·실명과 무관하며, 이 브라우저에만
+   저장됩니다. (성장 추이를 재려면 세션을 서로 묶을 방법이 반드시 필요해요)
+   ========================================================================= */
+async function getLearnerId(){
+  const KEY = "learner-id";
+  try {
+    if (window.storage){
+      try { const r = await window.storage.get(KEY); if (r) return r.value; } catch(e){}
+      const id = crypto.randomUUID();
+      await window.storage.set(KEY, id);
+      return id;
+    }
+    let id = localStorage.getItem(KEY);
+    if (!id){ id = crypto.randomUUID(); localStorage.setItem(KEY, id); }
+    return id;
+  } catch(e){ return "unknown"; }
+}
+let LEARNER_ID = "unknown";
+
+/* =========================================================================
    📊 이용 로그 — 랭킹과 별개로 '모든 플레이'(견습 포함, 승패 무관)를
    조용히 남깁니다. 실패해도 게임에는 절대 영향을 주지 않습니다.
    ========================================================================= */
@@ -1555,6 +1576,8 @@ function newGame(nickname, code, baseSpeed){
     feverUntil: 0,                  // 불 마법 종료 시각
     pauseUntil: 0,                  // 메테오 연출 동안 잠깐 멈춤
     startedAt: performance.now(),   // 이용 로그용: 이 판을 시작한 시각
+    charsTyped: 0,                  // 이용 로그용: 정확히 입력한 글자 수 (CPM 계산)
+    wrongPresses: 0,                // 이용 로그용: Backspace 누른 횟수 (정확도 계산)
     running: false,
     spawnTimer: 0.6
   };
@@ -1738,6 +1761,7 @@ function castSpell(m){
   state.score      += gained;
   state.stageScore += gained;
   state.kills      += 1;
+  state.charsTyped += m.word.length;    // CPM 계산용
 
   removeMonster(m, "💥");
   showPopup(m, `+${gained}`, tags.join(" "));
@@ -1983,13 +2007,18 @@ async function endGame(cleared){
   document.getElementById("app").classList.remove("practice");   // 화면 높이 원래대로
 
   /* 이용 로그: 견습 포함 모든 판을 승패와 무관하게 남깁니다 */
+  const minutes = Math.max(1, (performance.now() - state.startedAt) / 60000);
   logPlay({
-    school:     SCHOOL,
-    code:       state.code,
-    mode:       state.practice ? "practice" : (state.baseSpeed > 1 ? "advanced" : "basic"),
-    stage:      STAGES[state.stageIndex].num,
-    cleared:    cleared === true,
-    duration_s: Math.min(7200, Math.round((performance.now() - state.startedAt) / 1000))
+    learner_id:   LEARNER_ID,
+    school:       SCHOOL,
+    code:         state.code,
+    mode:         state.practice ? "practice" : (state.baseSpeed > 1 ? "advanced" : "basic"),
+    stage:        STAGES[state.stageIndex].num,
+    cleared:      cleared === true,
+    duration_s:   Math.min(7200, Math.round((performance.now() - state.startedAt) / 1000)),
+    chars_typed:  state.charsTyped,
+    wrong_presses: state.wrongPresses,
+    cpm:          Math.round(state.charsTyped / minutes)   // 분당 타수 (참고용으로 미리 계산해 둡니다)
   });
 
   /* 🐣 견습 모드: 랭킹에 올리지 않습니다 */
@@ -2236,6 +2265,11 @@ input.addEventListener("keydown", (e) => {
   if (e.key === "Backspace") flashBackspace();
 });
 
+/* 이용 로그: 모드와 무관하게 Backspace 횟수를 정확도 계산용으로 셉니다 */
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Backspace" && state) state.wrongPresses += 1;
+});
+
 /* 첫 화면 준비 */
 document.title            = `${SCHOOL} 타자 수비대`;
 $("game-title").textContent  = `${SCHOOL} 타자 수비대`;
@@ -2244,6 +2278,7 @@ $("roomcode").value = DEFAULT_CODE;
 buildKeyboard();
 setMode(1.0);
 refreshStartRanks();
+getLearnerId().then(id => { LEARNER_ID = id; });
 </script>
 </body>
 </html>
