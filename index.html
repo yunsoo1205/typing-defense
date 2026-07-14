@@ -345,6 +345,45 @@ body{
 #app.practice #keyboard{ margin-bottom:8px; }
 
 /* =========================================================
+   4-C. 🏅 뱃지
+   ========================================================= */
+.badge-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr));
+  gap:8px; max-height:190px; overflow-y:auto; padding:2px;
+}
+.badge{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:8px 4px; border-radius:12px; background:#fff;
+  border:2px solid #EDE7F0; text-align:center;
+}
+.badge .bi{ font-size:24px; line-height:1.2; filter:grayscale(1) opacity(.35); }
+.badge .bn{ font-size:9.5px; color:var(--ink-soft); margin-top:3px; line-height:1.25; }
+.badge.on{ background:var(--butter); border-color:var(--gold, #F5C451); }
+.badge.on .bi{ filter:none; }
+.badge.on .bn{ color:var(--ink); font-weight:600; }
+.badge.fresh{ animation:badge-pop .6s ease; }
+@keyframes badge-pop{
+  0%{ transform:scale(.5) rotate(-12deg); } 60%{ transform:scale(1.15) rotate(4deg); } 100%{ transform:scale(1); }
+}
+#badge-count{ font-size:13px; color:var(--ink-soft); font-weight:400; }
+
+/* 게임 중 뱃지 획득 알림 */
+.badge-toast{
+  position:absolute; top:16px; left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; gap:10px; z-index:30;
+  background:var(--butter); border:3px solid #F5C451; border-radius:999px;
+  padding:8px 18px 8px 12px; box-shadow:0 6px 18px rgba(90,74,99,.25);
+  animation:toast-in .45s cubic-bezier(.2,1.4,.4,1);
+}
+.badge-toast.out{ animation:toast-out .5s ease forwards; }
+.badge-toast .bt-icon{ font-size:30px; }
+.badge-toast .bt-text{ display:flex; flex-direction:column; line-height:1.3; }
+.badge-toast .bt-text b{ font-family:var(--font-display); font-size:12px; color:#B8860B; }
+.badge-toast .bt-text span{ font-family:var(--font-display); font-size:16px; color:var(--ink); }
+@keyframes toast-in{ from{ opacity:0; transform:translate(-50%, -22px) scale(.8); } }
+@keyframes toast-out{ to{ opacity:0; transform:translate(-50%, -22px) scale(.9); } }
+
+/* =========================================================
    5. 오버레이
    ========================================================= */
 .overlay{
@@ -669,6 +708,10 @@ body{
       <h1 id="end-title">게임 오버</h1>
       <p id="end-desc"></p>
       <div class="rank-box">
+        <h3>🏅 내 뱃지 <span id="badge-count"></span></h3>
+        <div class="badge-grid" id="badge-grid"></div>
+      </div>
+      <div class="rank-box">
         <h3>🏆 <span id="rank-title-end">명예의 전당</span> TOP 10</h3>
         <div class="rank-list" id="rank-list-end"></div>
       </div>
@@ -877,7 +920,80 @@ const SUPA = {
 };
 
 /* =========================================================================
-   🙋 익명 학습자 ID — 로그인 없이도 '같은 아이가 여러 번 했을 때'를
+   🏅 뱃지 — 조건은 아래 표 한 곳에서만 관리합니다.
+   learner_id(학급코드_이름) 기준으로 서버에 저장되므로, 집 컴퓨터에서 같은
+   이름으로 접속하면 모아 둔 뱃지가 그대로 따라옵니다.
+   ========================================================================= */
+const BADGES = [
+  // 성실 — 꾸준히 하면 받아요
+  { id:"enter",    icon:"🎒", name:"마법 학교 입학",  desc:"1단계를 클리어했어요" },
+  { id:"sweat",    icon:"💦", name:"견습생의 땀방울", desc:"견습 마법사로 5판을 연습했어요" },
+  { id:"half",     icon:"🌗", name:"절반의 기적",    desc:"5단계(받침 단어)를 클리어했어요" },
+  { id:"captain",  icon:"👑", name:"타자 수비대장",  desc:"10단계까지 모두 클리어했어요" },
+  { id:"grit",     icon:"🩹", name:"칠전팔기",       desc:"3번 넘게 실패한 단계를 끝내 클리어했어요" },
+  // 정확 — 신중하게 치면 받아요 (견습 모드 제외)
+  { id:"sniper",   icon:"🎯", name:"백발백중 명사수", desc:"한 단계를 오답 한 번 없이 통과했어요" },
+  { id:"notape",   icon:"🚫", name:"수정테이프 압수", desc:"지우기(Backspace) 없이 한 단계를 통과했어요" },
+  { id:"careful",  icon:"🐢", name:"돌다리도 두들겨라", desc:"한 단계를 정확도 95% 이상으로 통과했어요" },
+  { id:"shield",   icon:"🛡️", name:"철벽 방어",      desc:"하트를 하나도 잃지 않고 단계를 통과했어요" },
+  // 속도 — 빠르게 치면 받아요 (견습 모드 제외)
+  { id:"lightning",icon:"⚡", name:"번개 마법사",    desc:"1분에 300타 넘게 쳤어요" },
+  { id:"burning",  icon:"🔥", name:"불타는 키보드",  desc:"고급(2배속) 모드로 한 단계를 통과했어요" },
+  { id:"timelord", icon:"⏳", name:"시간 여행자",    desc:"몬스터가 절반도 오기 전에 전부 처치했어요" },
+  // 히든 — 운과 재미
+  { id:"lucky77",  icon:"🍀", name:"행운의 77",     desc:"최종 점수가 77로 끝났어요" },
+  { id:"meteor",   icon:"☄️", name:"메테오 샤워",    desc:"한 판에서 별똥별을 3번 소환했어요" }
+];
+const BADGE_BY_ID = Object.fromEntries(BADGES.map(b => [b.id, b]));
+
+/* 이 학습자가 지금까지 딴 뱃지 목록 */
+async function loadBadges(learnerId){
+  if (!SUPA.on || !learnerId || learnerId === "unknown") return [];
+  try {
+    const q = `${SUPABASE_URL}/rest/v1/badges`
+            + `?select=badge_id&learner_id=eq.${encodeURIComponent(learnerId)}`;
+    const res = await fetch(q, { headers: SUPA.headers() });
+    if (!res.ok) return [];
+    return (await res.json()).map(r => r.badge_id);
+  } catch(e){ return []; }
+}
+
+/* 이번 판에 새로 딴 뱃지들을 한 번에 저장합니다 (이미 있으면 서버가 무시) */
+async function saveBadges(learnerId, code, badgeIds){
+  if (!SUPA.on || !badgeIds.length || !learnerId || learnerId === "unknown") return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/badges?on_conflict=learner_id,badge_id`, {
+      method: "POST",
+      headers: SUPA.headers({ "Prefer": "resolution=ignore-duplicates,return=minimal" }),
+      body: JSON.stringify(badgeIds.map(id => ({ learner_id: learnerId, code, badge_id: id })))
+    });
+  } catch(e){ /* 뱃지 저장 실패가 게임을 막지 않도록 조용히 무시 */ }
+}
+
+/* 누적 조건(견습 5판, 3번 실패 후 클리어)을 판단하려면 지난 기록이 필요합니다.
+   원본 로그는 비공개이므로, 집계만 보여주는 뷰에서 한 번만 읽어 옵니다. */
+async function loadProgress(learnerId, code){
+  const empty = { practicePlays: 0, failsByStage: {} };
+  if (!SUPA.on || !learnerId || learnerId === "unknown") return empty;
+  try {
+    const q = `${SUPABASE_URL}/rest/v1/learner_progress`
+            + `?select=mode,stage,plays,fails`
+            + `&learner_id=eq.${encodeURIComponent(learnerId)}`
+            + `&code=eq.${encodeURIComponent(code)}`;
+    const res = await fetch(q, { headers: SUPA.headers() });
+    if (!res.ok) return empty;
+    const rows = await res.json();
+    const out = { practicePlays: 0, failsByStage: {} };
+    for (const r of rows){
+      if (r.mode === "practice") out.practicePlays += r.plays;
+      else out.failsByStage[r.stage] = (out.failsByStage[r.stage] || 0) + r.fails;
+    }
+    return out;
+  } catch(e){ return empty; }
+}
+
+/* =========================================================================
+   🙋 익명 학습자 ID — 이름을 안 쓴 경우의 백업용입니다. 같은 아이를
    구분하기 위한 무작위 문자열입니다. 이름·실명과 무관하며, 이 브라우저에만
    저장됩니다. (성장 추이를 재려면 세션을 서로 묶을 방법이 반드시 필요해요)
    ========================================================================= */
@@ -1666,6 +1782,14 @@ function newGame(nickname, code, baseSpeed){
     sessionId: crypto.randomUUID(), // plays·word_events를 같은 세션끼리 묶는 끈
     correctionMs: [],               // 견습 모드: '틀렸다' 안내~Backspace 수정까지 걸린 시간들
     wrongSince: null,                // 견습 모드: 지금 틀린 상태가 시작된 시각
+
+    /* 🏅 뱃지 판정용 */
+    earnedBadges: new Set(),        // 예전에 딴 것 (서버에서 불러옴)
+    newBadges: [],                  // 이번 판에 새로 딴 것
+    progress: { practicePlays: 0, failsByStage: {} },   // 누적 기록 (서버에서 불러옴)
+    meteorUses: 0,                  // 이번 판에서 별똥별을 쓴 횟수
+    keystrokes: 0,                  // 이번 판 총 타수 (자모 기준)
+    stageStats: null,               // 단계별 집계 (startStage에서 초기화)
     running: false,
     spawnTimer: 0.6
   };
@@ -1809,6 +1933,7 @@ function submitAnswer(){
     input.classList.add("wrong");
 
     /* 어떤 몬스터도 못 맞혔어요. 가장 가까운 몬스터를 '노렸던 단어'로 보고 오답 기록을 남깁니다 */
+    if (state.stageStats) state.stageStats.wrongSubmits += 1;
     let nearest = null;
     for (const m of state.monsters) if (!nearest || m.x < nearest.x) nearest = m;
     if (nearest) logWordAttempt(nearest.word, typed, false, errorFinger(nearest.word, typed));
@@ -1895,6 +2020,17 @@ function castSpell(m){
   state.kills      += 1;
   state.charsTyped += m.word.length;    // CPM 계산용
 
+  /* 🏅 뱃지 집계 */
+  const st = state.stageStats;
+  if (st){
+    st.correctSubmits += 1;
+    const keys = textToKeys(m.word).length;      // 실제 자판 타수 (자모 기준)
+    st.keystrokes    += keys;
+    state.keystrokes += keys;
+    const halfway = field.clientWidth / 2;
+    if (m.x < halfway) st.allEarly = false;      // 절반을 넘어와서야 잡혔어요
+  }
+
   logWordAttempt(m.word, m.word, true);
 
   removeMonster(m, "💥");
@@ -1942,6 +2078,7 @@ function summonMeteors(now){
   const targets = state.monsters.filter(m => !m.itemType);   // 다른 아이템은 남겨 둬요
   if (targets.length === 0) return;
 
+  state.meteorUses += 1;                                     // 🏅 메테오 샤워 뱃지용
   state.pauseUntil = now + 120 + targets.length * 35;        // 연출 동안 아주 잠깐만 멈춤
   const stage = STAGES[state.stageIndex];
   const fever = state.feverUntil > now ? FEVER_MULT : 1;
@@ -2033,6 +2170,7 @@ function highlightAimed(){
    ========================================================================= */
 function loseLife(){
   state.life -= 1;
+  if (state.stageStats) state.stageStats.heartsLost += 1;
   SFX.damage();
   wizard.textContent = "😰";
   base.classList.add("hurt");
@@ -2053,6 +2191,8 @@ function stageCleared(){
   clearMonsters();
   SFX.stageClear();
   Music.setMood("normal");
+
+  checkStageBadges();                              // 🏅 뱃지 판정
 
   if (HEART_ON_CLEAR && state.life < START_LIFE) state.life += 1;   // 기본 하트까지만 회복
   drawHud();
@@ -2114,6 +2254,7 @@ function startStage(index, speedMult){
   state.spawnTimer = 0.4;
   state.freezeUntil = state.feverUntil = state.pauseUntil = 0;
   state.runs[index] += 1;
+  resetStageStats();                       // 🏅 뱃지 판정용 집계 초기화
   drawHud();
   drawStatus(performance.now());
 
@@ -2146,6 +2287,9 @@ async function endGame(cleared){
   setDock(false);
   document.getElementById("app").classList.remove("practice");   // 화면 높이 원래대로
 
+  checkEndBadges();                                       // 🏅 마지막 뱃지 판정
+  saveBadges(LEARNER_ID, state.code, state.newBadges);    // 새로 딴 것만 저장
+
   /* 이용 로그: 견습 포함 모든 판을 승패와 무관하게 남깁니다 */
   const minutes = Math.max(1, (performance.now() - state.startedAt) / 60000);
   const avgCorrectionMs = state.correctionMs.length
@@ -2163,6 +2307,8 @@ async function endGame(cleared){
     chars_typed:  state.charsTyped,
     wrong_presses: state.wrongPresses,
     cpm:          Math.round(state.charsTyped / minutes),  // 분당 타수 (참고용으로 미리 계산해 둡니다)
+    keystrokes:   state.keystrokes,                        // 실제 자판 타수 (자모 기준)
+    kpm:          Math.round(state.keystrokes / minutes),  // 한국 타자 관행의 '타수'에 해당
     run_number:   state.runs[state.stageIndex],             // 이 단계를 몇 번째 도전 중이었는지 (재도전율용)
     avg_correction_ms: avgCorrectionMs                       // 견습 모드: '틀림' 안내~수정까지 평균 시간
   });
@@ -2179,6 +2325,7 @@ async function endGame(cleared){
       `연습 모드라 랭킹에는 올라가지 않아요. 자신 있으면 <b>🧙 초급 마법사</b>로 도전해 보세요!`;
     renderRanks(await loadRanks(rankKeyFor(state.code, 1)), "rank-list-end");
     $("rank-title-end").textContent = `${state.code} 🧙 초급`;
+    renderBadges();
     $("end-screen").classList.remove("hidden");
     return;
   }
@@ -2213,8 +2360,101 @@ async function endGame(cleared){
 
   renderRanks(top, "rank-list-end", entry.id);
   renderRanks(top, "rank-list-start", entry.id);
+  renderBadges();
   $("end-screen").classList.remove("hidden");
 }
+
+/* 단계가 시작될 때마다 뱃지 판정용 집계를 새로 시작합니다 */
+function resetStageStats(){
+  state.stageStats = {
+    wrongSubmits: 0,      // 오답 제출 횟수
+    backspaces: 0,        // 지우기 횟수
+    heartsLost: 0,        // 잃은 하트
+    correctSubmits: 0,    // 맞힌 단어 수
+    keystrokes: 0,        // 이 단계에서 친 타수 (자모 기준)
+    allEarly: true,       // 몬스터가 전부 화면 절반을 넘기 전에 잡혔는지
+    startedAt: performance.now()
+  };
+}
+
+/* 뱃지 하나를 땄을 때 — 이미 있으면 무시하고, 처음이면 화면에 띄웁니다 */
+function grantBadge(id){
+  if (!state || state.earnedBadges.has(id)) return;
+  const b = BADGE_BY_ID[id];
+  if (!b) return;
+  state.earnedBadges.add(id);
+  state.newBadges.push(id);
+  showBadgeToast(b);
+}
+
+function showBadgeToast(b){
+  const el = document.createElement("div");
+  el.className = "badge-toast";
+  el.innerHTML =
+    `<div class="bt-icon">${b.icon}</div>
+     <div class="bt-text"><b>뱃지 획득!</b><span>${escapeHtml(b.name)}</span></div>`;
+  $("field").appendChild(el);
+  SFX.stageClear();
+  setTimeout(() => el.classList.add("out"), 2200);
+  setTimeout(() => el.remove(), 2800);
+}
+
+/* 단계를 깼을 때 판정하는 뱃지들 */
+function checkStageBadges(){
+  const st = state.stageStats;
+  const stageNum = STAGES[state.stageIndex].num;
+  const practice = state.practice;
+
+  /* --- 성실 (견습에서도 받을 수 있어요) --- */
+  if (stageNum >= 1)  grantBadge("enter");
+  if (stageNum >= 5)  grantBadge("half");
+  if (stageNum >= 10) grantBadge("captain");
+
+  // 이 단계에서 예전에 3번 넘게 실패했다면
+  const pastFails = state.progress.failsByStage[stageNum] || 0;
+  if (!practice && pastFails >= 3) grantBadge("grit");
+
+  /* --- 정확·속도 (견습 모드는 자판을 알려주므로 제외) --- */
+  if (practice) return;
+
+  if (st.wrongSubmits === 0) grantBadge("sniper");
+  if (st.backspaces  === 0) grantBadge("notape");
+  if (st.heartsLost  === 0) grantBadge("shield");
+
+  const attempts = st.correctSubmits + st.wrongSubmits;
+  if (attempts >= KILLS_PER_STAGE && st.correctSubmits / attempts >= 0.95) grantBadge("careful");
+
+  const minutes = Math.max(0.2, (performance.now() - st.startedAt) / 60000);
+  if (Math.round(st.keystrokes / minutes) >= 300) grantBadge("lightning");
+
+  if (state.baseSpeed > 1) grantBadge("burning");
+  if (st.allEarly && st.correctSubmits >= KILLS_PER_STAGE) grantBadge("timelord");
+}
+
+/* 뱃지 수집판을 그립니다. 아직 못 딴 건 흑백으로 보여줘서 '뭘 더 딸 수 있는지' 알려줘요 */
+function renderBadges(){
+  const earned = state ? state.earnedBadges : new Set();
+  const fresh  = new Set(state ? state.newBadges : []);
+  $("badge-count").textContent = `${earned.size} / ${BADGES.length}`;
+  $("badge-grid").innerHTML = BADGES.map(b => {
+    const has = earned.has(b.id);
+    const cls = "badge" + (has ? " on" : "") + (fresh.has(b.id) ? " fresh" : "");
+    const tip = has ? b.desc : "아직 못 딴 뱃지예요 — " + b.desc;
+    return `<div class="${cls}" title="${escapeHtml(tip)}">
+              <div class="bi">${b.icon}</div>
+              <div class="bn">${has ? escapeHtml(b.name) : "???"}</div>
+            </div>`;
+  }).join("");
+}
+
+/* 게임이 끝날 때 판정하는 뱃지들 */
+function checkEndBadges(){
+  if (state.meteorUses >= 3) grantBadge("meteor");
+  if (state.score > 0 && state.score % 100 === 77) grantBadge("lucky77");
+  // 이번 판까지 포함해 견습 5판
+  if (state.practice && state.progress.practicePlays + 1 >= 5) grantBadge("sweat");
+}
+
 
 /* =========================================================================
    루프
@@ -2268,6 +2508,16 @@ function startGame(){
 
   state = newGame(nickname, code, pickedMode);
   drawHud();
+
+  /* 🏅 이 아이가 예전에 딴 뱃지와 누적 기록을 불러옵니다 (실패해도 게임은 그대로 진행) */
+  const thisSession = state;
+  loadBadges(LEARNER_ID).then(ids => {
+    if (state === thisSession) ids.forEach(id => state.earnedBadges.add(id));
+  });
+  loadProgress(LEARNER_ID, code).then(p => {
+    if (state === thisSession) state.progress = p;
+  });
+
   setDock(true);
   document.getElementById("app").classList.toggle("practice", state.practice);
   $("keyboard").classList.toggle("hidden", !state.practice);
@@ -2419,6 +2669,7 @@ input.addEventListener("keydown", (e) => {
   if (e.key !== "Backspace" || !state) return;
   state.wrongPresses += 1;
   state.attemptBackspaces += 1;
+  if (state.stageStats) state.stageStats.backspaces += 1;
 });
 
 /* 첫 화면 준비 */
