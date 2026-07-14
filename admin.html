@@ -49,6 +49,14 @@ section{ padding:22px; }
 .field input:focus{ border-color:var(--grape); }
 #code{ text-transform:uppercase; letter-spacing:.08em; }
 
+.dup-warning{
+  margin-top:10px; background:#FFF3E6; border:2px solid var(--berry);
+  border-radius:14px; padding:12px 14px;
+}
+.dup-warning.hidden{ display:none; }
+.dup-warning p{ font-size:13.5px; margin:0; line-height:1.6; }
+.dup-warning b{ color:var(--berry); }
+
 /* 미리보기 */
 .preview{
   background:#fff; border-radius:18px; padding:16px; text-align:center;
@@ -126,6 +134,13 @@ details input{
         <b>학교 약자 + 무작위 글자</b>를 섞으세요. (초급·고급 랭킹은 자동으로 나뉩니다)
       </p>
       <input id="code" maxlength="8" placeholder="예: DL6B2X" />
+      <div class="dup-warning hidden" id="dup-warning">
+        <p id="dup-text"></p>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn ghost" id="dup-change-btn">다른 코드 쓸게요</button>
+          <button class="btn copy" id="dup-proceed-btn" style="flex:1; min-width:auto;">그래도 이 코드 쓸게요</button>
+        </div>
+      </div>
     </div>
 
     <div class="preview">
@@ -169,12 +184,54 @@ const $ = (id) => document.getElementById(id);
 const DEFAULT_SCHOOL = "웨이하이한국학교";
 const DEFAULT_CODE   = "WHKS";
 
+/* 코드-학교 매핑만 조회할 수 있는 안전한 창구입니다.
+   (실제 플레이 기록은 비공개, 이 view는 code/school 두 컬럼만 노출합니다) */
+const SUPABASE_URL = "https://dbcydfbduservhiwiwgj.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ojqIzp7fD06E50JraS4i-g_uLU8p8pS";
+
 /* 기본 게임 주소 = 이 페이지와 같은 폴더의 index.html */
 $("base").value = new URL("index.html", location.href).href;
 
 function cleanCode(v){
   return (v || "").toUpperCase().replace(/[^A-Z0-9가-힣]/g, "").slice(0, 8);
 }
+
+/* 이미 다른 학교 이름으로 쓰인 코드인지 확인합니다 */
+let checkTimer = null;
+async function checkDuplicateCode(){
+  const code   = cleanCode($("code").value);
+  const school = $("school").value.trim() || DEFAULT_SCHOOL;
+  $("dup-warning").classList.add("hidden");
+  if (!code) return;
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/code_schools?code=eq.${encodeURIComponent(code)}&select=school`,
+      { headers: { apikey: SUPABASE_KEY } }
+    );
+    if (!res.ok) return;                       // 조회 실패는 조용히 무시 (경고를 못 띄울 뿐, 링크 생성은 그대로 됩니다)
+    const rows = await res.json();
+
+    const others = [...new Set(rows.map(r => r.school).filter(s => s && s !== school))];
+    if (others.length > 0){
+      $("dup-text").innerHTML =
+        `이미 <b>'${escapeHtml(others[0])}'</b>${others.length > 1 ? ` 외 ${others.length - 1}곳` : ""} 이름으로
+         쓰인 적 있는 코드예요. 같은 코드를 두 학교가 쓰면 <b>랭킹이 섞입니다.</b> 그래도 진행하시겠어요?`;
+      $("dup-warning").classList.remove("hidden");
+    }
+  } catch(e){ /* 네트워크 문제 시 조용히 무시 */ }
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+$("dup-change-btn").addEventListener("click", () => {
+  $("code").value = "";
+  $("dup-warning").classList.add("hidden");
+  $("code").focus();
+});
+$("dup-proceed-btn").addEventListener("click", () => {
+  $("dup-warning").classList.add("hidden");     // 확인했으니 접어 둡니다. 링크는 이미 만들어져 있어요.
+});
 
 function build(){
   const school = $("school").value.trim();
@@ -196,6 +253,15 @@ function build(){
 
 ["school", "code", "base"].forEach(id =>
   $(id).addEventListener("input", build));
+
+$("code").addEventListener("input", () => {
+  clearTimeout(checkTimer);
+  checkTimer = setTimeout(checkDuplicateCode, 500);   // 입력이 잠시 멈추면 확인
+});
+$("school").addEventListener("input", () => {
+  clearTimeout(checkTimer);
+  checkTimer = setTimeout(checkDuplicateCode, 500);
+});
 
 $("copy-btn").addEventListener("click", async () => {
   const btn = $("copy-btn");
