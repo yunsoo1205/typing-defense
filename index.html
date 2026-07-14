@@ -854,6 +854,21 @@ const SUPA = {
 };
 
 /* =========================================================================
+   📊 이용 로그 — 랭킹과 별개로 '모든 플레이'(견습 포함, 승패 무관)를
+   조용히 남깁니다. 실패해도 게임에는 절대 영향을 주지 않습니다.
+   ========================================================================= */
+async function logPlay(entry){
+  if (!SUPA.on) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/plays`, {
+      method: "POST",
+      headers: SUPA.headers(),
+      body: JSON.stringify(entry)
+    });
+  } catch(e){ /* 통계 실패가 게임을 막으면 안 되므로 조용히 무시합니다 */ }
+}
+
+/* =========================================================================
    랭킹 저장소 — 학급 코드별로 따로 저장됩니다.
    ① Supabase 를 설정했으면: 인터넷 너머로 진짜 공유 랭킹 (같은 코드 = 같은 순위표)
    ② 설정 안 했거나 접속 실패: 이 브라우저 안에만 저장 (게임은 멈추지 않아요)
@@ -1246,7 +1261,93 @@ function textToKeys(text){
   return keys;
 }
 
-/* 기본 자리(홈 포지션): ㅁㄴㅇㄹ / ㅗㅓㅏㅣ · 돌기가 있는 키: ㄹ(F), ㅓ(J) */
+/* =========================================================================
+   ⌨️➜🔤 실제 두벌식 조합 규칙을 그대로 구현한 '정방향 합성기'
+   목표 단어를 한 키씩 쳤을 때 화면에 실제로 나타날 문자열들을 미리 계산해 둡니다.
+   (학교 도중의 '핚'처럼 정상적으로 거쳐가는 상태와, 조합이 깨져서 나온
+    비정상 문자열을 구분하기 위해 필요합니다.)
+   ========================================================================= */
+const REV_KEYMAP = {};                              // "key|shift" → 자모
+for (const [jamo, [k, sh]] of Object.entries(KEYMAP)) REV_KEYMAP[k + "|" + sh] = jamo;
+
+const JUNG_BASE = Object.keys(KEYMAP).filter(j => JUNG.includes(j));   // 한 키로 바로 나오는 모음 14개
+
+const VOWEL_MERGE = {};   // 모음+모음 합자: ㅗ+ㅏ→ㅘ 등
+const JONG_MERGE  = {};   // 자음+자음 겹받침: ㄱ+ㅅ→ㄳ, ㄱ+ㄱ→ㄲ 등
+function addMerge(map, a, b, out){ (map[a] || (map[a] = {}))[b] = out; }
+for (const [out, [a, b]] of Object.entries(COMBO)){
+  if (JUNG.includes(out)) addMerge(VOWEL_MERGE, a, b, out);
+  else addMerge(JONG_MERGE, a, b, out);
+}
+for (const [out, [a, b]] of Object.entries(JONG_DOUBLE)) addMerge(JONG_MERGE, a, b, out);
+
+/* cho·jung·jong(최대 2조각) → 실제 한글 완성자 한 글자 */
+function renderSyllable(cho, jung, jongParts){
+  if (jung === null) return cho || "";
+  let jongStr = "";
+  if (jongParts.length === 1) jongStr = jongParts[0];
+  else if (jongParts.length === 2) jongStr = (JONG_MERGE[jongParts[0]] || {})[jongParts[1]] || jongParts[0];
+  const ci = CHO.indexOf(cho), ji = JUNG.indexOf(jung), ki = JONG.indexOf(jongStr);
+  if (ci < 0 || ji < 0 || ki < 0) return cho + jung + jongStr;   // 이론상 없어야 하지만 안전망
+  return String.fromCharCode(0xAC00 + (ci * 21 + ji) * 28 + ki);
+}
+
+/* 목표 단어의 키 순서를 한 번에 하나씩 조합해가며, 각 시점에 실제로 화면에
+   나타나야 할 정상 문자열들을 배열로 돌려줍니다. (예: 학교 → ["ㅎ","하","학","핚","학교"]) */
+function composeKeysToStates(keys){
+  const states = [];
+  let done = "";
+  let cho = null, jung = null, jongParts = [];
+  const flush = () => {
+    if (cho !== null) done += renderSyllable(cho, jung, jongParts);
+    cho = null; jung = null; jongParts = [];
+  };
+
+  for (const k of keys){
+    if (k.key === "space"){ flush(); done += " "; states.push(done); continue; }
+
+    const jamo = REV_KEYMAP[k.key + "|" + k.shift];
+    if (!jamo){ flush(); done += (k.jamo || "?"); states.push(done); continue; }
+
+    const isVowel = JUNG_BASE.includes(jamo);
+
+    if (cho === null){
+      cho = jamo;
+    } else if (jung === null){
+      if (isVowel) jung = jamo;
+      else { flush(); cho = jamo; }
+    } else if (jongParts.length === 0){
+      if (isVowel){
+        const merged = (VOWEL_MERGE[jung] || {})[jamo];
+        if (merged) jung = merged; else { flush(); done += jamo; }
+      } else {
+        jongParts = [jamo];
+      }
+    } else {
+      if (isVowel){                                  // 받침이 다음 음절 초성으로 이동
+        const last = jongParts.pop();
+        done += renderSyllable(cho, jung, jongParts);
+        cho = last; jung = jamo; jongParts = [];
+      } else if (jongParts.length === 1 && (JONG_MERGE[jongParts[0]] || {})[jamo]){
+        jongParts.push(jamo);                        // 겹받침으로 합쳐짐 (예: ㄱ+ㄱ→ㄲ)
+      } else {
+        flush(); cho = jamo;
+      }
+    }
+    states.push(done + renderSyllable(cho, jung, jongParts));
+  }
+  return states;
+}
+
+/* 단어별로 반복 계산하지 않도록 캐시해 둡니다 */
+const composeCache = new Map();
+function statesFor(word){
+  let s = composeCache.get(word);
+  if (!s){ s = composeKeysToStates(textToKeys(word)); composeCache.set(word, s); }
+  return s;
+}
+
+
 const HOME_KEYS = ["a","s","d","f","h","j","k","l"];
 const BUMP_KEYS = ["f","j"];
 
@@ -1327,22 +1428,24 @@ function updateKeyboard(){
 }
 function updateKeyboardInner(){
 
-  const typedKeys = textToKeys(input.value);
-  let target = null;
+  const typed = input.value;
+  let target = null, matchedIndex = -1;
 
-  // 지금까지 친 것과 앞부분이 맞는 몬스터 중, 학교에 가장 가까운 것
+  /* 지금 입력창의 실제 문자열이, 목표 단어를 정상적으로 조합해 가는
+     '진짜' 중간 상태들(예: 학교 → ㅎ,하,학,핚,학교) 중 하나와 정확히
+     같은 몬스터 중, 학교에 가장 가까운 것을 찾습니다.
+     조합이 깨져 다른 문자열이 되면(예: 납ㅏㅇ) 어떤 상태와도 안 맞으므로
+     자동으로 '틀림'이 됩니다. */
   for (const m of state.monsters){
-    const mk = textToKeys(m.word);
-    const ok = mk.length >= typedKeys.length &&
-               typedKeys.every((t, i) => mk[i].key === t.key && mk[i].shift === t.shift);
-    if (ok && (!target || m.x < target.x)) target = m;
+    const states = statesFor(m.word);
+    const idx = typed === "" ? 0 : states.indexOf(typed) + 1;   // 0=아직 안 침, N=N개 키까지 정상 진행
+    if (idx >= 0 && (!target || m.x < target.x)){ target = m; matchedIndex = idx; }
   }
 
-  /* 친 글자가 어떤 몬스터와도 맞지 않으면 → 틀렸으니 지워야 해요 */
-  const wrong = !target && typedKeys.length > 0 && state.monsters.length > 0;
+  const wrong = !target && typed.length > 0 && state.monsters.length > 0;
 
   if (!target && !wrong){                         // 화면이 비었으면 가장 가까운 몬스터
-    for (const m of state.monsters) if (!target || m.x < target.x) target = m;
+    for (const m of state.monsters) if (!target || m.x < target.x){ target = m; matchedIndex = 0; }
   }
 
   let hot = "", shiftKey = "", jamo = "–";
@@ -1351,11 +1454,11 @@ function updateKeyboardInner(){
     jamo = "⌫ 지우기";
   } else if (target){
     const mk = textToKeys(target.word);
-    if (typedKeys.length >= mk.length){           // 글자를 다 쳤다 → 이제 Enter!
+    if (matchedIndex >= mk.length){                // 글자를 다 쳤다 → 이제 Enter!
       hot = "enter";
       jamo = "Enter ↵";
     } else {
-      const next = mk[typedKeys.length];
+      const next = mk[matchedIndex];
       hot  = next.key;
       jamo = next.jamo;
       if (next.shift) shiftKey = shiftKeyFor(next.key);
@@ -1451,6 +1554,7 @@ function newGame(nickname, code, baseSpeed){
     freezeUntil: 0,                 // 얼음 마법 종료 시각
     feverUntil: 0,                  // 불 마법 종료 시각
     pauseUntil: 0,                  // 메테오 연출 동안 잠깐 멈춤
+    startedAt: performance.now(),   // 이용 로그용: 이 판을 시작한 시각
     running: false,
     spawnTimer: 0.6
   };
@@ -1877,6 +1981,16 @@ async function endGame(cleared){
   SFX.gameEnd(cleared !== false);          // 하트를 다 잃었을 때만 슬픈 음
   setDock(false);
   document.getElementById("app").classList.remove("practice");   // 화면 높이 원래대로
+
+  /* 이용 로그: 견습 포함 모든 판을 승패와 무관하게 남깁니다 */
+  logPlay({
+    school:     SCHOOL,
+    code:       state.code,
+    mode:       state.practice ? "practice" : (state.baseSpeed > 1 ? "advanced" : "basic"),
+    stage:      STAGES[state.stageIndex].num,
+    cleared:    cleared === true,
+    duration_s: Math.min(7200, Math.round((performance.now() - state.startedAt) / 1000))
+  });
 
   /* 🐣 견습 모드: 랭킹에 올리지 않습니다 */
   if (state.practice){
