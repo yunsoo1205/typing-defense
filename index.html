@@ -1484,6 +1484,9 @@ function updateKeyboardInner(){
 
   const wrong = !target && typed.length > 0 && state.monsters.length > 0;
 
+  if (wrong && state.wrongSince === null) state.wrongSince = performance.now();
+  else if (!wrong) state.wrongSince = null;
+
   if (!target && !wrong){                         // 화면이 비었으면 가장 가까운 몬스터
     for (const m of state.monsters) if (!target || m.x < target.x){ target = m; matchedIndex = 0; }
   }
@@ -1551,6 +1554,12 @@ function updateKeyboardInner(){
    (추론 로직이 놓치는 경우를 대비한 확실한 보험) */
 function flashBackspace(){
   if (!state || !state.practice) return;
+
+  if (state.wrongSince !== null){                     // '틀림' 안내~수정까지 걸린 시간을 기록
+    state.correctionMs.push(Math.round(performance.now() - state.wrongSince));
+    state.wrongSince = null;
+  }
+
   document.querySelectorAll("#kb-rows .key").forEach(el =>
     el.classList.remove("hot", "hot-shift"));
   document.querySelectorAll("#hands .finger").forEach(el => el.classList.remove("on"));
@@ -1602,6 +1611,9 @@ function newGame(nickname, code, baseSpeed){
     attemptFirstKeyAt: null,        // 이번 시도의 첫 키 입력 시각
     attemptLatencyMs: 0,            // 직전 제출 ~ 첫 키 입력까지 (반응시간)
     attemptBackspaces: 0,           // 이번 시도에서 지운 횟수
+    sessionId: crypto.randomUUID(), // plays·word_events를 같은 세션끼리 묶는 끈
+    correctionMs: [],               // 견습 모드: '틀렸다' 안내~Backspace 수정까지 걸린 시간들
+    wrongSince: null,                // 견습 모드: 지금 틀린 상태가 시작된 시각
     running: false,
     spawnTimer: 0.6
   };
@@ -1747,15 +1759,30 @@ function submitAnswer(){
     /* 어떤 몬스터도 못 맞혔어요. 가장 가까운 몬스터를 '노렸던 단어'로 보고 오답 기록을 남깁니다 */
     let nearest = null;
     for (const m of state.monsters) if (!nearest || m.x < nearest.x) nearest = m;
-    if (nearest) logWordAttempt(nearest.word, typed, false);
+    if (nearest) logWordAttempt(nearest.word, typed, false, errorFinger(nearest.word, typed));
   }
+}
+
+/* 오답 문자열이 목표 단어의 키 순서와 처음 어긋난 지점의 손가락을 찾습니다.
+   (게임의 손가락 색상 안내와 같은 FINGER 표를 그대로 재사용합니다) */
+function errorFinger(expectedWord, typedText){
+  const exp = textToKeys(expectedWord);
+  const got = textToKeys(typedText);
+  let i = 0;
+  while (i < exp.length && i < got.length && exp[i].key === got[i].key && exp[i].shift === got[i].shift) i++;
+  const missedKey = exp[i] ? exp[i].key : null;        // 원래 눌렀어야 할 키
+  const f = missedKey ? FINGER[missedKey] : null;
+  if (!f) return null;
+  if (f === "BOTH1") return "양손 엄지";
+  return `${f[0] === "L" ? "왼손" : "오른손"} ${FINGER_NAME[f[1]]}`;
 }
 
 /* 단어 하나를 끝냈을 때(정답/오답 모두) 기록을 남기고 다음 시도를 위해 초기화합니다.
    메테오로 자동 처치된 것들은 직접 친 게 아니므로 기록하지 않습니다. */
-function logWordAttempt(expectedWord, typedFinal, correct){
+function logWordAttempt(expectedWord, typedFinal, correct, errFinger){
   const now = performance.now();
   state.wordLog.push({
+    session_id:       state.sessionId,
     learner_id:      LEARNER_ID,
     school:           SCHOOL,
     code:             state.code,
@@ -1766,7 +1793,8 @@ function logWordAttempt(expectedWord, typedFinal, correct){
     correct,
     latency_ms:       Math.max(0, Math.min(60000, state.attemptLatencyMs)),
     attempt_ms:       Math.max(0, Math.min(120000, Math.round(now - (state.attemptFirstKeyAt ?? now)))),
-    backspace_count:  Math.min(50, state.attemptBackspaces)
+    backspace_count:  Math.min(50, state.attemptBackspaces),
+    error_finger:     correct ? null : (errFinger || null)
   });
   state.lastActionAt       = now;
   state.attemptFirstKeyAt  = null;
@@ -2068,7 +2096,11 @@ async function endGame(cleared){
 
   /* 이용 로그: 견습 포함 모든 판을 승패와 무관하게 남깁니다 */
   const minutes = Math.max(1, (performance.now() - state.startedAt) / 60000);
+  const avgCorrectionMs = state.correctionMs.length
+    ? Math.round(state.correctionMs.reduce((a,b) => a+b, 0) / state.correctionMs.length)
+    : null;
   logPlay({
+    session_id:   state.sessionId,
     learner_id:   LEARNER_ID,
     school:       SCHOOL,
     code:         state.code,
@@ -2079,7 +2111,8 @@ async function endGame(cleared){
     chars_typed:  state.charsTyped,
     wrong_presses: state.wrongPresses,
     cpm:          Math.round(state.charsTyped / minutes),  // 분당 타수 (참고용으로 미리 계산해 둡니다)
-    run_number:   state.runs[state.stageIndex]              // 이 단계를 몇 번째 도전 중이었는지 (재도전율용)
+    run_number:   state.runs[state.stageIndex],             // 이 단계를 몇 번째 도전 중이었는지 (재도전율용)
+    avg_correction_ms: avgCorrectionMs                       // 견습 모드: '틀림' 안내~수정까지 평균 시간
   });
   flushWordLog(state.wordLog);   // 단어별 정답/오답 기록을 한 번에 전송
 
