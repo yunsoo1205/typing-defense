@@ -53,9 +53,17 @@ section{ padding:22px; }
   margin-top:10px; background:#FFF3E6; border:2px solid var(--berry);
   border-radius:14px; padding:12px 14px;
 }
-.dup-warning.hidden{ display:none; }
+.dup-warning.hidden, .dup-status.hidden{ display:none; }
 .dup-warning p{ font-size:13.5px; margin:0; line-height:1.6; }
 .dup-warning b{ color:var(--berry); }
+.dup-status{
+  margin-top:10px; background:#EAF7F2; border:2px solid var(--mint);
+  border-radius:14px; padding:10px 14px;
+}
+.dup-status p{ font-size:13.5px; margin:0; color:#2E7D64; }
+
+.btn:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none !important; transform:none !important; }
+.lock-hint{ font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:6px; }
 
 /* 미리보기 */
 .preview{
@@ -134,11 +142,22 @@ details input{
         <b>학교 약자 + 무작위 글자</b>를 섞으세요. (초급·고급 랭킹은 자동으로 나뉩니다)
       </p>
       <input id="code" maxlength="8" placeholder="예: DL6B2X" />
+      <button class="btn alt" id="check-btn" style="width:100%; margin-top:8px;">🔍 이 코드, 겹치는지 확인하기</button>
+
+      <div class="dup-status hidden" id="dup-ok">
+        <p>✅ 사용 가능한 코드예요.</p>
+      </div>
       <div class="dup-warning hidden" id="dup-warning">
         <p id="dup-text"></p>
         <div class="btn-row" style="margin-top:8px;">
           <button class="btn ghost" id="dup-change-btn">다른 코드 쓸게요</button>
           <button class="btn copy" id="dup-proceed-btn" style="flex:1; min-width:auto;">그래도 이 코드 쓸게요</button>
+        </div>
+      </div>
+      <div class="dup-warning hidden" id="dup-fail">
+        <p>⚠️ 지금은 겹치는지 확인할 수 없어요 (네트워크 문제일 수 있어요).</p>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn copy" id="fail-proceed-btn" style="flex:1; min-width:auto;">확인 없이 진행할게요</button>
         </div>
       </div>
     </div>
@@ -153,9 +172,10 @@ details input{
       <h2>📎 아이들에게 줄 링크</h2>
       <textarea id="link" rows="3" readonly></textarea>
       <div class="btn-row">
-        <button class="btn copy" id="copy-btn">링크 복사</button>
-        <button class="btn open" id="open-btn">게임 열어보기</button>
+        <button class="btn copy" id="copy-btn" disabled>링크 복사</button>
+        <button class="btn open" id="open-btn" disabled>게임 열어보기</button>
       </div>
+      <p class="lock-hint" id="lock-hint">🔒 위 '겹치는지 확인하기'를 먼저 눌러 주세요.</p>
     </div>
 
     <details>
@@ -196,42 +216,81 @@ function cleanCode(v){
   return (v || "").toUpperCase().replace(/[^A-Z0-9가-힣]/g, "").slice(0, 8);
 }
 
-/* 이미 다른 학교 이름으로 쓰인 코드인지 확인합니다 */
-let checkTimer = null;
-async function checkDuplicateCode(){
-  const code   = cleanCode($("code").value);
-  const school = $("school").value.trim() || DEFAULT_SCHOOL;
+/* 이미 다른 학교 이름으로 쓰인 코드인지 확인합니다. (필수 확인 절차)
+   확인하기 전에는 링크 복사·열기 버튼이 잠겨 있고, 코드나 학교 이름을
+   다시 바꾸면 확인이 풀려 다시 눌러야 합니다. */
+let codeChecked = false;
+
+function setChecked(ok){
+  codeChecked = ok;
+  $("copy-btn").disabled = !ok;
+  $("open-btn").disabled = !ok;
+  $("lock-hint").style.display = ok ? "none" : "";
+}
+function hideAllDupBoxes(){
+  $("dup-ok").classList.add("hidden");
   $("dup-warning").classList.add("hidden");
-  if (!code) return;
+  $("dup-fail").classList.add("hidden");
+}
+
+async function checkDuplicateCode(){
+  const code   = cleanCode($("code").value) || DEFAULT_CODE;
+  const school = $("school").value.trim() || DEFAULT_SCHOOL;
+  hideAllDupBoxes();
+  $("check-btn").disabled = true;
+  $("check-btn").textContent = "확인하는 중…";
 
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/code_schools?code=eq.${encodeURIComponent(code)}&select=school`,
       { headers: { apikey: SUPABASE_KEY } }
     );
-    if (!res.ok) return;                       // 조회 실패는 조용히 무시 (경고를 못 띄울 뿐, 링크 생성은 그대로 됩니다)
+    if (!res.ok) throw new Error("bad response");
     const rows = await res.json();
-
     const others = [...new Set(rows.map(r => r.school).filter(s => s && s !== school))];
+
     if (others.length > 0){
       $("dup-text").innerHTML =
         `이미 <b>'${escapeHtml(others[0])}'</b>${others.length > 1 ? ` 외 ${others.length - 1}곳` : ""} 이름으로
          쓰인 적 있는 코드예요. 같은 코드를 두 학교가 쓰면 <b>랭킹이 섞입니다.</b> 그래도 진행하시겠어요?`;
       $("dup-warning").classList.remove("hidden");
+      setChecked(false);                      // '그래도 이 코드 쓸게요'를 눌러야 풀립니다
+    } else {
+      $("dup-ok").classList.remove("hidden");
+      setChecked(true);
     }
-  } catch(e){ /* 네트워크 문제 시 조용히 무시 */ }
+  } catch(e){
+    $("dup-fail").classList.remove("hidden");   // 확인 자체가 실패한 경우, 눌러서 진행할 수 있게 안내합니다
+    setChecked(false);
+  } finally {
+    $("check-btn").disabled = false;
+    $("check-btn").textContent = "🔍 이 코드, 겹치는지 확인하기";
+  }
 }
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
+
+$("check-btn").addEventListener("click", checkDuplicateCode);
 $("dup-change-btn").addEventListener("click", () => {
   $("code").value = "";
-  $("dup-warning").classList.add("hidden");
+  hideAllDupBoxes();
   $("code").focus();
 });
 $("dup-proceed-btn").addEventListener("click", () => {
-  $("dup-warning").classList.add("hidden");     // 확인했으니 접어 둡니다. 링크는 이미 만들어져 있어요.
+  hideAllDupBoxes();
+  setChecked(true);                             // 알고도 계속하겠다는 선택 → 이제 복사 가능
 });
+$("fail-proceed-btn").addEventListener("click", () => {
+  hideAllDupBoxes();
+  setChecked(true);                             // 확인은 못 했지만 계속 진행 허용
+});
+
+/* 코드나 학교 이름을 다시 바꾸면, 이전 확인은 더 이상 유효하지 않으므로 다시 잠급니다 */
+["school", "code"].forEach(id => $(id).addEventListener("input", () => {
+  hideAllDupBoxes();
+  setChecked(false);
+}));
 
 function build(){
   const school = $("school").value.trim();
@@ -253,15 +312,6 @@ function build(){
 
 ["school", "code", "base"].forEach(id =>
   $(id).addEventListener("input", build));
-
-$("code").addEventListener("input", () => {
-  clearTimeout(checkTimer);
-  checkTimer = setTimeout(checkDuplicateCode, 500);   // 입력이 잠시 멈추면 확인
-});
-$("school").addEventListener("input", () => {
-  clearTimeout(checkTimer);
-  checkTimer = setTimeout(checkDuplicateCode, 500);
-});
 
 $("copy-btn").addEventListener("click", async () => {
   const btn = $("copy-btn");
