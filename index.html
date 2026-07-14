@@ -920,6 +920,63 @@ const SUPA = {
 };
 
 /* =========================================================================
+   🏫 우리 반 단계 — 선생님이 admin 페이지에서 넣은 단어로 만들어지는 11단계.
+   학급 코드마다 내용이 다르고, 단어가 하나도 없으면 아예 안 나타납니다.
+   ========================================================================= */
+const CUSTOM_STAGE_NUM = 11;
+
+/* 단어 길이에 맞춰 속도를 자동으로 정합니다 (긴 문장이면 느리게) */
+function makeCustomStage(words){
+  const avg = words.reduce((s, w) => s + w.length, 0) / words.length;
+  const preset = avg > 6 ? { speed: 55, spawnEvery: 4.6 }
+               : avg > 3 ? { speed: 75, spawnEvery: 3.0 }
+               :           { speed: 92, spawnEvery: 2.1 };
+  return {
+    num: CUSTOM_STAGE_NUM, name: "우리 반 단계", custom: true,
+    desc: "우리 선생님이 직접 만든 단계예요!",
+    words,
+    monsters: ["🏫","📚","✏️"],
+    speed: preset.speed, spawnEvery: preset.spawnEvery
+  };
+}
+
+/* 이 학급 코드에 등록된 단어를 불러옵니다 */
+async function loadClassWords(code){
+  if (!SUPA.on || !code) return null;
+  try {
+    const q = `${SUPABASE_URL}/rest/v1/class_words`
+            + `?select=words&code=eq.${encodeURIComponent(code)}&limit=1`;
+    const res = await fetch(q, { headers: SUPA.headers() });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    const words = rows[0] && rows[0].words;
+    return Array.isArray(words) && words.length ? words : null;
+  } catch(e){ return null; }
+}
+
+/* 우리 반 단계를 STAGES 맨 뒤에 붙이거나 떼어냅니다 */
+function applyCustomStage(words){
+  const last = STAGES[STAGES.length - 1];
+  if (last && last.custom) STAGES.pop();            // 예전 것 제거
+  if (words && words.length) STAGES.push(makeCustomStage(words));
+  buildStageOptions();
+}
+
+/* 시작 단계 드롭다운을 (우리 반 단계 포함해서) 다시 그립니다 */
+function buildStageOptions(){
+  const sel = $("start-stage");
+  const keep = sel.value;
+  sel.innerHTML = "";
+  STAGES.forEach(s => {
+    const o = document.createElement("option");
+    o.value = s.num;
+    o.textContent = s.custom ? `🏫 ${s.num}단계 · 우리 반 단계` : `${s.num}단계 · ${s.name}`;
+    sel.appendChild(o);
+  });
+  if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+}
+
+/* =========================================================================
    🏅 뱃지 — 조건은 아래 표 한 곳에서만 관리합니다.
    learner_id(학급코드_이름) 기준으로 서버에 저장되므로, 집 컴퓨터에서 같은
    이름으로 접속하면 모아 둔 뱃지가 그대로 따라옵니다.
@@ -942,7 +999,8 @@ const BADGES = [
   { id:"timelord", icon:"⏳", name:"시간 여행자",    desc:"몬스터가 절반도 오기 전에 전부 처치했어요" },
   // 히든 — 운과 재미
   { id:"lucky77",  icon:"🍀", name:"행운의 77",     desc:"최종 점수가 77로 끝났어요" },
-  { id:"meteor",   icon:"☄️", name:"메테오 샤워",    desc:"한 판에서 별똥별을 3번 소환했어요" }
+  { id:"meteor",   icon:"☄️", name:"메테오 샤워",    desc:"한 판에서 별똥별을 3번 소환했어요" },
+  { id:"classhero",icon:"🏫", name:"우리 반 챔피언",  desc:"선생님이 만든 '우리 반 단계'를 클리어했어요" }
 ];
 const BADGE_BY_ID = Object.fromEntries(BADGES.map(b => [b.id, b]));
 
@@ -2402,13 +2460,15 @@ function showBadgeToast(b){
 /* 단계를 깼을 때 판정하는 뱃지들 */
 function checkStageBadges(){
   const st = state.stageStats;
-  const stageNum = STAGES[state.stageIndex].num;
+  const stageObj = STAGES[state.stageIndex];
+  const stageNum = stageObj.num;
   const practice = state.practice;
 
   /* --- 성실 (견습에서도 받을 수 있어요) --- */
   if (stageNum >= 1)  grantBadge("enter");
-  if (stageNum >= 5)  grantBadge("half");
-  if (stageNum >= 10) grantBadge("captain");
+  if (stageNum >= 5 && !stageObj.custom)  grantBadge("half");
+  if (stageNum >= 10 && !stageObj.custom) grantBadge("captain");
+  if (stageObj.custom) grantBadge("classhero");     // 🏫 우리 반 단계 전용
 
   // 이 단계에서 예전에 3번 넘게 실패했다면
   const pastFails = state.progress.failsByStage[stageNum] || 0;
@@ -2538,13 +2598,8 @@ function startGame(){
   rafId = requestAnimationFrame(loop);
 }
 
-/* 시작 단계 드롭다운 채우기 */
-STAGES.forEach(s => {
-  const o = document.createElement("option");
-  o.value = s.num;
-  o.textContent = `${s.num}단계 · ${s.name}`;
-  $("start-stage").appendChild(o);
-});
+/* 시작 단계 드롭다운 채우기 (우리 반 단계가 있으면 함께 표시됩니다) */
+buildStageOptions();
 
 let previewMode = 1.0;     // 시작 화면에서 보고 있는 랭킹의 난이도
 
@@ -2584,6 +2639,15 @@ $("back-btn").addEventListener("click", () => {
 $("start-btn").addEventListener("click", startGame);
 $("roomcode").addEventListener("change", refreshStartRanks);
 $("roomcode").addEventListener("blur", refreshStartRanks);
+
+/* 학급 코드가 바뀌면 그 반의 '우리 반 단계' 단어도 다시 불러옵니다 */
+async function refreshClassStage(){
+  const code = cleanCode($("roomcode").value);
+  const words = await loadClassWords(code);
+  applyCustomStage(words);
+}
+$("roomcode").addEventListener("change", refreshClassStage);
+$("roomcode").addEventListener("blur", refreshClassStage);
 
 $("again-btn").addEventListener("click", () => {      // 같은 단계 반복 — 고른 배속 적용
   $("clear-screen").classList.add("hidden");
@@ -2681,6 +2745,7 @@ buildKeyboard();
 setMode(1.0);
 refreshStartRanks();
 getLearnerId().then(id => { LEARNER_ID = id; });
+refreshClassStage();      // 🏫 우리 반 단계가 있으면 드롭다운에 추가
 </script>
 </body>
 </html>
