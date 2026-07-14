@@ -558,6 +558,9 @@ body{
       <h1 id="game-title">웨이하이한국학교 타자 수비대</h1>
       <p>학교가 몬스터에게 둘러싸였어요.<br>여러분은 <b>글자 마법사</b>! 이름을 알려 주세요.</p>
       <input id="nickname" maxlength="8" placeholder="마법사 이름" />
+      <p style="font-size:12px; color:var(--grape); max-width:420px; line-height:1.5; margin-top:-6px;">
+        💡 집에서도 이어서 하고 싶으면, <b>학교에서 쓴 것과 똑같은 이름</b>을 써 주세요!
+      </p>
       <button class="btn" id="to-howto-btn">🪄 마법 배우러 가기</button>
       <p style="font-size:12px; color:var(--ink-soft); max-width:420px; line-height:1.6;">
         입력한 이름과 게임 기록(점수·걸린 시간)은 랭킹과 타자 실력 확인을 위해 저장돼요.
@@ -722,7 +725,9 @@ const STAGES = [
     desc: "이제 낱말이에요! 받침 없는 두 글자에 도전.",
     words: ["나비","기차","나무","사자","고기","두부","바다","오리","여우",
             "다리","머리","허리","하마","모자","우유","지도","소파","야구",
-            "파도","이모","시소","가수","노래","배추","치마","우비"],
+            "파도","이모","시소","가수","노래","배추","치마","우비",
+            "포도","비누","마루","호수","부모","우주","이마","도마","거미",
+            "구두","피리","피구","배구"],
     monsters: ["🦑","🐲","👹"], speed: 88, spawnEvery: 2.0
   },
   {
@@ -730,7 +735,9 @@ const STAGES = [
     desc: "받침이 하나 붙은 낱말이에요.",
     words: ["나방","가방","수박","구름","바람","공장","사람","하늘","그림",
             "우산","이불","수건","소금","사탕","지붕","자석","마을","저녁",
-            "도장","무릎","학교","노을","시장","부엌"],
+            "도장","무릎","학교","노을","시장","부엌","마법",
+            "강물","달빛","별빛","책상","연필","신발","창문","안경","칠판",
+            "거울","선물","호랑이","강아지","고양이","달팽이","운동장","선생님"],
     monsters: ["👺","🤖","👻"], speed: 100, spawnEvery: 1.9
   },
   {
@@ -738,7 +745,9 @@ const STAGES = [
     desc: "새끼손가락으로 Shift를 누른 채 자음을 눌러요!",
     words: ["까치","꿀벌","딸기","빵집","토끼","짜장","뿌리","씨앗","빨래",
             "꼬리","뚜껑","싸움","쌀밥","뽀뽀","꽃잎","깜짝","짝꿍","꼭지",
-            "뻐꾸기","쌍둥이","뼈다귀","까마귀","뚝배기","씩씩","깡충","쭈글"],
+            "뻐꾸기","쌍둥이","뼈다귀","까마귀","뚝배기","씩씩","깡충","쭈글",
+            "떡볶이","아빠","오빠","짜장면","짬뽕","찌개","꿀밤","코끼리",
+            "귀뚜라미","뚝딱","깜빡","보따리"],
     monsters: ["😈","🦂","🐊"], speed: 95, spawnEvery: 2.2
   },
   {
@@ -746,7 +755,9 @@ const STAGES = [
     desc: "ㅗ+ㅏ=ㅘ 처럼 모음을 합쳐서 만들어요.",
     words: ["과자","사과","화분","화가","과일","원숭이","원피스","의자","의사",
             "회사","회의","왼손","왼발","최고","최선","위로","위기","귀신",
-            "뒤쪽","취미","권투","훨씬","돼지","궤도","희망","무늬","외투","쥐"],
+            "뒤쪽","취미","권투","훨씬","돼지","궤도","희망","무늬","외투","쥐",
+            "과제","귀걸이","스웨터","펭귄","참외","박쥐","화장실","태권도",
+            "뷔페","스위치","치과"],
     monsters: ["🧟","🦖","🐉"], speed: 90, spawnEvery: 2.3
   },
   {
@@ -754,7 +765,8 @@ const STAGES = [
     desc: "받침을 두 개나 붙이는 어려운 글자예요.",
     words: ["읽다","앉다","밟다","없다","많다","짧다","굵다","맑다","젊다",
             "앓다","핥다","읊다","갉다","얹다","잃다","싫다","옳다","붉다",
-            "값","닭","삶","흙","넋","몫","삯","여덟"],
+            "값","닭","삶","흙","넋","몫","삯","여덟",
+            "넓다","얇다","훑다","뚫다","곪다","굶다","닮다"],
     monsters: ["👹","🦇","🕸️"], speed: 85, spawnEvery: 2.4
   },
   {
@@ -764,7 +776,10 @@ const STAGES = [
             "물을 마시다","노래를 부르다","친구와 놀다","손을 씻다","공을 차다",
             "그림을 그리다","편지를 쓰다","사진을 찍다","이를 닦다","꽃이 피다",
             "바람이 불다","눈이 내리다","문을 열다","자리에 앉다","신발을 신다",
-            "숙제를 하다","계단을 오르다","달리기를 하다","우유를 마시다"],
+            "숙제를 하다","계단을 오르다","달리기를 하다","우유를 마시다",
+            "푸른 바다","예쁜 꽃","맛있는 점심","신나는 방학","숙제 다 했다",
+            "친구야 놀자","달리기 일등","비가 내린다","눈이 펑펑 온다",
+            "바람이 시원하다","가족 여행","맛있는 저녁밥","자전거 타기"],
     monsters: ["🛸","👽","🤖"], speed: 65, spawnEvery: 3.6
   },
   {
@@ -775,7 +790,10 @@ const STAGES = [
             "손을 깨끗이 씻어요","매일 조금씩 연습해요","우리는 한글을 사랑해요",
             "노래를 크게 불러요","함께 하면 더 재미있어요","나는 날마다 자란다",
             "웨이하이의 바다는 푸르다","열 손가락을 모두 써요","바른 자세로 앉아요",
-            "천천히 그리고 정확하게","실수해도 괜찮아요","오늘은 어제보다 빠르다"],
+            "천천히 그리고 정확하게","실수해도 괜찮아요","오늘은 어제보다 빠르다",
+            "겨울에는 눈사람을 만들어요","도서관에서는 조용히 해요",
+            "가을에는 나뭇잎이 물들어요","오늘 하루도 정말 즐겁고 행복해요",
+            "쉬는 시간에 물을 마시고 화장실도 가요"],
     monsters: ["🐲","👾","🔥"], speed: 55, spawnEvery: 4.6
   }
 ];
@@ -877,7 +895,16 @@ async function getLearnerId(){
     return id;
   } catch(e){ return "unknown"; }
 }
-let LEARNER_ID = "unknown";
+let LEARNER_ID = "unknown";     // 익명 백업용 (이름을 안 쓴 경우에만 사용)
+
+/* 다른 기기에서도 같은 기록·뱃지가 이어지도록, 학급코드+이름 조합을
+   학습자 식별자로 씁니다. 기본 이름을 그대로 둔 경우엔 여러 아이가
+   똑같이 '이름없는마법사'가 되어 뒤섞일 수 있으니, 그때만 이 기기의
+   익명 ID로 대신합니다. */
+function computeLearnerId(nickname, classCode){
+  if (!nickname || nickname === "이름없는마법사") return LEARNER_ID;
+  return `${classCode}_${nickname}`;
+}
 
 /* 단어 단위 기록은 세션 내내 메모리에만 모아 두었다가, 게임이 끝날 때
    딱 한 번의 요청으로 통째로 보냅니다. (요청 횟수는 늘지 않고, 저장되는
@@ -917,7 +944,7 @@ const memoryRanks = {};
 
 /* --- ① Supabase --- */
 async function supaLoad(code){
-  const q = `${SUPABASE_URL}/rest/v1/scores`
+  const q = `${SUPABASE_URL}/rest/v1/user_high_scores`
           + `?select=id,name,score,stage`
           + `&code=eq.${encodeURIComponent(code)}`
           + `&order=score.desc&limit=${RANK_SIZE}`;
@@ -925,15 +952,31 @@ async function supaLoad(code){
   if (!res.ok) throw new Error("load failed");
   return await res.json();
 }
-async function supaInsert(code, entry){
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
-    method: "POST",
-    headers: SUPA.headers({ "Prefer": "return=representation" }),
-    body: JSON.stringify({ code, name: entry.name, score: entry.score, stage: entry.stage })
-  });
-  if (!res.ok) throw new Error("insert failed");
+/* 화면에 보이는 순위표는 '학습자 한 명당 최고점 1줄'만 씁니다. 서버 트리거가
+   더 높은 점수일 때만 덮어쓰므로, 낮은 점수로 실수로 갱신될 걱정이 없습니다. */
+async function supaUpsertHigh(code, learnerId, entry){
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/user_high_scores?on_conflict=learner_id,code`,
+    {
+      method: "POST",
+      headers: SUPA.headers({ "Prefer": "resolution=merge-duplicates,return=representation" }),
+      body: JSON.stringify({ learner_id: learnerId, code, name: entry.name, score: entry.score, stage: entry.stage })
+    }
+  );
+  if (!res.ok) throw new Error("upsert failed");
   const rows = await res.json();
-  return rows[0];                       // 서버가 매긴 id 를 돌려받습니다
+  return rows[0];
+}
+/* 전체 이력은 그대로 scores 에도 남깁니다 (연구용 쿼리들이 이걸 씁니다).
+   실패해도 화면 순위표(위 함수)에는 영향이 없도록 따로 분리해 둡니다. */
+async function supaInsertHistory(code, entry){
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
+      method: "POST",
+      headers: SUPA.headers({ "Prefer": "return=minimal" }),
+      body: JSON.stringify({ code, name: entry.name, score: entry.score, stage: entry.stage })
+    });
+  } catch(e){ /* 이력 저장 실패는 조용히 무시 */ }
 }
 
 /* --- ② 로컬 저장 (폴백) --- */
@@ -970,18 +1013,27 @@ async function loadRanks(code){
   return await localLoad(code);
 }
 
-async function addRank(code, entry){
+async function addRank(code, entry, learnerId){
+  supaInsertHistory(code, entry);      // 연구용 전체 이력 (실패해도 순위표엔 영향 없음, 기다리지 않음)
+
   if (SUPA.on){
     try {
-      const saved = await supaInsert(code, entry);
+      const saved = await supaUpsertHigh(code, learnerId, entry);
       entry.id = saved.id;                       // 내 기록을 순위표에서 강조하려고 id 를 맞춰 둡니다
       return await supaLoad(code);
     } catch(e){ console.warn("랭킹 등록 실패 — 로컬에 저장합니다.", e); }
   }
   const list = await localLoad(code);
-  list.push(entry);
-  list.sort((a,b) => b.score - a.score);
-  const top = list.slice(0, RANK_SIZE);
+  const without = list.filter(r => r.learnerId !== learnerId);   // 로컬 폴백도 '학습자당 최고점 1개' 유지
+  const prevBest = list.find(r => r.learnerId === learnerId);
+  if (prevBest && prevBest.score >= entry.score){
+    entry.score = prevBest.score; entry.stage = prevBest.stage; entry.id = prevBest.id;
+  } else {
+    entry.learnerId = learnerId;
+  }
+  without.push(entry);
+  without.sort((a,b) => b.score - a.score);
+  const top = without.slice(0, RANK_SIZE);
   await localSave(code, top);
   return top;
 }
@@ -2137,7 +2189,7 @@ async function endGame(cleared){
     score: state.score,
     stage: STAGES[state.stageIndex].num
   };
-  const top  = await addRank(state.rankCode, entry);
+  const top  = await addRank(state.rankCode, entry, LEARNER_ID);
   const rank = top.findIndex(r => r.id === entry.id);
   const label = `${state.code} ${modeLabel(state.baseSpeed)}`;
 
@@ -2205,6 +2257,8 @@ function startGame(){
   const nickname = ($("nickname").value.trim() || "이름없는마법사").slice(0, 8);
   const code     = cleanCode($("roomcode").value);
   $("roomcode").value = code;
+
+  LEARNER_ID = computeLearnerId(nickname, code);   // 다른 기기에서도 이어지도록
 
   cancelAnimationFrame(rafId);
   if (state) clearMonsters();
