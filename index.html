@@ -1022,6 +1022,12 @@ function curStage(){
   return (state && state.infinite) ? state.infStage : STAGES[state.stageIndex];
 }
 
+/* ♾️ 무한 마법 점수 공식 — 이미 고급 10단계를 깬 실력자만 들어오는 모드라
+   처음부터 후하게 주고, 오래 버틸수록 단계 점수와 콤보 배수가 함께 올라갑니다.
+   (50마리 ≈ 1만점대, 100마리 ≈ 3만점대, 150마리 버티면 5만점도 볼 수 있어요) */
+function infPointStage(kills){ return Math.min(24, 10 + Math.floor(kills / 5)); }
+function infComboMult(kills){ return 1 + Math.min(2, kills * 0.01); }
+
 /* 이 학급 코드에 등록된 단어를 불러옵니다 */
 async function loadClassWords(code){
   if (!SUPA.on || !code) return null;
@@ -1067,6 +1073,7 @@ const BADGES = [
   // 성실 — 꾸준히 하면 받아요
   { id:"enter",    icon:"🎒", name:"마법 학교 입학",  desc:"1단계를 클리어했어요" },
   { id:"sweat",    icon:"💦", name:"견습생의 땀방울", desc:"견습 마법사로 5판을 연습했어요" },
+  { id:"grind10",  icon:"🫗", name:"땀방울 마스터",   desc:"견습 마법사로 10판을 연습했어요" },
   { id:"half",     icon:"🌗", name:"절반의 기적",    desc:"5단계(받침 단어)를 클리어했어요" },
   { id:"captain",  icon:"👑", name:"타자 수비대장",  desc:"10단계까지 모두 클리어했어요" },
   { id:"advten",   icon:"🔓", name:"고급 정복자",     desc:"고급 마법사로 10단계를 클리어했어요 (무한 마법 해금!)" },
@@ -1076,19 +1083,24 @@ const BADGES = [
   { id:"notape",   icon:"🚫", name:"수정테이프 압수", desc:"지우기(Backspace) 없이 한 단계를 통과했어요" },
   { id:"careful",  icon:"🐢", name:"돌다리도 두들겨라", desc:"한 단계를 정확도 95% 이상으로 통과했어요" },
   { id:"shield",   icon:"🛡️", name:"철벽 방어",      desc:"하트를 하나도 잃지 않고 단계를 통과했어요" },
+  { id:"perfect",  icon:"💯", name:"완벽주의자",     desc:"오답도 지우기도 하나 없이 한 단계를 통과했어요" },
   // 속도 — 빠르게 치면 받아요 (견습 모드 제외)
   { id:"lightning",icon:"⚡", name:"번개 마법사",    desc:"1분에 300타 넘게 쳤어요" },
   { id:"burning",  icon:"🔥", name:"불타는 키보드",  desc:"고급(2배속) 모드로 한 단계를 통과했어요" },
   { id:"timelord", icon:"⏳", name:"시간 여행자",    desc:"몬스터가 절반도 오기 전에 전부 처치했어요" },
-  // 점수 — 많이 모을수록
-  { id:"score10k", icon:"🪙", name:"만 점 마법사",    desc:"한 게임에서 10,000점을 넘겼어요" },
-  { id:"score50k", icon:"💎", name:"오만 점 대마법사", desc:"한 게임에서 50,000점을 넘겼어요" },
-  { id:"score100k",icon:"🏆", name:"십만 점 전설",    desc:"한 게임에서 100,000점을 넘겼어요" },
+  // 점수 — 많이 모을수록 (한 게임 누적 점수 기준)
+  { id:"score10k", icon:"🪙", name:"일만 점 마법사",  desc:"한 게임에서 10,000점을 넘겼어요" },
+  { id:"score20k", icon:"🥈", name:"이만 점 마법사",  desc:"한 게임에서 20,000점을 넘겼어요" },
+  { id:"score30k", icon:"🥇", name:"삼만 점 마법사",  desc:"한 게임에서 30,000점을 넘겼어요" },
+  { id:"score40k", icon:"💎", name:"사만 점 대마법사", desc:"한 게임에서 40,000점을 넘겼어요" },
+  { id:"score50k", icon:"🏆", name:"오만 점 전설",    desc:"한 게임에서 50,000점을 넘겼어요" },
   // 히든 — 운과 재미
   { id:"lucky77",  icon:"🍀", name:"행운의 77",     desc:"최종 점수가 77로 끝났어요" },
   { id:"meteor",   icon:"☄️", name:"메테오 샤워",    desc:"한 판에서 별똥별을 3번 소환했어요" },
   { id:"classhero",icon:"🏫", name:"우리 반 챔피언",  desc:"선생님이 만든 '우리 반 단계'를 클리어했어요" },
-  { id:"endless",  icon:"♾️", name:"끝없는 도전자",   desc:"무한 마법에서 50마리를 처치했어요" }
+  // ♾️ 무한 마법 — 얼마나 오래 버텼는지
+  { id:"inf50",    icon:"♾️", name:"끝없는 도전자",   desc:"무한 마법에서 단어를 50개 입력했어요" },
+  { id:"inf100",   icon:"🌌", name:"영원의 마법사",   desc:"무한 마법에서 단어를 100개 입력했어요" }
 ];
 const BADGE_BY_ID = Object.fromEntries(BADGES.map(b => [b.id, b]));
 
@@ -2198,18 +2210,19 @@ function castSpell(m){
     return;
   }
 
-  /* 일반 몬스터: (기본 + 속도 보너스) × 배속 × 피버 */
+  /* 일반 몬스터: (기본 + 속도 보너스) × 배속 × 피버 × (무한이면 콤보 배수까지) */
   const seconds = (now - m.bornAt) / 1000;
-  // ♾️ 무한 마법은 오래 버틸수록 점수 단계가 올라가요 (기본 6 → 최대 12)
-  const pointStage = state.infinite ? Math.min(12, 6 + Math.floor(state.kills / 12)) : stage.num;
+  const pointStage = state.infinite ? infPointStage(state.kills) : stage.num;
+  const infMult = state.infinite ? infComboMult(state.kills) : 1;
   const basePts = basePoints(m.word, pointStage);
   const bonus   = Math.round(basePts * Math.max(0, 1 - seconds / bonusWindow(m.word)));
   const fever   = state.feverUntil > now ? FEVER_MULT : 1;
-  const gained  = Math.round((basePts + bonus) * state.speedMult * fever);
+  const gained  = Math.round((basePts + bonus) * state.speedMult * fever * infMult);
 
   const tags = [];
   if (bonus > basePts * 0.7)      tags.push("⚡ 번개같이!");
   else if (bonus > basePts * 0.4) tags.push("✨ 빠르다!");
+  if (infMult > 1.05)      tags.push(`♾️×${infMult.toFixed(1)}`);
   if (fever > 1)           tags.push(`🔥×${FEVER_MULT}`);
   if (state.speedMult > 1) tags.push(`×${state.speedMult.toFixed(1)}`);
 
@@ -2281,14 +2294,15 @@ function summonMeteors(now){
   state.pauseUntil = now + 120 + targets.length * 35;        // 연출 동안 아주 잠깐만 멈춤
   const stage = curStage();
   const fever = state.feverUntil > now ? FEVER_MULT : 1;
-  const pointStage = state.infinite ? Math.min(12, 6 + Math.floor(state.kills / 12)) : stage.num;
+  const pointStage = state.infinite ? infPointStage(state.kills) : stage.num;
+  const infMult    = state.infinite ? infComboMult(state.kills) : 1;
 
   targets.forEach((m, i) => {
     setTimeout(() => {
       if (!state || !state.monsters.includes(m)) return;
 
       dropMeteor(m);                                          // 별똥별 낙하 연출
-      const gained = Math.round(basePoints(m.word, pointStage) * state.speedMult * fever);
+      const gained = Math.round(basePoints(m.word, pointStage) * state.speedMult * fever * infMult);
       state.score      += gained;
       state.stageScore += gained;
       state.kills      += 1;
@@ -2659,6 +2673,7 @@ function checkStageBadges(){
   if (st.wrongSubmits === 0) grantBadge("sniper");
   if (st.backspaces  === 0) grantBadge("notape");
   if (st.heartsLost  === 0) grantBadge("shield");
+  if (st.wrongSubmits === 0 && st.backspaces === 0) grantBadge("perfect");   // 💯 오답·지우기 둘 다 0
 
   const attempts = st.correctSubmits + st.wrongSubmits;
   if (attempts >= KILLS_PER_STAGE && st.correctSubmits / attempts >= 0.95) grantBadge("careful");
@@ -2743,16 +2758,20 @@ async function refreshStartBadges(){
 function checkEndBadges(){
   if (state.meteorUses >= 3) grantBadge("meteor");
   if (state.score > 0 && state.score % 100 === 77) grantBadge("lucky77");
-  // 이번 판까지 포함해 견습 5판
-  if (state.practice && state.progress.practicePlays + 1 >= 5) grantBadge("sweat");
+  // 이번 판까지 포함해 견습 5판 / 10판
+  if (state.practice && state.progress.practicePlays + 1 >= 5)  grantBadge("sweat");
+  if (state.practice && state.progress.practicePlays + 1 >= 10) grantBadge("grind10");
 
-  // 💰 점수 뱃지 — 이 게임에서 모은 총점 기준
-  if (state.score >= 10000)  grantBadge("score10k");
-  if (state.score >= 50000)  grantBadge("score50k");
-  if (state.score >= 100000) grantBadge("score100k");
+  // 💰 점수 뱃지 — 이 게임에서 모은 총점 기준 (1만~5만, 5단계)
+  if (state.score >= 10000) grantBadge("score10k");
+  if (state.score >= 20000) grantBadge("score20k");
+  if (state.score >= 30000) grantBadge("score30k");
+  if (state.score >= 40000) grantBadge("score40k");
+  if (state.score >= 50000) grantBadge("score50k");
 
-  // ♾️ 무한 마법에서 오래 버티면
-  if (state.infinite && state.kills >= 50) grantBadge("endless");
+  // ♾️ 무한 마법에서 입력한 단어 수(=처치 수) 기준
+  if (state.infinite && state.kills >= 50)  grantBadge("inf50");
+  if (state.infinite && state.kills >= 100) grantBadge("inf100");
 }
 
 
