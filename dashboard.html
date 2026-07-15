@@ -163,9 +163,60 @@ tr:last-child td{ border-bottom:none; }
   </div>
 
   <div class="card">
-    <h2>실력 향상 추이 <button id="load-trend">불러오기</button></h2>
-    <p class="help">최근 14일을 반으로 나눠, 앞 절반 대비 뒤 절반 평균 타수 변화예요. (표본이 너무 적은 학교는 제외)</p>
-    <div class="body" id="trend-body"><span class="muted">버튼을 눌러 불러오세요.</span></div>
+    <h2>
+      실력 향상 추이
+      <span>
+        <select id="trend-days-select">
+          <option value="3">최근 3일</option>
+          <option value="5" selected>최근 5일</option>
+          <option value="7">최근 7일</option>
+          <option value="14">최근 14일</option>
+        </select>
+        <button id="load-trend">불러오기</button>
+      </span>
+    </h2>
+    <p class="help">선택한 기간을 반으로 나눠, 앞 절반 대비 뒤 절반 평균 타수 변화예요. (표본이 너무 적은 학교는 제외)</p>
+    <div class="body" id="trend-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+  </div>
+
+  <div class="card">
+    <h2>시간대·요일별 접속 패턴 <button id="load-heatmap">불러오기</button></h2>
+    <p class="help">최근 30일 기준. 진할수록 그 시간대에 많이 접속했어요.</p>
+    <div class="body" id="heatmap-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+  </div>
+
+  <div class="card">
+    <h2>
+      최근 신규 유입 학교
+      <span>
+        <select id="newschools-days-select">
+          <option value="7" selected>최근 7일</option>
+          <option value="14">최근 14일</option>
+          <option value="30">최근 30일</option>
+        </select>
+        <button id="load-newschools">불러오기</button>
+      </span>
+    </h2>
+    <p class="help">처음 플레이한 날이 이 기간 안에 있는 학교예요.</p>
+    <div class="body" id="newschools-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+  </div>
+
+  <div class="card">
+    <h2>이탈 위험 학교 <button id="load-dropoff">불러오기</button></h2>
+    <p class="help">그 전 2주(8~21일 전)엔 5번 이상 플레이했는데, 최근 7일간은 접속이 없는 학교예요.</p>
+    <div class="body" id="dropoff-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+  </div>
+
+  <div class="card">
+    <h2>가장 많이 틀리는 단계 <button id="load-difficulty">불러오기</button></h2>
+    <p class="help">최근 30일, 무한 모드 제외. 실패율이 높은 순서예요 — 난이도 밸런스 참고용.</p>
+    <div class="body" id="difficulty-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+  </div>
+
+  <div class="card">
+    <h2>♾️ 무한 마법 최고 기록 <button id="load-infboard">불러오기</button></h2>
+    <p class="help">전체 학교 통틀어 무한 마법 점수 상위 15명이에요.</p>
+    <div class="body" id="infboard-body"><span class="muted">불러오기를 눌러주세요.</span></div>
   </div>
 </main>
 
@@ -369,9 +420,10 @@ async function loadCustomStage(){
 /* ---------- 실력 향상 추이 ---------- */
 async function loadTrend(){
   const body = document.getElementById("trend-body");
+  const days = document.getElementById("trend-days-select").value;
   body.innerHTML = `불러오는 중...`;
   try {
-    const rows = await rpc("get_dashboard_skill_trend", { p_days: 14 });
+    const rows = await rpc("get_dashboard_skill_trend", { p_days: Number(days) });
     if (!rows.length){ body.innerHTML = `<span class="muted">비교할 만큼 데이터가 쌓인 학교가 아직 없어요.</span>`; return; }
     body.innerHTML = `
       <table>
@@ -382,6 +434,142 @@ async function loadTrend(){
             <td>${esc(r.cpm_early)}</td>
             <td>${esc(r.cpm_recent)}</td>
             <td><span class="pill ${Number(r.delta) < 0 ? 'warn' : ''}">${r.delta > 0 ? "+" : ""}${esc(r.delta)}</span></td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
+/* ---------- 시간대·요일별 접속 패턴 ---------- */
+async function loadHeatmap(){
+  const body = document.getElementById("heatmap-body");
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_hourly_pattern", { p_days: 30 });
+    if (!rows.length){ body.innerHTML = `<span class="muted">최근 30일 데이터가 없어요.</span>`; return; }
+    const DOW = ["일","월","화","수","목","금","토"];
+    const grid = Array.from({ length: 24 }, () => Array(7).fill(0));
+    let max = 1;
+    rows.forEach(r => {
+      const h = Number(r.hour), d = Number(r.dow);
+      if (h >= 0 && h < 24 && d >= 0 && d < 7){
+        grid[h][d] = Number(r.plays);
+        if (grid[h][d] > max) max = grid[h][d];
+      }
+    });
+    let html = `<table><tr><th></th>${DOW.map(d => `<th>${d}</th>`).join("")}</tr>`;
+    for (let h = 0; h < 24; h++){
+      html += `<tr><td class="muted">${h}시</td>`;
+      for (let d = 0; d < 7; d++){
+        const v = grid[h][d];
+        const alpha = v ? Math.max(0.12, v / max) : 0;
+        html += `<td style="background:rgba(155,140,240,${alpha}); text-align:center; color:${alpha > 0.55 ? '#fff' : 'var(--ink)'};">${v || ""}</td>`;
+      }
+      html += `</tr>`;
+    }
+    html += `</table>`;
+    body.innerHTML = html;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
+/* ---------- 최근 신규 유입 학교 ---------- */
+async function loadNewSchools(){
+  const body = document.getElementById("newschools-body");
+  const days = document.getElementById("newschools-days-select").value;
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_new_schools", { p_days: Number(days) });
+    if (!rows.length){ body.innerHTML = `<span class="muted">이 기간에 새로 들어온 학교가 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>학교</th><th>코드</th><th>첫 접속(한국시간)</th><th>이후 총 플레이</th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td>${esc(r.school || "-")}</td>
+            <td>${esc(r.code)}</td>
+            <td>${esc((r.first_play_kst || "").replace("T"," ").slice(0,16))}</td>
+            <td>${esc(r.total_plays)}</td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
+/* ---------- 이탈 위험 학교 ---------- */
+async function loadDropoff(){
+  const body = document.getElementById("dropoff-body");
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_dropoff_risk", { p_recent_days: 7, p_prior_days: 21 });
+    if (!rows.length){ body.innerHTML = `<span class="muted">이탈 위험 학교가 없어요. 다행이에요!</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>학교</th><th>코드</th><th>이전 2주 플레이</th><th>최근 7일 플레이</th><th>마지막 접속</th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td>${esc(r.school || "-")}</td>
+            <td>${esc(r.code)}</td>
+            <td>${esc(r.plays_prior_period)}</td>
+            <td><span class="pill warn">${esc(r.plays_recent_period)}</span></td>
+            <td>${esc((r.last_play_kst || "").replace("T"," ").slice(0,16))}</td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
+/* ---------- 가장 많이 틀리는 단계 ---------- */
+async function loadDifficulty(){
+  const body = document.getElementById("difficulty-body");
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_stage_difficulty", { p_days: 30 });
+    if (!rows.length){ body.innerHTML = `<span class="muted">최근 30일 데이터가 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>단계</th><th>시도</th><th>실패</th><th>실패율</th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td>${esc(r.stage === 11 ? "11 (우리 반 단계)" : r.stage)}</td>
+            <td>${esc(r.attempts)}</td>
+            <td>${esc(r.fails)}</td>
+            <td>${r.fail_rate != null ? esc(r.fail_rate) + "%" : "-"}</td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
+/* ---------- 무한 마법 최고 기록 ---------- */
+async function loadInfBoard(){
+  const body = document.getElementById("infboard-body");
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_infinite_leaderboard", { p_limit: 15 });
+    if (!rows.length){ body.innerHTML = `<span class="muted">아직 무한 마법 기록이 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>순위</th><th>닉네임</th><th>점수</th><th>학교</th></tr>
+        ${rows.map((r, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${esc(r.name)}</td>
+            <td>${esc(r.score)}</td>
+            <td>${esc(r.school || r.code)}</td>
           </tr>
         `).join("")}
       </table>
@@ -404,6 +592,19 @@ function initDashboard(){
   document.getElementById("load-badges").addEventListener("click", loadBadges);
   document.getElementById("load-customstage").addEventListener("click", loadCustomStage);
   document.getElementById("load-trend").addEventListener("click", loadTrend);
+  document.getElementById("trend-days-select").addEventListener("change", () => {
+    if (document.getElementById("trend-body").innerHTML.includes("불러오기를 눌러주세요")) return;
+    loadTrend();
+  });
+  document.getElementById("load-heatmap").addEventListener("click", loadHeatmap);
+  document.getElementById("load-newschools").addEventListener("click", loadNewSchools);
+  document.getElementById("newschools-days-select").addEventListener("change", () => {
+    if (document.getElementById("newschools-body").innerHTML.includes("불러오기를 눌러주세요")) return;
+    loadNewSchools();
+  });
+  document.getElementById("load-dropoff").addEventListener("click", loadDropoff);
+  document.getElementById("load-difficulty").addEventListener("click", loadDifficulty);
+  document.getElementById("load-infboard").addEventListener("click", loadInfBoard);
 
   setInterval(loadToday, 60000);
   setInterval(loadActivity, 30000);
