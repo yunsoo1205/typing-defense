@@ -2513,6 +2513,7 @@ async function endGame(cleared){
 
   /* 이용 로그: 견습 포함 모든 판을 승패와 무관하게 남깁니다 */
   const minutes = Math.max(1, (performance.now() - state.startedAt) / 60000);
+  const cpmNow  = Math.min(999, Math.round(state.charsTyped / minutes));   // DB 제한: 0~999
   const avgCorrectionMs = state.correctionMs.length
     ? Math.min(30000, Math.round(state.correctionMs.reduce((a,b) => a+b, 0) / state.correctionMs.length))
     : null;
@@ -2527,13 +2528,20 @@ async function endGame(cleared){
     duration_s:   Math.min(7200, Math.round((performance.now() - state.startedAt) / 1000)),
     chars_typed:  state.charsTyped,
     wrong_presses: state.wrongPresses,
-    cpm:          Math.min(999, Math.round(state.charsTyped / minutes)),   // DB 제한: 0~999
+    cpm:          cpmNow,
     keystrokes:   state.keystrokes,                        // 실제 자판 타수 (자모 기준)
     kpm:          Math.min(2000, Math.round(state.keystrokes / minutes)),  // DB 제한: 0~2000
     run_number:   Math.max(1, state.runs[state.stageIndex]),  // 무한 마법은 단계 재도전 카운터를 안 거치므로 최소 1 보장
     avg_correction_ms: avgCorrectionMs                       // 견습 모드: '틀림' 안내~수정까지 평균 시간
   });
   flushWordLog(state.wordLog);   // 단어별 정답/오답 기록을 한 번에 전송
+
+  /* 🐣 기본/고급에서 계속 느리게 나오고 못 깨면, 다음 판엔 견습 모드를 추천합니다 */
+  lastSuggestPractice = false;
+  if (!state.practice && !state.infinite){
+    const recentCpm = recordRecentCpm(cpmNow);
+    lastSuggestPractice = cleared !== true && shouldSuggestPractice(recentCpm);
+  }
 
   /* 🐣 견습 모드: 랭킹에 올리지 않습니다 */
   if (state.practice){
@@ -2605,7 +2613,10 @@ async function endGame(cleared){
   $("end-desc").innerHTML =
     `${escapeHtml(state.nickname)} 마법사 최종 <b>${state.score}점</b>` +
     (rank >= 0 ? ` · <b>${escapeHtml(label)}</b> 랭킹 <b>${rank + 1}위</b>! 🎖️`
-               : ` · 아쉽게 TOP ${RANK_SIZE} 밖이에요.`);
+               : ` · 아쉽게 TOP ${RANK_SIZE} 밖이에요.`) +
+    (lastSuggestPractice
+      ? `<br><br>🐣 아직 자판이 조금 낯선 것 같아요. 다음엔 <b>견습 마법사</b>로 천천히 연습해 볼까요? 자판 그림이 눌러야 할 자리를 알려줘요!`
+      : "");
 
   $("rank-title-end").textContent = label;
 
@@ -2736,6 +2747,25 @@ function updateInfiniteLock(){
   if (!btn) return;
   btn.classList.toggle("locked", !isInfiniteUnlocked());
 }
+
+/* 🐣 견습 모드 추천 — 기본/고급에서 계속 느리게(타수 낮게) 나오고 잘 못 깨면,
+   다음엔 견습 마법사로 연습해 보라고 살짝 안내합니다. 이 브라우저에만 저장되고
+   서버로는 보내지 않아요. */
+const LOW_CPM_THRESHOLD = 20;      // 이 정도면 아직 자판이 낯선 편이에요
+const LOW_CPM_STREAK    = 2;       // 최근 몇 판 연속이면 추천할지
+function recordRecentCpm(cpm){
+  const KEY = "recent-cpm";
+  let arr = [];
+  try { arr = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch(e){ arr = []; }
+  arr.push(cpm);
+  if (arr.length > LOW_CPM_STREAK) arr = arr.slice(-LOW_CPM_STREAK);
+  try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch(e){}
+  return arr;
+}
+function shouldSuggestPractice(recentArr){
+  return recentArr.length >= LOW_CPM_STREAK && recentArr.every(v => v < LOW_CPM_THRESHOLD);
+}
+let lastSuggestPractice = false;   // 방금 판 끝나고 견습 모드를 추천했는지 (다시 도전 버튼에서 씁니다)
 
 /* 시작 화면 뱃지판 — 이름을 입력하면 그 마법사가 모은 뱃지를 보여줍니다.
    (뱃지는 학급코드_이름 으로 저장되므로 이름이 있어야 불러올 수 있어요) */
@@ -3034,7 +3064,7 @@ $("retry-btn").addEventListener("click", () => {
   $("end-screen").classList.add("hidden");
   $("start-screen").classList.remove("hidden");
   setDock(false);
-  setMode(1.0);                       // 난이도는 항상 초급부터 다시 고르게
+  setMode(lastSuggestPractice ? 0.6 : 1.0);   // 계속 느렸으면 견습부터, 아니면 초급부터
   refreshStartRanks();
   refreshStartBadges();               // 방금 딴 뱃지·해금 반영
   showBadgeButton(true);
