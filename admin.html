@@ -4,6 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>타자 수비대 · 선생님용 링크 만들기</title>
+<meta name="description" content="초등학생을 위한 한글 타자 연습 게임 '타자 수비대'. 선생님이 학교 이름과 학급 코드만 입력하면 우리 반 전용 게임 링크를 바로 만들 수 있어요. 랭킹·뱃지·우리 반 단어 학습까지 무료로 이용해보세요." />
+<meta property="og:title" content="타자 수비대 · 선생님용 링크 만들기" />
+<meta property="og:description" content="학교 이름과 학급 코드만 입력하면 우리 반 전용 타자 연습 게임 링크가 만들어져요." />
+<meta property="og:type" content="website" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
@@ -200,8 +204,8 @@ details input{
 
     <div class="preview">
       <div class="label">아이들이 보게 될 제목</div>
-      <div class="title" id="pv-title">웨이하이한국학교 타자 수비대</div>
-      <div class="code-tag" id="pv-code">기본 코드 WHKS</div>
+      <div class="title" id="pv-title">우리학교 타자 수비대</div>
+      <div class="code-tag" id="pv-code">기본 코드 SCHOOL</div>
     </div>
 
     <div class="result">
@@ -261,7 +265,7 @@ details input{
       <ul>
         <li>게임 파일은 <b>하나만</b> 있으면 됩니다. 학교마다 파일을 따로 만들 필요가 없어요.</li>
         <li>랭킹은 <b>코드별로 따로</b> 쌓입니다. 다른 학교 점수와 섞이지 않아요.</li>
-        <li>아이들이 주소에서 뒷부분을 지우면 기본 학교(웨이하이한국학교)로 돌아갑니다. 링크를 그대로 복사해 주세요.</li>
+        <li>아이들이 주소에서 뒷부분을 지우면 기본 학교("우리학교")로 돌아갑니다. 링크를 그대로 복사해 주세요.</li>
         <li>PC용입니다. 물리 키보드가 없는 휴대폰에서는 타자 연습이 되지 않아요.</li>
         <li>⚠️ 닉네임·점수·플레이 시간이 저장됩니다. 링크를 나눠주기 전에 학생·학부모에게
             <a href="privacy.html" target="_blank">데이터 수집 안내</a>를 미리 알려 주세요.</li>
@@ -275,8 +279,8 @@ details input{
 <script>
 const $ = (id) => document.getElementById(id);
 
-const DEFAULT_SCHOOL = "웨이하이한국학교";
-const DEFAULT_CODE   = "WHKS";
+const DEFAULT_SCHOOL = "우리학교";
+const DEFAULT_CODE   = "SCHOOL";
 
 /* 코드-학교 매핑만 조회할 수 있는 안전한 창구입니다.
    (실제 플레이 기록은 비공개, 이 view는 code/school 두 컬럼만 노출합니다) */

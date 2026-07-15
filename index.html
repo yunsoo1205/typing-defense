@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>웨이하이한국학교 타자 수비대</title>
+<title>타자 수비대 - 초등학생 한글 타자 연습 게임</title>
+<meta name="description" content="초등학생을 위한 한글 타자 연습 게임. 마법사가 되어 몬스터를 물리치며 자연스럽게 타자 실력을 키워요. 학교·학급별 랭킹과 뱃지 수집까지 무료로 즐길 수 있어요." />
+<meta property="og:title" content="타자 수비대 - 초등학생 한글 타자 연습 게임" />
+<meta property="og:description" content="마법사가 되어 몬스터를 물리치며 자연스럽게 한글 타자 실력을 키워요." />
+<meta property="og:type" content="website" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
@@ -636,7 +640,7 @@ body{
     <!-- ① 시작 화면 -->
     <div class="overlay" id="start-screen">
       <div class="big-emoji">🧙‍♂️🏫</div>
-      <h1 id="game-title">웨이하이한국학교 타자 수비대</h1>
+      <h1 id="game-title">우리학교 타자 수비대</h1>
       <p>학교가 몬스터에게 둘러싸였어요.<br>여러분은 <b>글자 마법사</b>! 이름을 알려 주세요.</p>
       <input id="nickname" maxlength="8" placeholder="마법사 이름" />
       <p style="font-size:12px; color:var(--grape); max-width:420px; line-height:1.5; margin-top:-6px;">
@@ -672,7 +676,7 @@ body{
     <div class="overlay hidden" id="howto-screen">
       <h2>🧙 마법사 출동!</h2>
       <p class="story">
-        <b id="school-story">웨이하이한국학교</b>에 몬스터 떼가 몰려왔어요! 몬스터들은 머리 위에 <b>글자</b>를 이고 다니는데,
+        <b id="school-story">우리학교</b>에 몬스터 떼가 몰려왔어요! 몬스터들은 머리 위에 <b>글자</b>를 이고 다니는데,
         그 글자를 똑같이 <b>입력하고 Enter</b>를 누르면 마법이 날아가 몬스터가 펑! 하고 사라집니다.<br>
         몬스터가 학교에 닿으면 하트가 하나 줄고, 하트가 다 없어지면 학교가 무너져요. 지켜 주세요!
       </p>
@@ -948,14 +952,15 @@ const SPEED_ADV   = [2.0, 2.5, 3.0];        // 🔥 고급: 기본 2배 + 2.5배
 /* =========================================================================
    🏫 학교 설정 — 주소 뒤에 붙는 값으로 학교 이름과 기본 코드를 바꿉니다.
       예: index.html?school=대련한국학교&code=DALIAN
-      아무것도 없으면 웨이하이한국학교로 동작합니다. (admin.html 에서 링크를 만들 수 있어요)
+      아무것도 없으면 "우리학교" / 코드 "SCHOOL"로 동작해서, 링크 없이 주소만 쳐도
+      바로 연습할 수 있습니다. (admin.html 에서 우리 학교 전용 링크를 만들 수 있어요)
    ========================================================================= */
 const PARAMS = new URLSearchParams(location.search);
-const SCHOOL = (PARAMS.get("school") || "웨이하이한국학교").slice(0, 20);
+const SCHOOL = (PARAMS.get("school") || "우리학교").slice(0, 20);
 
 /* ------------------------- 랭킹 ------------------------- */
-const DEFAULT_CODE = (PARAMS.get("code") || "WHKS")
-  .toUpperCase().replace(/[^A-Z0-9가-힣]/g, "").slice(0, 8) || "WHKS";
+const DEFAULT_CODE = (PARAMS.get("code") || "SCHOOL")
+  .toUpperCase().replace(/[^A-Z0-9가-힣]/g, "").slice(0, 8) || "SCHOOL";
 const RANK_PREFIX  = "rank:";
 const RANK_SIZE    = 10;
 
