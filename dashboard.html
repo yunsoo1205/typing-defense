@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>타자 수비대 · 나만 보는 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sky:#CFEBFF; --sky-deep:#A9DAFB; --butter:#FFF3C9; --cream:#FFFDF5;
+  --berry:#FF8FA8; --grape:#9B8CF0; --mint:#6FD3B8;
+  --ink:#5A4A63; --ink-soft:#8C7E95;
+  --font-display:'Jua','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --font-body:'Gowun Dodum','Apple SD Gothic Neo',sans-serif;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{
+  min-height:100dvh; padding:24px 16px 60px;
+  font-family:var(--font-body); color:var(--ink);
+  background:linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 55%, #C9EFC0 100%);
+  background-attachment:fixed;
+}
+main{ width:min(920px,100%); margin:0 auto; }
+header{
+  background:var(--butter); border:4px solid #fff; border-radius:26px;
+  padding:22px 26px; text-align:center; margin-bottom:20px;
+  box-shadow:0 6px 0 rgba(90,74,99,.12), 0 12px 28px rgba(90,74,99,.16);
+}
+header h1{ font-family:var(--font-display); font-size:26px; font-weight:400; }
+header p{ font-size:13px; color:var(--ink-soft); margin-top:6px; }
+
+.card{
+  background:var(--cream); border:4px solid #fff; border-radius:22px;
+  padding:20px 22px; margin-bottom:18px;
+  box-shadow:0 6px 0 rgba(90,74,99,.10), 0 10px 22px rgba(90,74,99,.14);
+}
+.card h2{
+  font-family:var(--font-display); font-size:18px; font-weight:400;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin-bottom:6px;
+}
+.card .help{ font-size:12.5px; color:var(--ink-soft); margin-bottom:12px; line-height:1.6; }
+.card .body{ font-size:14px; }
+
+button{
+  font-family:var(--font-body); font-size:12.5px; cursor:pointer;
+  border:2px solid var(--grape); background:#fff; color:var(--grape);
+  padding:5px 12px; border-radius:999px;
+}
+button:hover{ background:var(--grape); color:#fff; }
+button:disabled{ opacity:.5; cursor:default; background:#fff; color:var(--grape); }
+
+.summary-row{ display:flex; gap:14px; flex-wrap:wrap; }
+.stat{
+  flex:1; min-width:120px; background:#fff; border-radius:16px; padding:14px 16px;
+  text-align:center;
+}
+.stat .num{ font-family:var(--font-display); font-size:26px; color:var(--grape); }
+.stat .label{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+
+table{ width:100%; border-collapse:collapse; font-size:13px; }
+th, td{ text-align:left; padding:7px 8px; border-bottom:1px solid #EDE7F0; }
+th{ color:var(--ink-soft); font-weight:500; }
+tr:last-child td{ border-bottom:none; }
+.muted{ color:var(--ink-soft); font-size:12.5px; }
+.pill{
+  display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px;
+  background:var(--mint); color:#fff;
+}
+.pill.warn{ background:var(--berry); }
+
+#gate{
+  position:fixed; inset:0; background:linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 55%, #C9EFC0 100%);
+  display:flex; align-items:center; justify-content:center; z-index:99; padding:20px;
+}
+#gate .box{
+  background:var(--cream); border:4px solid #fff; border-radius:26px; padding:30px;
+  text-align:center; width:min(320px,100%);
+  box-shadow:0 6px 0 rgba(90,74,99,.12), 0 12px 28px rgba(90,74,99,.16);
+}
+#gate .box .emoji{ font-size:36px; margin-bottom:8px; }
+#gate input{
+  width:100%; font-family:var(--font-body); font-size:15px; margin-top:14px;
+  padding:10px 14px; border:3px solid #E6DDEC; border-radius:999px; outline:none; text-align:center;
+}
+#gate input:focus{ border-color:var(--grape); }
+#gate button{
+  margin-top:12px; width:100%; padding:10px; background:var(--grape); color:#fff; border:none;
+}
+#gate .err{ color:var(--berry); font-size:12.5px; margin-top:8px; min-height:16px; }
+.hidden{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="box">
+    <div class="emoji">🔒</div>
+    <div style="font-family:var(--font-display); font-size:17px;">나만 보는 대시보드</div>
+    <input type="password" id="pw-input" placeholder="비밀번호" autocomplete="off" />
+    <button id="pw-submit">입장</button>
+    <div class="err" id="pw-err"></div>
+  </div>
+</div>
+
+<main id="app" class="hidden">
+  <header>
+    <h1>🧙‍♂️ 타자 수비대 대시보드</h1>
+    <p>선생님·학생용 페이지가 아닌, 운영자(윤수)만 보는 요약 화면이에요.</p>
+  </header>
+
+  <div class="card">
+    <h2>오늘 한눈에 <button id="refresh-today">새로고침</button></h2>
+    <p class="help">웨이하이한국학교(테스트용)는 모든 집계에서 자동 제외됩니다.</p>
+    <div class="summary-row" id="today-stats">
+      <div class="stat"><div class="num">–</div><div class="label">오늘 접속 학교 수</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">오늘 총 플레이 수</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">오늘 평균 타수(CPM)</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>
+      최근 활동
+      <span>
+        <select id="hours-select">
+          <option value="1">최근 1시간</option>
+          <option value="3">최근 3시간</option>
+          <option value="24">최근 24시간</option>
+        </select>
+        <button id="refresh-activity">새로고침</button>
+      </span>
+    </h2>
+    <p class="help">30초마다 자동으로 새로고침돼요. 지금 접속 중일 가능성이 높은 순서예요.</p>
+    <div class="body" id="activity-body">불러오는 중...</div>
+  </div>
+
+  <div class="card">
+    <h2>이틀 연속 접속한 학교 <button id="refresh-streak">새로고침</button></h2>
+    <p class="help">어제도, 오늘도 플레이 기록이 있는 학교예요.</p>
+    <div class="body" id="streak-body">불러오는 중...</div>
+  </div>
+
+  <div class="card">
+    <h2>학교별 참여 깊이 순위 <button id="load-engagement">불러오기</button></h2>
+    <p class="help">최근 14일 기준. 하루 평균 플레이 시간(분)이 긴 순서예요.</p>
+    <div class="body" id="engagement-body"><span class="muted">버튼을 눌러 불러오세요.</span></div>
+  </div>
+
+  <div class="card">
+    <h2>뱃지 현황 <button id="load-badges">불러오기</button></h2>
+    <p class="help">뱃지별로 몇 번 지급됐고, 몇 명이 획득했는지예요.</p>
+    <div class="body" id="badges-body"><span class="muted">버튼을 눌러 불러오세요.</span></div>
+  </div>
+
+  <div class="card">
+    <h2>우리 반 단계 사용 현황 <button id="load-customstage">불러오기</button></h2>
+    <p class="help">선생님이 단어를 설정한 반의 실제 시도/클리어율이에요.</p>
+    <div class="body" id="customstage-body"><span class="muted">버튼을 눌러 불러오세요.</span></div>
+  </div>
+
+  <div class="card">
+    <h2>실력 향상 추이 <button id="load-trend">불러오기</button></h2>
+    <p class="help">최근 14일을 반으로 나눠, 앞 절반 대비 뒤 절반 평균 타수 변화예요. (표본이 너무 적은 학교는 제외)</p>
+    <div class="body" id="trend-body"><span class="muted">버튼을 눌러 불러오세요.</span></div>
+  </div>
+</main>
+
+<script>
+/* =========================================================================
+   👇 여기 비밀번호를 원하는 걸로 꼭 바꿔서 쓰세요! (그냥 텍스트라서 코드 볼 줄
+   아는 사람이 페이지 소스를 보면 알 수 있어요 — 진짜 보안이 아니라, 링크를
+   안 걸어두고 검색에도 안 잡히게(noindex) 해서 "우연히 못 찾게" 하는 정도예요.
+   실제로 지켜주는 건 이 아래 함수들이 학생 개인정보 없이 "집계값"만 돌려준다는
+   점이에요.)
+   ========================================================================= */
+const DASH_PASSWORD = "타자수비대2026";
+
+const SUPABASE_URL = "https://dbcydfbduservhiwiwgj.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ojqIzp7fD06E50JraS4i-g_uLU8p8pS";
+
+function headers(){
+  return {
+    "apikey": SUPABASE_KEY,
+    "Authorization": "Bearer " + SUPABASE_KEY,
+    "Content-Type": "application/json"
+  };
+}
+async function rpc(name, body){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(body || {})
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+function esc(s){
+  return String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c]));
+}
+
+/* ---------- 입장 ---------- */
+function tryEnter(){
+  const val = document.getElementById("pw-input").value;
+  if (val === DASH_PASSWORD){
+    sessionStorage.setItem("ys-dash-auth", "1");
+    document.getElementById("gate").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    initDashboard();
+  } else {
+    document.getElementById("pw-err").textContent = "비밀번호가 달라요.";
+  }
+}
+document.getElementById("pw-submit").addEventListener("click", tryEnter);
+document.getElementById("pw-input").addEventListener("keydown", e => { if (e.key === "Enter") tryEnter(); });
+
+if (sessionStorage.getItem("ys-dash-auth") === "1"){
+  document.getElementById("gate").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  initDashboard();
+}
+
+/* ---------- 오늘 요약 ---------- */
+async function loadToday(){
+  const wrap = document.getElementById("today-stats");
+  try {
+    const rows = await rpc("get_dashboard_today_summary");
+    const r = rows[0] || {};
+    wrap.innerHTML = `
+      <div class="stat"><div class="num">${esc(r.schools_today ?? 0)}</div><div class="label">오늘 접속 학교 수</div></div>
+      <div class="stat"><div class="num">${esc(r.plays_today ?? 0)}</div><div class="label">오늘 총 플레이 수</div></div>
+      <div class="stat"><div class="num">${esc(r.avg_cpm_today ?? "–")}</div><div class="label">오늘 평균 타수(CPM)</div></div>
+    `;
+  } catch(e){
+    wrap.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,120)})</span>`;
+  }
+}
+
+/* ---------- 최근 활동 ---------- */
+async function loadActivity(){
+  const body = document.getElementById("activity-body");
+  const hours = document.getElementById("hours-select").value;
+  try {
+    const rows = await rpc("get_dashboard_recent_activity", { p_hours: Number(hours) });
+    if (!rows.length){ body.innerHTML = `<span class="muted">이 기간에는 접속 기록이 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>학교</th><th>코드</th><th>플레이 수</th><th>마지막 접속(한국시간)</th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td>${esc(r.school || "-")}</td>
+            <td>${esc(r.code)}</td>
+            <td>${esc(r.plays)}</td>
+            <td>${esc((r.last_play_kst || "").replace("T"," ").slice(0,16))}</td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,120)})</span>`;
+  }
+}
+
+/* ---------- 이틀 연속 접속 ---------- */
+async function loadStreak(){
+  const body = document.getElementById("streak-body");
+  try {
+    const rows = await rpc("get_dashboard_two_day_streak");
+    if (!rows.length){ body.innerHTML = `<span class="muted">어제·오늘 모두 접속한 학교가 아직 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>학교</th><th>코드</th><th>어제 플레이</th><th>오늘 플레이</th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td>${esc(r.school || "-")}</td>
+            <td>${esc(r.code)}</td>
+            <td>${esc(r.plays_yesterday)}</td>
+            <td>${esc(r.plays_today)}</td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,120)})</span>`;
+  }
+}
+
+/* ---------- 학교별 참여 깊이 ---------- */
+async function loadEngagement(){
+  const body = document.getElementById("engagement-body");
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_engagement_ranking", { p_days: 14 });
+    if (!rows.length){ body.innerHTML = `<span class="muted">최근 14일 데이터가 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>학교</th><th>학생수</th><th>총 플레이</th><th>평균 세션(분)</th><th>하루 평균(분)</th></tr>
+        ${rows.slice(0,20).map(r => `
+          <tr>
+            <td>${esc(r.school || r.code)}</td>
+            <td>${esc(r.students)}</td>
+            <td>${esc(r.total_plays)}</td>
+            <td>${esc(r.avg_session_minutes)}</td>
+            <td>${esc(r.avg_daily_minutes)}</td>
+          </tr>
+        `).join("")}
+      </table>
+      ${rows.length > 20 ? `<p class="muted" style="margin-top:6px;">상위 20개 학교만 표시했어요 (전체 ${rows.length}개).</p>` : ""}
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
+/* ---------- 뱃지 현황 ---------- */
+async function loadBadges(){
+  const body = document.getElementById("badges-body");
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_badges_summary");
+    if (!rows.length){ body.innerHTML = `<span class="muted">아직 지급된 뱃지가 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>뱃지</th><th>지급 횟수</th><th>획득한 학생 수</th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td>${esc(r.badge_id)}</td>
+            <td>${esc(r.times_awarded)}</td>
+            <td>${esc(r.distinct_students)}</td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
+/* ---------- 우리 반 단계 사용 현황 ---------- */
+async function loadCustomStage(){
+  const body = document.getElementById("customstage-body");
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_custom_stage_usage");
+    if (!rows.length){ body.innerHTML = `<span class="muted">우리 반 단계를 설정한 학교가 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>학교</th><th>단어 수</th><th>난이도</th><th>시도</th><th>클리어</th><th>클리어율</th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td>${esc(r.school || r.code)}</td>
+            <td>${esc(r.word_count)}</td>
+            <td>${esc(r.difficulty || "자동")}</td>
+            <td>${esc(r.attempts ?? 0)}</td>
+            <td>${esc(r.clears ?? 0)}</td>
+            <td>${r.clear_rate != null ? esc(r.clear_rate) + "%" : "-"}</td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
+/* ---------- 실력 향상 추이 ---------- */
+async function loadTrend(){
+  const body = document.getElementById("trend-body");
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_skill_trend", { p_days: 14 });
+    if (!rows.length){ body.innerHTML = `<span class="muted">비교할 만큼 데이터가 쌓인 학교가 아직 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>학교</th><th>이전 평균 CPM</th><th>최근 평균 CPM</th><th>변화</th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td>${esc(r.school || r.code)}</td>
+            <td>${esc(r.cpm_early)}</td>
+            <td>${esc(r.cpm_recent)}</td>
+            <td><span class="pill ${Number(r.delta) < 0 ? 'warn' : ''}">${r.delta > 0 ? "+" : ""}${esc(r.delta)}</span></td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
+function initDashboard(){
+  loadToday();
+  loadActivity();
+  loadStreak();
+
+  document.getElementById("refresh-today").addEventListener("click", loadToday);
+  document.getElementById("refresh-activity").addEventListener("click", loadActivity);
+  document.getElementById("hours-select").addEventListener("change", loadActivity);
+  document.getElementById("refresh-streak").addEventListener("click", loadStreak);
+  document.getElementById("load-engagement").addEventListener("click", loadEngagement);
+  document.getElementById("load-badges").addEventListener("click", loadBadges);
+  document.getElementById("load-customstage").addEventListener("click", loadCustomStage);
+  document.getElementById("load-trend").addEventListener("click", loadTrend);
+
+  setInterval(loadToday, 60000);
+  setInterval(loadActivity, 30000);
+  setInterval(loadStreak, 60000);
+}
+</script>
+</body>
+</html>
