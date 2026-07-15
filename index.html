@@ -419,6 +419,8 @@ body{
 }
 .btn-row{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
 .btn.hidden{ display:none; }
+.nickname-warn{ color:var(--berry); font-size:12.5px; font-weight:bold; margin-top:-6px; }
+.nickname-warn.hidden{ display:none; }
 .finish-row{ margin-top:2px; padding-top:10px; border-top:2px dashed #E6DDEC; width:min(460px,100%); }
 .btn:focus-visible, input:focus-visible{ outline:3px solid var(--grape); outline-offset:3px; }
 
@@ -644,6 +646,7 @@ body{
       <h1 id="game-title">우리학교 타자 수비대</h1>
       <p>학교가 몬스터에게 둘러싸였어요.<br>여러분은 <b>글자 마법사</b>! 이름을 알려 주세요.</p>
       <input id="nickname" maxlength="8" placeholder="마법사 이름" />
+      <p class="nickname-warn hidden" id="nickname-warn">🙅 다른 마법사 이름을 써 주세요!</p>
       <p style="font-size:12px; color:var(--grape); max-width:420px; line-height:1.5; margin-top:-6px;">
         💡 집에서도 이어서 하고 싶으면, <b>학교에서 쓴 것과 똑같은 이름</b>을 써 주세요!
       </p>
@@ -1170,6 +1173,39 @@ async function loadProgress(learnerId, code){
     }
     return out;
   } catch(e){ return empty; }
+}
+
+/* =========================================================================
+   🚫 마법사 이름(닉네임) 금칙어 필터 — 욕설·비속어·혐오표현 등을 닉네임으로
+   못 쓰게 막습니다. 공백·특수문자를 지운 뒤 비교해서, "시 발"·"시$발"처럼
+   문자 사이에 뭘 끼워 넣는 흔한 우회도 같이 잡습니다.
+   ※ 목록을 더 넣거나 뺄 땐 이 배열만 고치면 됩니다.
+   ========================================================================= */
+const BLOCKED_NICKNAME_WORDS = [
+  // 일반 욕설·비속어
+  "씨발", "시발", "씨팔", "개새끼", "개새키", "병신", "좆", "좇", "지랄",
+  "미친놈", "미친년", "걸레", "창녀", "니미",
+  // 혐오표현·차별표현
+  "틀딱", "급식충", "진지충", "애자", "김치녀", "한남충",
+  "전라디언", "경상디언", "짱깨", "쪽바리", "홍어", "노무노무",
+  // 자해·폭력 조장 표현
+  "죽어", "뒤져", "자살해",
+  // 성적으로 부적절한 표현
+  "자지", "보지",
+  // 초성만으로 쓰는 욕설(우회 방지)
+  "ㅅㅂ", "ㅂㅅ", "ㄱㅅㄲ", "ㅈㄴ", "ㅁㅊ"
+];
+/* 비교 전에 공백·특수문자를 지우고 소문자로 맞춰서, 살짝 변형해서
+   써도(예: "시 발", "시$발") 걸리도록 합니다. */
+function normalizeForFilter(s){
+  return String(s || "")
+    .replace(/[\s~!@#$%^&*()_+\-=\[\]{};:'"\\|,.<>\/?`]/g, "")
+    .toLowerCase();
+}
+function containsBlockedWord(nickname){
+  const norm = normalizeForFilter(nickname);
+  if (!norm) return false;
+  return BLOCKED_NICKNAME_WORDS.some(w => norm.includes(normalizeForFilter(w)));
 }
 
 /* =========================================================================
@@ -2890,6 +2926,15 @@ async function startGame(){
   const code     = cleanCode($("roomcode").value);
   $("roomcode").value = code;
 
+  /* to-howto-btn 단계에서 한 번 걸러지지만, 혹시 모를 경우를 대비한 2차 방어입니다 */
+  if (containsBlockedWord(nickname)){
+    $("start-screen").classList.remove("hidden");
+    $("howto-screen").classList.add("hidden");
+    $("nickname-warn").classList.remove("hidden");
+    $("nickname").focus();
+    return;
+  }
+
   LEARNER_ID = await computeLearnerId(nickname, code);   // 다른 기기에서도 이어지도록 (닉네임은 해시로 저장)
 
   cancelAnimationFrame(rafId);
@@ -2985,12 +3030,21 @@ document.querySelectorAll(".rank-tab").forEach(t => {
 });
 
 $("to-howto-btn").addEventListener("click", () => {
+  if (containsBlockedWord($("nickname").value)){
+    $("nickname-warn").classList.remove("hidden");
+    $("nickname").focus();
+    return;                                       // 부적절한 이름이면 다음 화면으로 못 넘어갑니다
+  }
+  $("nickname-warn").classList.add("hidden");
   Sound.init();                                   // 첫 클릭 때 오디오를 깨워 둡니다
   $("start-screen").classList.add("hidden");
   $("howto-screen").classList.remove("hidden");
   showBadgeButton(false);                         // 뱃지 버튼·서랍은 시작 화면에서만
   refreshStartBadges();                           // 이름 기준 뱃지·해금 상태 불러오기
   updateInfiniteLock();                           // 무한 잠금 상태 최신화
+});
+$("nickname").addEventListener("input", () => {
+  $("nickname-warn").classList.add("hidden");     // 이름을 고치기 시작하면 경고를 지웁니다
 });
 
 /* 🏅 뱃지 서랍 열고 닫기 (시작 화면에서만 버튼이 보입니다) */
