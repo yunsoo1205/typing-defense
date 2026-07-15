@@ -53,6 +53,15 @@ button{
 button:hover{ background:var(--grape); color:#fff; }
 button:disabled{ opacity:.5; cursor:default; background:#fff; color:var(--grape); }
 
+.tab-bar{ display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+.tab-btn{
+  font-family:var(--font-display); font-size:14px; padding:8px 18px;
+  border-radius:999px; border:3px solid #fff; background:#fff; color:var(--ink-soft);
+  box-shadow:0 3px 0 rgba(90,74,99,.10);
+}
+.tab-btn.active{ background:var(--grape); border-color:var(--grape); color:#fff; }
+.tab-panel.hidden{ display:none; }
+
 .summary-row{ display:flex; gap:14px; flex-wrap:wrap; }
 .stat{
   flex:1; min-width:120px; background:#fff; border-radius:16px; padding:14px 16px;
@@ -112,13 +121,20 @@ tr:last-child td{ border-bottom:none; }
     <p>선생님·학생용 페이지가 아닌, 운영자(윤수)만 보는 요약 화면이에요.</p>
   </header>
 
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="main">메인</button>
+    <button class="tab-btn" data-tab="typing">평균 타수</button>
+    <button class="tab-btn" data-tab="cumulative">누적 현황</button>
+  </div>
+
+  <div class="tab-panel" data-tab="main">
+
   <div class="card">
     <h2>오늘 한눈에 <button id="refresh-today">새로고침</button></h2>
-    <p class="help">웨이하이한국학교(테스트용)는 모든 집계에서 자동 제외됩니다.</p>
+    <p class="help">웨이하이한국학교(테스트용)는 모든 집계에서 자동 제외됩니다. 평균 타수는 '평균 타수' 탭에서 따로 볼 수 있어요.</p>
     <div class="summary-row" id="today-stats">
       <div class="stat"><div class="num">–</div><div class="label">오늘 접속 학교 수</div></div>
       <div class="stat"><div class="num">–</div><div class="label">오늘 총 플레이 수</div></div>
-      <div class="stat"><div class="num">–</div><div class="label">오늘 평균 타수(CPM)</div></div>
     </div>
   </div>
 
@@ -218,6 +234,47 @@ tr:last-child td{ border-bottom:none; }
     <p class="help">전체 학교 통틀어 무한 마법 점수 상위 15명이에요.</p>
     <div class="body" id="infboard-body"><span class="muted">불러오기를 눌러주세요.</span></div>
   </div>
+
+  </div><!-- /tab-panel: main -->
+
+  <div class="tab-panel hidden" data-tab="typing">
+
+  <div class="card">
+    <h2>오늘 평균 타수 (허수 제외) <button id="refresh-typing">새로고침</button></h2>
+    <p class="help">
+      견습 마법사(연습 모드)는 원래 느리게 치도록 만든 모드라 평균을 같이 내면 확 낮아져서 뺐고,
+      너무 짧게 끝난 판(5초 미만 또는 5글자 미만 입력)도 실제 실력이라기보다 접속 직후 이탈에
+      가까워서 제외했어요.
+    </p>
+    <div class="summary-row" id="typing-stats">
+      <div class="stat"><div class="num">–</div><div class="label">오늘 평균 타수(CPM, 허수 제외)</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">집계에 쓰인 판 수</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">제외된 판 수</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>모드별 평균 타수 <button id="refresh-typing-mode">새로고침</button></h2>
+    <p class="help">위와 같은 기준(5초 미만·5글자 미만 제외)으로, 모드별로 나눠서 보여줘요.</p>
+    <div class="body" id="typing-mode-body">불러오는 중...</div>
+  </div>
+
+  </div><!-- /tab-panel: typing -->
+
+  <div class="tab-panel hidden" data-tab="cumulative">
+
+  <div class="card">
+    <h2>지금까지 누적 현황 <button id="refresh-cumulative">새로고침</button></h2>
+    <p class="help">서비스를 시작한 이후 지금까지 전체 누적 수치예요. (웨이하이한국학교 제외)</p>
+    <div class="summary-row" id="cumulative-stats">
+      <div class="stat"><div class="num">–</div><div class="label">누적 학교 수</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">누적 학생 수</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">누적 총 플레이 수</div></div>
+    </div>
+    <p class="muted" id="cumulative-since" style="margin-top:10px;"></p>
+  </div>
+
+  </div><!-- /tab-panel: cumulative -->
 </main>
 
 <script>
@@ -283,7 +340,6 @@ async function loadToday(){
     wrap.innerHTML = `
       <div class="stat"><div class="num">${esc(r.schools_today ?? 0)}</div><div class="label">오늘 접속 학교 수</div></div>
       <div class="stat"><div class="num">${esc(r.plays_today ?? 0)}</div><div class="label">오늘 총 플레이 수</div></div>
-      <div class="stat"><div class="num">${esc(r.avg_cpm_today ?? "–")}</div><div class="label">오늘 평균 타수(CPM)</div></div>
     `;
   } catch(e){
     wrap.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,120)})</span>`;
@@ -579,12 +635,88 @@ async function loadInfBoard(){
   }
 }
 
+/* ---------- 오늘 평균 타수 (허수 제외) ---------- */
+async function loadTypingSpeed(){
+  const wrap = document.getElementById("typing-stats");
+  try {
+    const rows = await rpc("get_dashboard_today_typing_speed");
+    const r = rows[0] || {};
+    wrap.innerHTML = `
+      <div class="stat"><div class="num">${esc(r.avg_cpm_clean ?? "–")}</div><div class="label">오늘 평균 타수(CPM, 허수 제외)</div></div>
+      <div class="stat"><div class="num">${esc(r.play_count_clean ?? 0)}</div><div class="label">집계에 쓰인 판 수</div></div>
+      <div class="stat"><div class="num">${esc(r.excluded_count ?? 0)}</div><div class="label">제외된 판 수</div></div>
+    `;
+  } catch(e){
+    wrap.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,120)})</span>`;
+  }
+}
+
+/* ---------- 모드별 평균 타수 ---------- */
+async function loadTypingSpeedByMode(){
+  const body = document.getElementById("typing-mode-body");
+  try {
+    const rows = await rpc("get_dashboard_today_typing_speed_by_mode");
+    if (!rows.length){ body.innerHTML = `<span class="muted">오늘은 아직 (허수 제외 기준) 기록이 없어요.</span>`; return; }
+    const MODE_LABEL = { basic: "🐣 초급", advanced: "🔥 고급", practice: "🐣 견습(참고용)", infinite: "♾️ 무한" };
+    body.innerHTML = `
+      <table>
+        <tr><th>모드</th><th>판 수</th><th>평균 타수(CPM)</th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td>${esc(MODE_LABEL[r.mode] || r.mode)}</td>
+            <td>${esc(r.plays)}</td>
+            <td>${esc(r.avg_cpm)}</td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
+/* ---------- 누적 현황 ---------- */
+async function loadCumulative(){
+  const wrap = document.getElementById("cumulative-stats");
+  const since = document.getElementById("cumulative-since");
+  try {
+    const rows = await rpc("get_dashboard_cumulative_totals");
+    const r = rows[0] || {};
+    wrap.innerHTML = `
+      <div class="stat"><div class="num">${esc(r.total_schools ?? 0)}</div><div class="label">누적 학교 수</div></div>
+      <div class="stat"><div class="num">${esc(r.total_students ?? 0)}</div><div class="label">누적 학생 수</div></div>
+      <div class="stat"><div class="num">${esc(r.total_plays ?? 0)}</div><div class="label">누적 총 플레이 수</div></div>
+    `;
+    since.textContent = r.first_play_kst
+      ? `첫 기록: ${String(r.first_play_kst).replace("T"," ").slice(0,16)} (한국시간)`
+      : "";
+  } catch(e){
+    wrap.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,120)})</span>`;
+  }
+}
+
+/* ---------- 탭 전환 ---------- */
+function switchTab(tab){
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("hidden", p.dataset.tab !== tab));
+}
+
 function initDashboard(){
   loadToday();
   loadActivity();
   loadStreak();
+  loadTypingSpeed();
+  loadTypingSpeedByMode();
+  loadCumulative();
+
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
 
   document.getElementById("refresh-today").addEventListener("click", loadToday);
+  document.getElementById("refresh-typing").addEventListener("click", loadTypingSpeed);
+  document.getElementById("refresh-typing-mode").addEventListener("click", loadTypingSpeedByMode);
+  document.getElementById("refresh-cumulative").addEventListener("click", loadCumulative);
   document.getElementById("refresh-activity").addEventListener("click", loadActivity);
   document.getElementById("hours-select").addEventListener("change", loadActivity);
   document.getElementById("refresh-streak").addEventListener("click", loadStreak);
@@ -609,6 +741,8 @@ function initDashboard(){
   setInterval(loadToday, 60000);
   setInterval(loadActivity, 30000);
   setInterval(loadStreak, 60000);
+  setInterval(loadTypingSpeed, 60000);
+  setInterval(loadTypingSpeedByMode, 60000);
 }
 </script>
 </body>
