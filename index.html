@@ -1134,16 +1134,18 @@ async function saveBadges(learnerId, code, badgeIds){
 }
 
 /* 누적 조건(견습 5판, 3번 실패 후 클리어)을 판단하려면 지난 기록이 필요합니다.
-   원본 로그는 비공개이므로, 집계만 보여주는 뷰에서 한 번만 읽어 옵니다. */
+   원본 로그는 비공개이므로, learner_id·code를 반드시 넘겨야만 그 사람 것만
+   돌려주는 함수(RPC)를 통해서만 읽어 옵니다. (필터 없이 전체를 긁어갈 수 없도록) */
 async function loadProgress(learnerId, code){
   const empty = { practicePlays: 0, failsByStage: {} };
   if (!SUPA.on || !learnerId || learnerId === "unknown") return empty;
   try {
-    const q = `${SUPABASE_URL}/rest/v1/learner_progress`
-            + `?select=mode,stage,plays,fails`
-            + `&learner_id=eq.${encodeURIComponent(learnerId)}`
-            + `&code=eq.${encodeURIComponent(code)}`;
-    const res = await fetch(q, { headers: SUPA.headers() });
+    const q = `${SUPABASE_URL}/rest/v1/rpc/get_learner_progress`;
+    const res = await fetch(q, {
+      method: "POST",
+      headers: SUPA.headers(),
+      body: JSON.stringify({ p_learner_id: learnerId, p_code: code })
+    });
     if (!res.ok) return empty;
     const rows = await res.json();
     const out = { practicePlays: 0, failsByStage: {} };
