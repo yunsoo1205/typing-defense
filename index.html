@@ -1193,13 +1193,25 @@ async function getLearnerId(){
 }
 let LEARNER_ID = "unknown";     // 익명 백업용 (이름을 안 쓴 경우에만 사용)
 
-/* 다른 기기에서도 같은 기록·뱃지가 이어지도록, 학급코드+이름 조합을
-   학습자 식별자로 씁니다. 기본 이름을 그대로 둔 경우엔 여러 아이가
-   똑같이 '이름없는마법사'가 되어 뒤섞일 수 있으니, 그때만 이 기기의
-   익명 ID로 대신합니다. */
-function computeLearnerId(nickname, classCode){
+/* 닉네임 원문이 그대로 서버에 저장되면(코드_닉네임 형태) 실명에 가까운
+   닉네임을 쓴 아이의 정보가 그대로 노출될 수 있어서, 닉네임은 저장 전에
+   되돌릴 수 없게 해시로 바꿉니다. 같은 코드+닉네임이면 항상 같은 해시가
+   나오니, 다른 기기에서 접속해도 기록·뱃지는 그대로 이어집니다. */
+async function sha256Hex(str){
+  try {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  } catch(e){
+    /* 아주 오래된 브라우저처럼 SubtleCrypto를 못 쓰는 경우를 위한 대비책 */
+    let h = 0;
+    for (let i = 0; i < str.length; i++){ h = (h * 31 + str.charCodeAt(i)) >>> 0; }
+    return "fb" + h.toString(16);
+  }
+}
+async function computeLearnerId(nickname, classCode){
   if (!nickname || nickname === "이름없는마법사") return LEARNER_ID;
-  return `${classCode}_${nickname}`;
+  const hash = await sha256Hex(`${classCode}::${nickname}`);
+  return `${classCode}_${hash.slice(0, 16)}`;
 }
 
 /* 단어 단위 기록은 세션 내내 메모리에만 모아 두었다가, 게임이 끝날 때
@@ -2873,12 +2885,12 @@ function loop(now){
 /* 메뉴 화면에서는 타이핑 입력창을 숨깁니다 (닉네임 칸과 헷갈리지 않도록) */
 function setDock(on){ $("dock").classList.toggle("hidden", !on); }
 
-function startGame(){
+async function startGame(){
   const nickname = ($("nickname").value.trim() || "이름없는마법사").slice(0, 8);
   const code     = cleanCode($("roomcode").value);
   $("roomcode").value = code;
 
-  LEARNER_ID = computeLearnerId(nickname, code);   // 다른 기기에서도 이어지도록
+  LEARNER_ID = await computeLearnerId(nickname, code);   // 다른 기기에서도 이어지도록 (닉네임은 해시로 저장)
 
   cancelAnimationFrame(rafId);
   if (state) clearMonsters();
