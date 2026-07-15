@@ -100,7 +100,10 @@ section{ padding:22px; }
 }
 .word-preview span.bad{ border-color:#F2545B; color:#C93F45; text-decoration:line-through; }
 
-.btn:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none !important; transform:none !important; }
+.btn:disabled, a.btn[aria-disabled="true"]{
+  opacity:.4; cursor:not-allowed; box-shadow:none !important; transform:none !important; pointer-events:none;
+}
+a.btn{ display:flex; align-items:center; justify-content:center; text-decoration:none; }
 .lock-hint{ font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:6px; }
 
 /* 미리보기 */
@@ -213,7 +216,7 @@ details input{
       <textarea id="link" rows="3" readonly></textarea>
       <div class="btn-row">
         <button class="btn copy" id="copy-btn" disabled>링크 복사</button>
-        <button class="btn open" id="open-btn" disabled>게임 열어보기</button>
+        <a class="btn open" id="open-btn" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">게임 열어보기</a>
       </div>
       <p class="lock-hint" id="lock-hint">🔒 위 '겹치는지 확인하기'를 먼저 눌러 주세요.</p>
     </div>
@@ -302,7 +305,7 @@ let codeChecked = false;
 function setChecked(ok){
   codeChecked = ok;
   $("copy-btn").disabled = !ok;
-  $("open-btn").disabled = !ok;
+  $("open-btn").setAttribute("aria-disabled", ok ? "false" : "true");
   $("lock-hint").style.display = ok ? "none" : "";
 }
 function hideAllDupBoxes(){
@@ -386,6 +389,7 @@ function build(){
   if (code)   url.searchParams.set("code", code);
 
   $("link").value = url.href;
+  $("open-btn").href = url.href;
 }
 
 ["school", "code", "base"].forEach(id =>
@@ -404,8 +408,8 @@ $("copy-btn").addEventListener("click", async () => {
   setTimeout(() => { btn.textContent = "링크 복사"; btn.classList.remove("done"); }, 1600);
 });
 
-$("open-btn").addEventListener("click", () => {
-  window.open($("link").value, "_blank");
+$("open-btn").addEventListener("click", (e) => {
+  if ($("open-btn").getAttribute("aria-disabled") === "true") e.preventDefault();
 });
 
 /* =========================================================================
