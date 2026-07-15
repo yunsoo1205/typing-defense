@@ -247,10 +247,12 @@ tr:last-child td{ border-bottom:none; }
       가까워서 제외했어요.
     </p>
     <div class="summary-row" id="typing-stats">
-      <div class="stat"><div class="num">–</div><div class="label">오늘 평균 타수(CPM, 허수 제외)</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">CPM (분당 완성 글자수)</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">KPM (분당 실제 타수)</div></div>
       <div class="stat"><div class="num">–</div><div class="label">집계에 쓰인 판 수</div></div>
       <div class="stat"><div class="num">–</div><div class="label">제외된 판 수</div></div>
     </div>
+    <p class="muted" style="margin-top:10px;">CPM은 완성된 글자(음절) 기준, KPM은 실제로 누른 자판(자모) 기준이에요. 한글은 음절 하나에 자모가 여러 개 들어가서 KPM이 보통 CPM보다 커요 — "타자연습 사이트 타수"에 더 가까운 건 KPM 쪽이에요.</p>
   </div>
 
   <div class="card">
@@ -642,7 +644,8 @@ async function loadTypingSpeed(){
     const rows = await rpc("get_dashboard_today_typing_speed");
     const r = rows[0] || {};
     wrap.innerHTML = `
-      <div class="stat"><div class="num">${esc(r.avg_cpm_clean ?? "–")}</div><div class="label">오늘 평균 타수(CPM, 허수 제외)</div></div>
+      <div class="stat"><div class="num">${esc(r.avg_cpm_clean ?? "–")}</div><div class="label">CPM (분당 완성 글자수)</div></div>
+      <div class="stat"><div class="num">${esc(r.avg_kpm_clean ?? "–")}</div><div class="label">KPM (분당 실제 타수)</div></div>
       <div class="stat"><div class="num">${esc(r.play_count_clean ?? 0)}</div><div class="label">집계에 쓰인 판 수</div></div>
       <div class="stat"><div class="num">${esc(r.excluded_count ?? 0)}</div><div class="label">제외된 판 수</div></div>
     `;
@@ -660,12 +663,13 @@ async function loadTypingSpeedByMode(){
     const MODE_LABEL = { basic: "🐣 초급", advanced: "🔥 고급", practice: "🐣 견습(참고용)", infinite: "♾️ 무한" };
     body.innerHTML = `
       <table>
-        <tr><th>모드</th><th>판 수</th><th>평균 타수(CPM)</th></tr>
+        <tr><th>모드</th><th>판 수</th><th>CPM</th><th>KPM</th></tr>
         ${rows.map(r => `
           <tr>
             <td>${esc(MODE_LABEL[r.mode] || r.mode)}</td>
             <td>${esc(r.plays)}</td>
             <td>${esc(r.avg_cpm)}</td>
+            <td>${esc(r.avg_kpm)}</td>
           </tr>
         `).join("")}
       </table>
