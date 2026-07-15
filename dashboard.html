@@ -196,6 +196,23 @@ tr:last-child td{ border-bottom:none; }
   </div>
 
   <div class="card">
+    <h2>
+      실력이 는 학생 TOP 10
+      <span>
+        <select id="improvers-days-select">
+          <option value="3">최근 3일</option>
+          <option value="5" selected>최근 5일</option>
+          <option value="7">최근 7일</option>
+          <option value="14">최근 14일</option>
+        </select>
+        <button id="load-improvers">불러오기</button>
+      </span>
+    </h2>
+    <p class="help">학교 단위가 아니라 학생 개인 단위예요. 견습 모드는 제외했고, 앞/뒤 절반 다 최소 3판 이상 친 학생만 집계돼요.</p>
+    <div class="body" id="improvers-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+  </div>
+
+  <div class="card">
     <h2>시간대·요일별 접속 패턴 <button id="load-heatmap">불러오기</button></h2>
     <p class="help">최근 30일 기준. 진할수록 그 시간대에 많이 접속했어요.</p>
     <div class="body" id="heatmap-body"><span class="muted">불러오기를 눌러주세요.</span></div>
@@ -501,6 +518,33 @@ async function loadTrend(){
   }
 }
 
+/* ---------- 실력이 는 학생 TOP 10 (학생 개인 단위) ---------- */
+async function loadImprovers(){
+  const body = document.getElementById("improvers-body");
+  const days = document.getElementById("improvers-days-select").value;
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_top_improvers", { p_days: Number(days), p_limit: 10 });
+    if (!rows.length){ body.innerHTML = `<span class="muted">비교할 만큼 데이터가 쌓인 학생이 아직 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>닉네임</th><th>학교</th><th>이전 평균 CPM</th><th>최근 평균 CPM</th><th>변화</th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td>${esc(r.nickname)}</td>
+            <td>${esc(r.school || r.code)}</td>
+            <td>${esc(r.cpm_early)}</td>
+            <td>${esc(r.cpm_recent)}</td>
+            <td><span class="pill ${Number(r.delta) < 0 ? 'warn' : ''}">${r.delta > 0 ? "+" : ""}${esc(r.delta)}</span></td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
 /* ---------- 시간대·요일별 접속 패턴 ---------- */
 async function loadHeatmap(){
   const body = document.getElementById("heatmap-body");
@@ -731,6 +775,11 @@ function initDashboard(){
   document.getElementById("trend-days-select").addEventListener("change", () => {
     if (document.getElementById("trend-body").innerHTML.includes("불러오기를 눌러주세요")) return;
     loadTrend();
+  });
+  document.getElementById("load-improvers").addEventListener("click", loadImprovers);
+  document.getElementById("improvers-days-select").addEventListener("change", () => {
+    if (document.getElementById("improvers-body").innerHTML.includes("불러오기를 눌러주세요")) return;
+    loadImprovers();
   });
   document.getElementById("load-heatmap").addEventListener("click", loadHeatmap);
   document.getElementById("load-newschools").addEventListener("click", loadNewSchools);

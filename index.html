@@ -55,6 +55,25 @@ body{
   font-family:var(--font-body); color:var(--ink);
   background:linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 55%, #C9EFC0 100%);
   background-attachment:fixed; -webkit-font-smoothing:antialiased;
+  transition:background 1.6s ease;
+}
+/* 🌙 밤 늦게 접속하면 배경만 은은하게 밤하늘로 바뀝니다 (문구·팝업 없이 분위기로만) */
+body.night-mode{
+  background:
+    radial-gradient(2px 2px at 10% 18%, rgba(255,255,255,.85), transparent),
+    radial-gradient(2px 2px at 82% 12%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1.5px 1.5px at 60% 30%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.5px 1.5px at 25% 42%, rgba(255,255,255,.55), transparent),
+    radial-gradient(2px 2px at 92% 55%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1.5px 1.5px at 42% 68%, rgba(255,255,255,.5), transparent),
+    radial-gradient(2px 2px at 72% 82%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.5px 1.5px at 14% 78%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1.5px 1.5px at 50% 92%, rgba(255,255,255,.45), transparent),
+    linear-gradient(180deg, #141539 0%, #262156 55%, #1B3A57 100%);
+  background-attachment:fixed;
+}
+body.night-mode #app{
+  box-shadow:0 6px 0 rgba(15,15,45,.45), 0 20px 50px rgba(10,10,35,.55);
 }
 
 /* =========================================================
@@ -111,11 +130,27 @@ body{
     radial-gradient(circle at 24% 16%, rgba(255,255,255,.7) 0 21px, transparent 22px),
     radial-gradient(circle at 74% 13%, rgba(255,255,255,.55) 0 24px, transparent 25px),
     linear-gradient(180deg, var(--sky) 0%, #E6F6FF 64%, var(--grass) 64%, var(--grass) 100%);
+  transition:background 1.6s ease;
 }
 #field::after{
   content:""; position:absolute; left:0; right:0; bottom:0; height:36%;
   background:repeating-linear-gradient(90deg, transparent 0 26px, rgba(255,255,255,.18) 26px 30px);
   pointer-events:none;
+  transition:background 1.6s ease;
+}
+/* 🌙 게임 화면(몬스터가 나오는 필드)도 밤에는 별이 뜬 밤하늘 + 어두운 들판으로 바뀝니다 */
+body.night-mode #field{
+  background:
+    radial-gradient(1.5px 1.5px at 20% 14%, rgba(255,255,255,.85), transparent),
+    radial-gradient(1.5px 1.5px at 45% 9%, rgba(255,255,255,.65), transparent),
+    radial-gradient(1.5px 1.5px at 68% 17%, rgba(255,255,255,.75), transparent),
+    radial-gradient(1.5px 1.5px at 85% 7%, rgba(255,255,255,.55), transparent),
+    radial-gradient(1.5px 1.5px at 30% 24%, rgba(255,255,255,.55), transparent),
+    radial-gradient(1.5px 1.5px at 8% 30%, rgba(255,255,255,.5), transparent),
+    linear-gradient(180deg, #1B1F4A 0%, #232C57 64%, #1E3A32 64%, #1E3A32 100%);
+}
+body.night-mode #field::after{
+  background:repeating-linear-gradient(90deg, transparent 0 26px, rgba(255,255,255,.08) 26px 30px);
 }
 #field.quake{ animation:shake .4s; }
 
@@ -1989,6 +2024,31 @@ function flashBackspace(){
 const $ = (id) => document.getElementById(id);
 const field = $("field"), input = $("answer"), base = $("base"), wizard = $("wizard"), fx = $("fx");
 
+/* 🌙 밤 9시~새벽 6시 사이엔 배경을 밤하늘 테마로 바꿉니다 (이 기기의 현재 시각 기준).
+   따로 안내 문구는 없고, 그냥 화면 분위기만 바뀝니다. 게임 도중 자정을 넘기는
+   경우도 있어서 5분마다 다시 확인합니다. */
+function isNightNow(){
+  const hour = new Date().getHours();
+  return hour >= 21 || hour < 6;
+}
+function updateNightTheme(){
+  document.body.classList.toggle("night-mode", isNightNow());
+}
+updateNightTheme();
+setInterval(updateNightTheme, 5 * 60 * 1000);
+
+/* 🦉 밤 늦게까지 하고 있으면, 이번 세션에서 딱 한 번만 부엉이 마법사가 다정하게
+   말을 건넵니다. 억지로 막지는 않아서, 본 뒤에도 계속 하고 싶으면 그냥 둡니다. */
+const OWL_NUDGE_KEY = "owl-nudge-shown";
+function maybeOwlNudgeHtml(){
+  try {
+    if (!isNightNow() || sessionStorage.getItem(OWL_NUDGE_KEY)) return "";
+    sessionStorage.setItem(OWL_NUDGE_KEY, "1");
+    return `<br><br>🦉 부엉이 마법사가 나타났어요: "이 늦은 시간까지 수련하다니 대단한 열정이에요! `
+         + `그래도 슬슬 쉬어주면 내일 더 쌩쌩하게 마법을 부릴 수 있을 거예요 🌙"`;
+  } catch(e){ return ""; }
+}
+
 let state = null;
 let lastTime = 0, rafId = null;
 let pickedSpeed = 1.0;          // 재도전 화면에서 고른 배속
@@ -2616,7 +2676,8 @@ async function endGame(cleared){
       cleared === false ? "게임 오버" : "수고했어요, 견습 마법사!";
     $("end-desc").innerHTML =
       `${escapeHtml(state.nickname)} 견습생이 <b>${state.score}점</b>을 얻었어요.<br>` +
-      `연습 모드라 랭킹에는 올라가지 않아요. 자신 있으면 <b>🧙 초급 마법사</b>로 도전해 보세요!`;
+      `연습 모드라 랭킹에는 올라가지 않아요. 자신 있으면 <b>🧙 초급 마법사</b>로 도전해 보세요!` +
+      maybeOwlNudgeHtml();
     renderRanks(await loadRanks(rankKeyFor(state.code, 1)), "rank-list-end");
     $("rank-title-end").textContent = `${state.code} 🧙 초급`;
     renderBadges();
@@ -2645,7 +2706,8 @@ async function endGame(cleared){
       `${escapeHtml(state.nickname)} 마법사 · <b>${state.score}점</b> · 몬스터 <b>${state.kills}</b>마리 처치<br>` +
       `⌨️ 분당 <b>${kpm}타</b> · 정확도 <b>${acc}%</b>` +
       (rankI >= 0 ? `<br><b>${escapeHtml(labelI)}</b> 랭킹 <b>${rankI + 1}위</b>! 🎖️`
-                  : `<br>아쉽게 TOP ${RANK_SIZE} 밖이에요.`);
+                  : `<br>아쉽게 TOP ${RANK_SIZE} 밖이에요.`) +
+      maybeOwlNudgeHtml();
     $("rank-title-end").textContent = labelI;
 
     previewMode = "inf";
@@ -2681,7 +2743,8 @@ async function endGame(cleared){
                : ` · 아쉽게 TOP ${RANK_SIZE} 밖이에요.`) +
     (lastSuggestPractice
       ? `<br><br>🐣 아직 자판이 조금 낯선 것 같아요. 다음엔 <b>견습 마법사</b>로 천천히 연습해 볼까요? 자판 그림이 눌러야 할 자리를 알려줘요!`
-      : "");
+      : "") +
+    maybeOwlNudgeHtml();
 
   $("rank-title-end").textContent = label;
 
