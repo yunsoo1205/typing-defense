@@ -84,6 +84,7 @@ section{ padding:22px; }
 .chip:hover{ background:var(--mint); color:#fff; }
 .chip.clear{ border-color:#D8CCE0; color:var(--ink-soft); }
 .chip.clear:hover{ background:#D8CCE0; color:var(--ink); }
+.chip.on{ background:var(--mint); color:#fff; }
 #words{
   width:100%; font-family:var(--font-body); font-size:15px; line-height:1.7;
   padding:12px 14px; border:3px solid #fff; border-radius:14px;
@@ -249,6 +250,18 @@ details input{
         <span id="word-warn" class="warn"></span>
       </div>
       <div id="word-preview" class="word-preview"></div>
+
+      <div class="quick-row" style="margin-top:12px;">
+        <span class="quick-label">몬스터 속도:</span>
+        <button class="chip diff-chip on" data-difficulty="">자동(추천)</button>
+        <button class="chip diff-chip" data-difficulty="easy">🐢 느리게</button>
+        <button class="chip diff-chip" data-difficulty="normal">🧙 보통</button>
+        <button class="chip diff-chip" data-difficulty="hard">🐇 빠르게</button>
+      </div>
+      <p class="help" style="margin-top:2px;">
+        자동이면 넣은 단어 길이로 속도를 정해요(짧을수록 빨라져요). 이름처럼 짧은 단어를
+        많이 넣었는데 아이들이 너무 어려워하면 '느리게'로 바꿔 보세요.
+      </p>
 
       <div class="btn-row">
         <button class="btn alt" id="load-words-btn">📥 지금 등록된 단어 불러오기</button>
@@ -457,7 +470,7 @@ function refreshWords(){
 
 $("words").addEventListener("input", refreshWords);
 
-document.querySelectorAll(".chip").forEach(btn => {
+document.querySelectorAll(".chip[data-fill]").forEach(btn => {
   btn.addEventListener("click", () => {
     const kind = btn.dataset.fill;
     if (kind === "clear"){ $("words").value = ""; }
@@ -470,19 +483,31 @@ document.querySelectorAll(".chip").forEach(btn => {
   });
 });
 
+/* 🐢🧙🐇 몬스터 속도(난이도) — 안 고르면 "" (자동, 단어 길이로 결정) */
+let selectedDifficulty = "";
+function setDifficultyUI(value){
+  selectedDifficulty = value || "";
+  document.querySelectorAll(".diff-chip").forEach(b =>
+    b.classList.toggle("on", b.dataset.difficulty === selectedDifficulty));
+}
+document.querySelectorAll(".diff-chip").forEach(btn => {
+  btn.addEventListener("click", () => setDifficultyUI(btn.dataset.difficulty));
+});
+
 /* 이미 등록해 둔 단어를 불러옵니다 */
 $("load-words-btn").addEventListener("click", async () => {
   const code = cleanCode($("code").value) || DEFAULT_CODE;
   $("save-msg").textContent = "불러오는 중…";
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/class_words?select=words&code=eq.${encodeURIComponent(code)}&limit=1`,
+      `${SUPABASE_URL}/rest/v1/class_words?select=words,difficulty&code=eq.${encodeURIComponent(code)}&limit=1`,
       { headers: { apikey: SUPABASE_KEY } }
     );
     const rows = await res.json();
     const words = rows[0] && rows[0].words;
     if (Array.isArray(words) && words.length){
       $("words").value = words.join("\n");
+      setDifficultyUI(rows[0].difficulty);
       $("save-msg").textContent = `✅ ${code} 코드에 등록된 단어 ${words.length}개를 불러왔어요.`;
     } else {
       $("save-msg").textContent = `${code} 코드에는 아직 등록된 단어가 없어요.`;
@@ -510,7 +535,7 @@ $("save-words-btn").addEventListener("click", async () => {
         "Content-Type": "application/json",
         "Prefer": "resolution=merge-duplicates,return=minimal"
       },
-      body: JSON.stringify({ code, school, words })
+      body: JSON.stringify({ code, school, words, difficulty: selectedDifficulty || null })
     });
     if (!res.ok) throw new Error("save failed");
     $("save-msg").innerHTML =

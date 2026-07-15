@@ -989,12 +989,23 @@ const SUPA = {
    ========================================================================= */
 const CUSTOM_STAGE_NUM = 11;
 
-/* 단어 길이에 맞춰 속도를 자동으로 정합니다 (긴 문장이면 느리게) */
-function makeCustomStage(words){
-  const avg = words.reduce((s, w) => s + w.length, 0) / words.length;
-  const preset = avg > 6 ? { speed: 55, spawnEvery: 4.6 }
-               : avg > 3 ? { speed: 75, spawnEvery: 3.0 }
-               :           { speed: 92, spawnEvery: 2.1 };
+/* 난이도별 속도 프리셋. 선생님이 admin에서 직접 고르면 이걸 그대로 쓰고,
+   안 골랐으면(자동) 단어 길이로 알아서 정합니다 (긴 문장이면 느리게) —
+   짧은 이름만 잔뜩 넣은 반이 의도치 않게 제일 어려운 난이도로 가는 걸
+   막고 싶으면 선생님이 '느리게'로 직접 바꿔줄 수 있어요. */
+const CUSTOM_DIFFICULTY_PRESETS = {
+  easy:   { speed: 55, spawnEvery: 4.6 },
+  normal: { speed: 75, spawnEvery: 3.0 },
+  hard:   { speed: 92, spawnEvery: 2.1 }
+};
+function makeCustomStage(words, difficulty){
+  let preset = CUSTOM_DIFFICULTY_PRESETS[difficulty];
+  if (!preset){
+    const avg = words.reduce((s, w) => s + w.length, 0) / words.length;
+    preset = avg > 6 ? CUSTOM_DIFFICULTY_PRESETS.easy
+           : avg > 3 ? CUSTOM_DIFFICULTY_PRESETS.normal
+           :           CUSTOM_DIFFICULTY_PRESETS.hard;
+  }
   return {
     num: CUSTOM_STAGE_NUM, name: "우리 반 단계", custom: true,
     desc: "우리 선생님이 직접 만든 단계예요!",
@@ -1033,25 +1044,28 @@ function curStage(){
 function infPointStage(kills){ return Math.min(24, 10 + Math.floor(kills / 5)); }
 function infComboMult(kills){ return 1 + Math.min(2, kills * 0.01); }
 
-/* 이 학급 코드에 등록된 단어를 불러옵니다 */
+/* 이 학급 코드에 등록된 단어를 불러옵니다. 난이도(difficulty)는 선생님이
+   admin에서 직접 고른 값이 있으면 그걸 쓰고, 없으면(null) 단어 길이로
+   자동 계산합니다 — 기존에 만들어둔 반들도 그대로 자동 계산으로 동작해요. */
 async function loadClassWords(code){
   if (!SUPA.on || !code) return null;
   try {
     const q = `${SUPABASE_URL}/rest/v1/class_words`
-            + `?select=words&code=eq.${encodeURIComponent(code)}&limit=1`;
+            + `?select=words,difficulty&code=eq.${encodeURIComponent(code)}&limit=1`;
     const res = await fetch(q, { headers: SUPA.headers() });
     if (!res.ok) return null;
     const rows = await res.json();
     const words = rows[0] && rows[0].words;
-    return Array.isArray(words) && words.length ? words : null;
+    if (!Array.isArray(words) || !words.length) return null;
+    return { words, difficulty: (rows[0] && rows[0].difficulty) || null };
   } catch(e){ return null; }
 }
 
 /* 우리 반 단계를 STAGES 맨 뒤에 붙이거나 떼어냅니다 */
-function applyCustomStage(words){
+function applyCustomStage(words, difficulty){
   const last = STAGES[STAGES.length - 1];
   if (last && last.custom) STAGES.pop();            // 예전 것 제거
-  if (words && words.length) STAGES.push(makeCustomStage(words));
+  if (words && words.length) STAGES.push(makeCustomStage(words, difficulty));
   buildStageOptions();
 }
 
@@ -3003,8 +3017,8 @@ $("roomcode").addEventListener("blur", refreshStartBadges);
 /* 학급 코드가 바뀌면 그 반의 '우리 반 단계' 단어도 다시 불러옵니다 */
 async function refreshClassStage(){
   const code = cleanCode($("roomcode").value);
-  const words = await loadClassWords(code);
-  applyCustomStage(words);
+  const data = await loadClassWords(code);
+  applyCustomStage(data && data.words, data && data.difficulty);
 }
 $("roomcode").addEventListener("change", refreshClassStage);
 $("roomcode").addEventListener("blur", refreshClassStage);
