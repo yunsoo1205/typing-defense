@@ -167,6 +167,22 @@ tr:last-child td{ border-bottom:none; }
   </div>
 
   <div class="card">
+    <h2>
+      몰아서 하나요, 쉬는시간마다 조금씩 하나요?
+      <span>
+        <select id="sessionpattern-days-select">
+          <option value="7">최근 7일</option>
+          <option value="14" selected>최근 14일</option>
+          <option value="30">최근 30일</option>
+        </select>
+        <button id="load-sessionpattern">불러오기</button>
+      </span>
+    </h2>
+    <p class="help">같은 학생의 같은 날 기록을, 앞 판과 15분 넘게 벌어지면 "새로 접속했다"고 세서 하루에 몇 번 나눠서 왔는지 봐요. 1에 가까우면 몰아서, 2~3 이상이면 쉬는시간마다 짧게 여러 번 들어오는 편이에요.</p>
+    <div class="body" id="sessionpattern-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+  </div>
+
+  <div class="card">
     <h2>뱃지 현황 <button id="load-badges">불러오기</button></h2>
     <p class="help">뱃지별로 몇 번 지급됐고, 몇 명이 획득했는지예요.</p>
     <div class="body" id="badges-body"><span class="muted">버튼을 눌러 불러오세요.</span></div>
@@ -435,6 +451,32 @@ async function loadEngagement(){
         `).join("")}
       </table>
       ${rows.length > 20 ? `<p class="muted" style="margin-top:6px;">상위 20개 학교만 표시했어요 (전체 ${rows.length}개).</p>` : ""}
+    `;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
+  }
+}
+
+/* ---------- 몰아서 vs 쉬는시간마다 조금씩 ---------- */
+async function loadSessionPattern(){
+  const body = document.getElementById("sessionpattern-body");
+  const days = document.getElementById("sessionpattern-days-select").value;
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_session_pattern", { p_days: Number(days), p_gap_minutes: 15 });
+    if (!rows.length){ body.innerHTML = `<span class="muted">이 기간 데이터가 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>학교</th><th>하루 평균 방문 횟수</th><th>방문당 평균(분)</th><th>하루 평균(분)</th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td>${esc(r.school || r.code)}</td>
+            <td>${esc(r.avg_visits_per_day)}${Number(r.avg_visits_per_day) >= 2 ? ' <span class="pill">쉬는시간형</span>' : ' <span class="pill">몰아서형</span>'}</td>
+            <td>${esc(r.avg_minutes_per_visit)}</td>
+            <td>${esc(r.avg_daily_minutes)}</td>
+          </tr>
+        `).join("")}
+      </table>
     `;
   } catch(e){
     body.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,150)})</span>`;
@@ -769,6 +811,11 @@ function initDashboard(){
   document.getElementById("hours-select").addEventListener("change", loadActivity);
   document.getElementById("refresh-streak").addEventListener("click", loadStreak);
   document.getElementById("load-engagement").addEventListener("click", loadEngagement);
+  document.getElementById("load-sessionpattern").addEventListener("click", loadSessionPattern);
+  document.getElementById("sessionpattern-days-select").addEventListener("change", () => {
+    if (document.getElementById("sessionpattern-body").innerHTML.includes("불러오기를 눌러주세요")) return;
+    loadSessionPattern();
+  });
   document.getElementById("load-badges").addEventListener("click", loadBadges);
   document.getElementById("load-customstage").addEventListener("click", loadCustomStage);
   document.getElementById("load-trend").addEventListener("click", loadTrend);
