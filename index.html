@@ -517,8 +517,8 @@ body.night-mode #field::after{
   background:var(--butter); border-radius:16px; padding:12px 18px;
 }
 .spellbook{
-  display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
-  gap:8px; width:min(720px, 100%);
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:8px; width:100%;
 }
 .spell{
   display:flex; align-items:center; gap:10px; text-align:left;
@@ -529,13 +529,13 @@ body.night-mode #field::after{
 .spell.heal  { color:var(--berry);  }
 .spell.freeze{ color:var(--ice);    }
 .spell.fire  { color:var(--flame);  }
-.spell.meteor{ color:var(--meteor); grid-column:1 / -1; }   /* 메테오는 아랫줄 전체 폭 */
+.spell.meteor{ color:var(--meteor); }
 .spell .ico{ font-size:26px; }
 .spell .txt{ color:var(--ink); font-size:13.5px; line-height:1.45; }
 .spell .txt b{ font-family:var(--font-display); font-weight:400; font-size:15px; }
 
-/* 난이도 선택 */
-#mode-picker{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+/* 난이도 선택 — 2×2 격자로 정리 */
+#mode-picker{ display:grid; grid-template-columns:1fr 1fr; gap:8px; width:100%; }
 .mode-btn{
   display:flex; align-items:center; gap:10px; text-align:left; cursor:pointer;
   background:#fff; border:3px solid #E6DDEC; border-radius:16px; padding:10px 16px;
@@ -670,6 +670,65 @@ body.night-mode #field::after{
 .rank-row .pts{ font-family:var(--font-display); font-size:17px; }
 .rank-empty{ font-size:14px; color:var(--ink-soft); text-align:center; padding:8px; }
 
+/* =========================================================
+   5-B. 메뉴 화면(시작·마법 배우기) 넓은 레이아웃
+   - 게임 전에는 화면을 세로로 넉넉히 쓰고, 내용을 두 칸으로
+     나눠서 스크롤 없이 한눈에 보이게 합니다.
+   ========================================================= */
+#app:has(#start-screen:not(.hidden)),
+#app:has(#howto-screen:not(.hidden)){
+  --field-h: clamp(560px, 80vh, 800px);
+}
+/* margin:auto 래퍼 — 내용이 화면보다 커져도 위가 잘리지 않고 스크롤됩니다 */
+.menu-wrap{
+  margin:auto; width:100%;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+}
+.menu-cols{
+  display:flex; gap:20px; width:min(1080px, 100%);
+  align-items:stretch; justify-content:center;
+}
+.menu-main{
+  flex:1.35; min-width:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+}
+.menu-side{
+  flex:none; width:min(330px, 100%);
+  display:flex; flex-direction:column; gap:8px;
+}
+.menu-side .rank-box{
+  width:100%; flex:1; min-height:0;
+  display:flex; flex-direction:column;
+}
+.menu-side .rank-list{ flex:1; max-height:none; min-height:110px; }
+.menu-side .code-area{ margin-top:0; padding-top:0; border-top:none; width:100%; }
+
+/* 마법 배우기 화면: 왼쪽 아이템 도감 · 오른쪽 난이도 */
+.howto-cols{
+  display:flex; gap:18px; width:min(1040px, 100%);
+  align-items:stretch; justify-content:center;
+}
+.howto-col{
+  flex:1; min-width:0; text-align:center;
+  display:flex; flex-direction:column; gap:8px;
+  background:rgba(255,255,255,.45); border-radius:18px; padding:12px 14px;
+}
+.howto-sub{ font-family:var(--font-display); font-size:17px; font-weight:400; }
+.howto-bottom{
+  display:flex; gap:14px; align-items:center; justify-content:center; flex-wrap:wrap;
+}
+
+/* 좁은 화면(태블릿·폰)에서는 다시 한 줄로 쌓입니다 */
+@media (max-width:900px){
+  .menu-cols, .howto-cols{ flex-direction:column; align-items:center; }
+  .menu-side{ width:min(460px, 100%); }
+  .menu-side .rank-list{ max-height:150px; }
+  .howto-col{ width:100%; }
+}
+@media (max-width:520px){
+  .spellbook, #mode-picker{ grid-template-columns:1fr; }
+}
+
 #banner{ background:rgba(255,243,201,.95); }
 #banner .samples{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
 #banner .samples span{
@@ -755,119 +814,139 @@ body.night-mode #field::after{
       <div class="badge-grid" id="badge-grid-start"></div>
     </aside>
 
-    <!-- ① 시작 화면 -->
+    <!-- ① 시작 화면 — 왼쪽: 이야기·이름 입력 / 오른쪽: 명예의 전당 -->
     <div class="overlay" id="start-screen">
-      <div class="big-emoji">🧙‍♂️🏫</div>
-      <h1 id="game-title">우리학교 타자 수비대</h1>
-      <div class="story story-intro" id="start-story">
-        🏫 어느 날, 평화롭던 <b id="start-story-school">우리학교</b>에 <b>몬스터 떼</b>가 몰려왔어요!
-        머리 위에 <b>글자</b>를 이고 다니는 몬스터들이 학교를 향해 쳐들어오고 있어요.
-        이 학교를 지킬 수 있는 건 오직 <b>글자 마법사</b>뿐! ✨<br>
-        몬스터의 글자를 똑같이 <b>입력</b>하면 마법이 <b>펑!</b> 하고 터진답니다.
-        용감한 마법사님, 학교를 구해 주세요! 🪄
-      </div>
-      <p>먼저 <b>이름</b>을 알려 주세요.</p>
-      <div class="name-code-row">
-        <div class="ncr-item">
-          <label for="nickname" class="ncr-label">① 마법사 이름</label>
-          <input id="nickname" maxlength="8" placeholder="마법사 이름" />
-        </div>
-        <div class="ncr-item">
-          <label for="roomcode" class="ncr-label">② 학급 코드</label>
-          <input id="roomcode" maxlength="10" placeholder="코드" />
-        </div>
-      </div>
-      <p class="nickname-warn hidden" id="nickname-warn">🙅 다른 마법사 이름을 써 주세요!</p>
-      <p style="font-size:12px; color:var(--ink-soft); max-width:440px; line-height:1.5; margin-top:-2px;">
-        💡 <b>학급 코드</b>를 넣으면 우리 반 랭킹에 참여해요! (선생님이 알려준 코드를 넣어요 · 안 넣어도 게임은 할 수 있어요)
-      </p>
-      <p style="font-size:12px; color:var(--grape); max-width:420px; line-height:1.5; margin-top:-6px;">
-        💡 집에서도 이어서 하고 싶으면, <b>학교에서 쓴 것과 똑같은 이름</b>을 써 주세요!
-      </p>
-      <button class="btn" id="to-howto-btn">🪄 마법 배우러 가기</button>
-      <p style="font-size:12px; color:var(--ink-soft); max-width:420px; line-height:1.6;">
-        입력한 이름과 게임 기록(점수·걸린 시간)은 랭킹과 타자 실력 확인을 위해 저장돼요.
-        실명이 아닌 별명을 써 주세요. 자세한 안내는
-        <a href="privacy.html" target="_blank" style="color:var(--grape);">여기</a>에 있어요.
-      </p>
+      <div class="menu-wrap">
+        <div class="menu-cols">
+          <div class="menu-main">
+            <div class="big-emoji">🧙‍♂️🏫</div>
+            <h1 id="game-title">우리학교 타자 수비대</h1>
+            <div class="story story-intro" id="start-story">
+              🏫 어느 날, 평화롭던 <b id="start-story-school">우리학교</b>에 <b>몬스터 떼</b>가 몰려왔어요!
+              머리 위에 <b>글자</b>를 이고 다니는 몬스터들이 학교를 향해 쳐들어오고 있어요.
+              이 학교를 지킬 수 있는 건 오직 <b>글자 마법사</b>뿐! ✨<br>
+              몬스터의 글자를 똑같이 <b>입력</b>하면 마법이 <b>펑!</b> 하고 터진답니다.
+              용감한 마법사님, 학교를 구해 주세요! 🪄
+            </div>
+            <p>먼저 <b>이름</b>을 알려 주세요.</p>
+            <div class="name-code-row">
+              <div class="ncr-item">
+                <label for="nickname" class="ncr-label">① 마법사 이름</label>
+                <input id="nickname" maxlength="8" placeholder="마법사 이름" />
+              </div>
+              <div class="ncr-item">
+                <label for="roomcode" class="ncr-label">② 학급 코드</label>
+                <input id="roomcode" maxlength="10" placeholder="코드" />
+              </div>
+            </div>
+            <p class="nickname-warn hidden" id="nickname-warn">🙅 다른 마법사 이름을 써 주세요!</p>
+            <p style="font-size:12px; color:var(--ink-soft); max-width:440px; line-height:1.5; margin-top:-2px;">
+              💡 <b>학급 코드</b>를 넣으면 우리 반 랭킹에 참여해요! (선생님이 알려준 코드를 넣어요 · 안 넣어도 게임은 할 수 있어요)
+            </p>
+            <p style="font-size:12px; color:var(--grape); max-width:420px; line-height:1.5; margin-top:-6px;">
+              💡 집에서도 이어서 하고 싶으면, <b>학교에서 쓴 것과 똑같은 이름</b>을 써 주세요!
+            </p>
+            <button class="btn" id="to-howto-btn">🪄 마법 배우러 가기</button>
+            <p style="font-size:12px; color:var(--ink-soft); max-width:420px; line-height:1.6;">
+              입력한 이름과 게임 기록(점수·걸린 시간)은 랭킹과 타자 실력 확인을 위해 저장돼요.
+              실명이 아닌 별명을 써 주세요. 자세한 안내는
+              <a href="privacy.html" target="_blank" style="color:var(--grape);">여기</a>에 있어요.
+            </p>
+          </div>
 
-      <div class="rank-box">
-        <h3>🏆 <span id="rank-title-start">명예의 전당</span> TOP 10</h3>
-        <div class="rank-tabs">
-          <button class="rank-tab on" data-mode="1">🐣 초급</button>
-          <button class="rank-tab" data-mode="2">🔥 고급</button>
-          <button class="rank-tab" data-mode="inf">♾️ 무한</button>
-        </div>
-        <div class="rank-period" id="rank-period-start">
-          <button data-period="week" class="on">📅 주간</button>
-          <button data-period="all">🏆 전체</button>
-        </div>
-        <p class="rank-note" id="rank-note-start"></p>
-        <div class="rank-list" id="rank-list-start"></div>
-      </div>
+          <aside class="menu-side">
+            <div class="rank-box">
+              <h3>🏆 <span id="rank-title-start">명예의 전당</span> TOP 10</h3>
+              <div class="rank-tabs">
+                <button class="rank-tab on" data-mode="1">🐣 초급</button>
+                <button class="rank-tab" data-mode="2">🔥 고급</button>
+                <button class="rank-tab" data-mode="inf">♾️ 무한</button>
+              </div>
+              <div class="rank-period" id="rank-period-start">
+                <button data-period="week" class="on">📅 주간</button>
+                <button data-period="all">🏆 전체</button>
+              </div>
+              <p class="rank-note" id="rank-note-start"></p>
+              <div class="rank-list" id="rank-list-start"></div>
+            </div>
 
-      <div class="code-area">
-        <label style="font-size:11px; opacity:.7;">👩‍🏫 선생님용</label>
-        <div class="code-row">
-          <button class="btn ghost" id="clear-rank-btn">이 코드 랭킹 지우기</button>
+            <div class="code-area">
+              <label style="font-size:11px; opacity:.7;">👩‍🏫 선생님용</label>
+              <div class="code-row">
+                <button class="btn ghost" id="clear-rank-btn">이 코드 랭킹 지우기</button>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     </div>
 
-    <!-- ② 게임 방법 화면 -->
+    <!-- ② 게임 방법 화면 — 왼쪽: 마법 아이템 도감 / 오른쪽: 난이도 고르기 -->
     <div class="overlay hidden" id="howto-screen">
-      <h2>🧙 마법사 출동!</h2>
-      <p class="story">
-        <b id="school-story">우리학교</b>에 몬스터 떼가 몰려왔어요! 몬스터들은 머리 위에 <b>글자</b>를 이고 다니는데,
-        그 글자를 똑같이 <b>입력하고 Enter</b>를 누르면 마법이 날아가 몬스터가 펑! 하고 사라집니다.<br>
-        몬스터가 학교에 닿으면 하트가 하나 줄고, 하트가 다 없어지면 학교가 무너져요. 지켜 주세요!
-      </p>
-      <p style="font-size:13.5px;">✨ 반짝이는 테두리에 <b>마법 이름표</b>가 달린 두루마리는 <b>마법 아이템</b>이에요. 글자를 입력하면 마법을 얻어요!</p>
-      <div class="spellbook">
-        <div class="spell heal">
-          <span class="ico">💗</span>
-          <span class="txt"><b>회복 마법 (힐)</b><br>하트를 1개 채워 줘요. 최대 5개까지!</span>
+      <div class="menu-wrap">
+        <h2>🧙 마법사 출동!</h2>
+        <p class="story">
+          <b id="school-story">우리학교</b>에 몬스터 떼가 몰려왔어요! 몬스터들은 머리 위에 <b>글자</b>를 이고 다니는데,
+          그 글자를 똑같이 <b>입력하고 Enter</b>를 누르면 마법이 날아가 몬스터가 펑! 하고 사라집니다.<br>
+          몬스터가 학교에 닿으면 하트가 하나 줄고, 하트가 다 없어지면 학교가 무너져요. 지켜 주세요!
+        </p>
+        <div class="howto-cols">
+          <section class="howto-col">
+            <h3 class="howto-sub">✨ 마법 아이템</h3>
+            <p style="font-size:12.5px;">반짝이는 테두리에 <b>마법 이름표</b>가 달린 두루마리! 글자를 입력하면 마법을 얻어요.</p>
+            <div class="spellbook">
+              <div class="spell heal">
+                <span class="ico">💗</span>
+                <span class="txt"><b>회복 마법 (힐)</b><br>하트를 1개 채워 줘요. 최대 5개까지!</span>
+              </div>
+              <div class="spell freeze">
+                <span class="ico">❄️</span>
+                <span class="txt"><b>얼음 마법 (프리즈)</b><br>3초 동안 몬스터가 얼어붙어 멈춰요.</span>
+              </div>
+              <div class="spell fire">
+                <span class="ico">🔥</span>
+                <span class="txt"><b>불 마법 (피버)</b><br>6초 동안 점수가 2배로 불타올라요.</span>
+              </div>
+              <div class="spell meteor">
+                <span class="ico">☄️</span>
+                <span class="txt"><b>별똥별 소환 (메테오)</b><br>화면의 몬스터를 별똥별로 몽땅 날려요!</span>
+              </div>
+            </div>
+          </section>
+          <section class="howto-col">
+            <h3 class="howto-sub">🎓 나에게 맞는 난이도 고르기</h3>
+            <div id="mode-picker">
+              <button class="mode-btn" data-speed="0.6">
+                <span class="ico">🐣</span>
+                <span class="txt"><b>견습 마법사</b><br>타자를 처음 배우는 친구에게 추천!<br>자판 그림이 눌러야 할 자리를 알려줘요</span>
+              </button>
+              <button class="mode-btn on" data-speed="1">
+                <span class="ico">🧙</span>
+                <span class="txt"><b>초급 마법사</b><br>보통 속도로 차근차근</span>
+              </button>
+              <button class="mode-btn" data-speed="2">
+                <span class="ico">🔥</span>
+                <span class="txt"><b>고급 마법사</b><br>모든 단계 2배속 · 점수도 2배!</span>
+              </button>
+              <button class="mode-btn locked" data-speed="inf">
+                <span class="ico">♾️</span>
+                <span class="txt"><b>무한 마법사</b><br>모든 단어가 끝없이!<br>점점 빨라져요 · 무한 랭킹 따로
+                  <span class="lock-note">🔒 고급 10단계 클리어 후 열려요</span></span>
+              </button>
+            </div>
+            <p id="mode-note" style="font-size:13px; min-height:20px;"></p>
+          </section>
         </div>
-        <div class="spell freeze">
-          <span class="ico">❄️</span>
-          <span class="txt"><b>얼음 마법 (프리즈)</b><br>3초 동안 몬스터가 얼어붙어 멈춰요.</span>
+        <div class="howto-bottom">
+          <div class="stage-select">
+            <label for="start-stage">시작할 단계</label>
+            <select id="start-stage"></select>
+          </div>
+          <div class="btn-row">
+            <button class="btn ghost" id="back-btn">← 뒤로</button>
+            <button class="btn" id="start-btn">🪄 마법 시작!</button>
+          </div>
         </div>
-        <div class="spell fire">
-          <span class="ico">🔥</span>
-          <span class="txt"><b>불 마법 (피버)</b><br>6초 동안 점수가 2배로 불타올라요.</span>
-        </div>
-        <div class="spell meteor">
-          <span class="ico">☄️</span>
-          <span class="txt"><b>별똥별 소환 (메테오)</b><br>화면의 몬스터를 별똥별로 몽땅 날려요!</span>
-        </div>
-      </div>
-      <div id="mode-picker">
-        <button class="mode-btn" data-speed="0.6">
-          <span class="ico">🐣</span>
-          <span class="txt"><b>견습 마법사</b><br>타자를 처음 배우는 친구에게 추천!<br>자판 그림이 눌러야 할 자리를 알려줘요</span>
-        </button>
-        <button class="mode-btn on" data-speed="1">
-          <span class="ico">🧙</span>
-          <span class="txt"><b>초급 마법사</b><br>보통 속도로 차근차근</span>
-        </button>
-        <button class="mode-btn" data-speed="2">
-          <span class="ico">🔥</span>
-          <span class="txt"><b>고급 마법사</b><br>모든 단계 2배속 · 점수도 2배!</span>
-        </button>
-        <button class="mode-btn locked" data-speed="inf">
-          <span class="ico">♾️</span>
-          <span class="txt"><b>무한 마법사</b><br>모든 단어가 끝없이!<br>점점 빨라져요 · 무한 랭킹 따로
-            <span class="lock-note">🔒 고급 10단계 클리어 후 열려요</span></span>
-        </button>
-      </div>
-      <p id="mode-note" style="font-size:13px; min-height:20px;"></p>
-      <div class="stage-select">
-        <label for="start-stage">시작할 단계</label>
-        <select id="start-stage"></select>
-      </div>
-      <div class="btn-row">
-        <button class="btn ghost" id="back-btn">← 뒤로</button>
-        <button class="btn" id="start-btn">🪄 마법 시작!</button>
       </div>
     </div>
 
@@ -1258,7 +1337,7 @@ const BADGES = [
   // 정확 — 신중하게 치면 받아요 (견습 모드 제외)
   { id:"sniper",   icon:"🎯", name:"백발백중 명사수", desc:"한 단계를 오답 한 번 없이 통과했어요" },
   { id:"notape",   icon:"🚫", name:"수정테이프 압수", desc:"지우기(Backspace) 없이 한 단계를 통과했어요" },
-  { id:"careful",  icon:"🐢", name:"돌다리도 두들겨라", desc:"한 단계를 정확도 95% 이상으로 통과했어요" },
+  { id:"careful",  icon:"🐢", name:"돌다리도 두들겨라", desc:"단어를 30개 넘게 잡으면서 정확도 95%를 지켰어요" },
   { id:"shield",   icon:"🛡️", name:"철벽 방어",      desc:"하트를 하나도 잃지 않고 단계를 통과했어요" },
   { id:"perfect",  icon:"💯", name:"완벽주의자",     desc:"오답도 지우기도 하나 없이 한 단계를 통과했어요" },
   // 속도 — 빠르게 치면 받아요 (견습 모드 제외)
@@ -3170,8 +3249,8 @@ function checkStageBadges(){
   if (st.heartsLost  === 0) grantBadge("shield");
   if (st.wrongSubmits === 0 && st.backspaces === 0) grantBadge("perfect");   // 💯 오답·지우기 둘 다 0
 
-  const attempts = st.correctSubmits + st.wrongSubmits;
-  if (attempts >= KILLS_PER_STAGE && st.correctSubmits / attempts >= 0.95) grantBadge("careful");
+  /* 🐢 "돌다리도 두들겨라"는 게임 전체 정확도로 checkEndBadges()에서 판정합니다.
+     (한 단계는 정확히 10마리라 95% 조건이 오답 0(=명사수)과 같아지는 문제가 있었어요) */
 
   const minutes = Math.max(0.2, (performance.now() - st.startedAt) / 60000);
   if (Math.round(st.keystrokes / minutes) >= 300) grantBadge("lightning");
@@ -3300,6 +3379,14 @@ function checkEndBadges(){
   // ♾️ 무한 마법에서 입력한 단어 수(=처치 수) 기준
   if (state.infinite && state.kills >= 50)  grantBadge("inf50");
   if (state.infinite && state.kills >= 100) grantBadge("inf100");
+
+  /* 🐢 돌다리도 두들겨라 — 게임 전체에서 단어 30개 이상을 잡으며
+     정확도 95% 이상을 지켰을 때. 실수 한두 번은 괜찮아서
+     "오답 0"인 명사수(sniper)와 확실히 구분됩니다. (견습 모드 제외) */
+  if (!state.practice){
+    const tries = state.totalCorrect + state.totalWrong;
+    if (tries >= 30 && state.totalCorrect / tries >= 0.95) grantBadge("careful");
+  }
 }
 
 
