@@ -332,7 +332,7 @@ details input{
       <ul>
         <li>게임 파일은 <b>하나만</b> 있으면 됩니다. 학교마다 파일을 따로 만들 필요가 없어요.</li>
         <li>랭킹은 <b>코드별로 따로</b> 쌓입니다. 다른 학교 점수와 섞이지 않아요.</li>
-        <li>아이들이 주소에서 뒷부분을 지우면 기본 학교("우리학교")로 돌아갑니다. 링크를 그대로 복사해 주세요.</li>
+        <li>아이들이 주소에서 뒷부분을 지우면 전국 공용 <b>'대한민국 타자 수비대'(KOREA)</b>로 들어가고, 거기서는 코드를 바꿀 수 없어요. 컴퓨터실에서 코드를 직접 입력하려면 <b>taja-guard.vercel.app/go</b> 주소를 알려 주세요.</li>
         <li>⌨️ <b>물리 키보드</b>가 있어야 타자 연습을 할 수 있어요. 컴퓨터 또는 키보드를 연결한 태블릿에서 이용해 주세요. (화면 키보드만 있는 휴대폰은 맞지 않아요.)</li>
         <li>⚠️ 닉네임·점수·도달 단계·플레이 시간·타수 등이 저장됩니다. 링크를 나눠주기 전에 학생·학부모에게
             <a href="privacy.html" target="_blank">데이터 수집 안내</a>를 미리 알려 주세요.</li>
@@ -667,14 +667,26 @@ const $ = (id) => document.getElementById(id);
 
 const DEFAULT_SCHOOL = "우리학교";
 const DEFAULT_CODE   = "SCHOOL";
+/* 🇰🇷 KOREA는 대표 주소(taja-guard.vercel.app)의 공용 코드입니다.
+   "대한민국 타자 수비대" 이름이 고정되어 있어 학교 이름을 붙일 수 없어요. */
+const RESERVED_CODE = "KOREA";
+function isReservedCode(code){
+  if (code !== RESERVED_CODE) return false;
+  alert("이 코드는 학교 이름을 바꿀 수 없어요.\n\nKOREA는 대표 주소로 들어온 전국 친구들이 함께 쓰는\n'대한민국 타자 수비대' 공용 코드예요.\n우리 반 전용 코드를 새로 정해 주세요! (예: 학교 영문 약자)");
+  return true;
+}
 
 /* 코드-학교 매핑만 조회할 수 있는 안전한 창구입니다.
    (실제 플레이 기록은 비공개, 이 view는 code/school 두 컬럼만 노출합니다) */
 const SUPABASE_URL = "https://dbcydfbduservhiwiwgj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ojqIzp7fD06E50JraS4i-g_uLU8p8pS";
 
-/* 기본 게임 주소 = 이 페이지와 같은 폴더의 index.html */
-$("base").value = new URL("index.html", location.href).href;
+/* 기본 게임 주소 — 항상 배포된 대표 주소를 씁니다.
+   (admin.html을 내 컴퓨터에서 파일로 직접 열어도 링크가 file:// 로 만들어지지 않게) */
+const DEPLOY_URL = "https://taja-guard.vercel.app/";
+$("base").value = location.protocol === "file:"
+  ? DEPLOY_URL
+  : new URL("index.html", location.href).href;
 
 function cleanCode(v){
   return (v || "").toUpperCase().replace(/[^A-Z0-9가-힣]/g, "").slice(0, 8);
@@ -703,6 +715,7 @@ function hideAllDupBoxes(){
 async function checkDuplicateCode(){
   const code   = cleanCode($("code").value) || DEFAULT_CODE;
   const school = $("school").value.trim() || DEFAULT_SCHOOL;
+  if (isReservedCode(code)){ hideAllDupBoxes(); setChecked(false); return; }
   hideAllDupBoxes();
   $("check-btn").disabled = true;
   $("check-btn").textContent = "확인하는 중…";
@@ -838,8 +851,8 @@ function renderGuide(code){
 
   const codeText = (code && code !== "SCHOOL") ? code : "코드 없이 입장";
 
-  // 1단계 — 주소
-  drawStep(ctx, 108, "1", "주소창에 입력하세요", BASE_URL_SHORT, "#9B8CF0");
+  // 1단계 — 주소 (코드 입력이 가능한 /go 주소로 안내합니다)
+  drawStep(ctx, 108, "1", "주소창에 입력하세요", BASE_URL_SHORT + "/go", "#9B8CF0");
   // 2단계 — 코드
   drawStep(ctx, 300, "2", "학급 코드를 입력하세요", codeText, "#6FD3B8");
 
@@ -863,11 +876,11 @@ function renderGuide(code){
   // 이름칸
   ctx.textAlign = "center";
   ctx.fillStyle = "#9B8CF0"; ctx.font = "22px 'Jua', sans-serif";
-  ctx.fillText("① 마법사 이름", nameX + nameW/2, fieldY - 12);
+  ctx.fillText("① 마법사 별명", nameX + nameW/2, fieldY - 12);
   ctx.fillStyle = "#F7F3FB"; ctx.strokeStyle = "#6FD3B8"; ctx.lineWidth = 4;
   roundRect(ctx, nameX, fieldY, nameW, fieldH, 999); ctx.fill(); ctx.stroke();
   ctx.fillStyle = "#C4B8CB"; ctx.font = "26px 'Jua', sans-serif";
-  ctx.fillText("마법사 이름", nameX + nameW/2, fieldY + 48);
+  ctx.fillText("마법사 별명", nameX + nameW/2, fieldY + 48);
 
   // 코드칸 (강조)
   ctx.fillStyle = "#6FD3B8"; ctx.font = "bold 24px 'Jua', sans-serif";
@@ -1070,6 +1083,7 @@ $("save-words-btn").addEventListener("click", async () => {
   const words  = refreshWords();
   const code   = cleanCode($("code").value) || DEFAULT_CODE;
   const school = $("school").value.trim() || DEFAULT_SCHOOL;
+  if (isReservedCode(code)) return;          // 🇰🇷 KOREA 공용 코드는 수정 불가
   if (!words.length) return;
 
   $("save-words-btn").disabled = true;

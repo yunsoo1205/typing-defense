@@ -512,6 +512,18 @@ body.night-mode #field::after{
 .stamp-cell.today{ animation:stamp-pop .6s ease; box-shadow:0 0 0 3px rgba(155,140,240,.35); }
 @keyframes stamp-pop{ 0%{ transform:scale(0); } 60%{ transform:scale(1.25); } 100%{ transform:scale(1); } }
 .stamp-legend{ font-size:12px !important; color:var(--ink-soft); margin-top:2px; }
+/* 🔐 비밀번호 입력 */
+.pw-input{
+  font-family:var(--font-display); font-size:19px; text-align:center;
+  padding:10px 18px; width:min(280px, 82%); letter-spacing:.12em;
+  border:4px solid var(--grape); border-radius:999px;
+  background:#fff; color:var(--ink); outline:none;
+}
+.pw-notice{
+  font-size:12px; line-height:1.7; color:#B8860B;
+  background:var(--butter); border:2px dashed #F5C451; border-radius:14px;
+  padding:10px 16px; width:min(420px,100%);
+}
 /* 🎉 업데이트 안내 */
 .update-list{
   text-align:left; background:#fff; border-radius:16px; padding:12px 18px;
@@ -773,6 +785,11 @@ body.night-mode #field::after{
   border:3px solid #E6DDEC; border-radius:999px; background:#fff; color:var(--ink); outline:none;
 }
 #roomcode:focus{ border-color:var(--grape); }
+/* 🔒 대표 주소(KOREA)에서는 코드가 잠깁니다 */
+#roomcode.locked-code{
+  background:#F3EEF7; color:var(--ink-soft); cursor:not-allowed;
+  border-color:#E6DDEC !important;
+}
 
 /* 랭킹표 */
 .rank-box{
@@ -962,7 +979,7 @@ body.night-mode #field::after{
         <h3>🏅 내 뱃지 <span id="badge-count-start"></span></h3>
         <button class="drawer-close" aria-label="닫기">✕</button>
       </div>
-      <p class="rank-empty" id="badge-hint-start">이름을 적으면 지금까지 모은 뱃지를 볼 수 있어요.</p>
+      <p class="rank-empty" id="badge-hint-start">별명을 적으면 지금까지 모은 뱃지를 볼 수 있어요.</p>
       <div class="badge-grid" id="badge-grid-start"></div>
     </aside>
 
@@ -1004,27 +1021,29 @@ body.night-mode #field::after{
               몬스터의 글자를 똑같이 <b>입력</b>하면 마법이 <b>펑!</b> 하고 터진답니다.
               용감한 마법사님, 학교를 구해 주세요! 🪄
             </div>
-            <p>먼저 <b>이름</b>을 알려 주세요.</p>
+            <p>먼저 <b>별명</b>을 알려 주세요.</p>
             <div class="name-code-row">
               <div class="ncr-item">
-                <label for="nickname" class="ncr-label">① 마법사 이름</label>
-                <input id="nickname" maxlength="8" placeholder="마법사 이름" />
+                <label for="nickname" class="ncr-label">① 마법사 별명</label>
+                <input id="nickname" maxlength="8" placeholder="마법사 별명" />
               </div>
               <div class="ncr-item">
                 <label for="roomcode" class="ncr-label">② 학급 코드</label>
                 <input id="roomcode" maxlength="10" placeholder="코드" />
               </div>
             </div>
-            <p class="nickname-warn hidden" id="nickname-warn">🙅 다른 마법사 이름을 써 주세요!</p>
-            <p style="font-size:12px; color:var(--ink-soft); max-width:440px; line-height:1.5; margin-top:-2px;">
+            <p class="nickname-warn hidden" id="nickname-warn">🙅 다른 별명을 써 주세요!</p>
+            <p class="nickname-warn hidden" id="code-locked-note" style="color:var(--grape);">🏫 학급 코드로 입장하려면 담임 선생님께 받은 주소나 QR로 들어와야 해요!</p>
+            <button class="btn ghost" id="open-signup" style="font-size:12.5px; padding:6px 16px;">🔐 비밀번호 만들기 (내 별명 지키기)</button>
+            <p style="font-size:12px; color:var(--ink-soft); max-width:440px; line-height:1.5; margin-top:-2px;" id="code-hint">
               💡 <b>학급 코드</b>를 넣으면 우리 반 랭킹에 참여해요! (선생님이 알려준 코드를 넣어요 · 안 넣어도 게임은 할 수 있어요)
             </p>
             <p style="font-size:12px; color:var(--grape); max-width:420px; line-height:1.5; margin-top:-6px;">
-              💡 집에서도 이어서 하고 싶으면, <b>학교에서 쓴 것과 똑같은 이름</b>을 써 주세요!
+              💡 집에서도 이어서 하고 싶으면, <b>학교에서 쓴 것과 똑같은 별명</b>을 써 주세요!
             </p>
             <button class="btn" id="to-howto-btn">🪄 마법 배우러 가기</button>
             <p style="font-size:12px; color:var(--ink-soft); max-width:420px; line-height:1.6;">
-              입력한 이름과 게임 기록(점수·걸린 시간)은 랭킹과 타자 실력 확인을 위해 저장돼요.
+              입력한 별명과 게임 기록(점수·걸린 시간)은 랭킹과 타자 실력 확인을 위해 저장돼요.
               실명이 아닌 별명을 써 주세요. 자세한 안내는
               <a href="privacy.html" target="_blank" style="color:var(--grape);">여기</a>에 있어요.
             </p>
@@ -1161,6 +1180,48 @@ body.night-mode #field::after{
       <button class="btn mint" id="attend-close">✨ 확인</button>
     </div>
 
+    <!-- 🔐 비밀번호 만들기 (선택 기능) -->
+    <div class="overlay hidden" id="signup-screen" style="z-index:65;">
+      <div class="menu-wrap" style="width:min(480px,100%);">
+        <div class="big-emoji">🔐</div>
+        <h2>내 별명 지키기</h2>
+        <p style="font-size:13px; max-width:400px;">비밀번호를 만들면, 이 별명으로는 <b>비밀번호를 아는 사람만</b> 게임하고 뽑기를 할 수 있어요.</p>
+        <p id="signup-who" style="font-family:var(--font-display); font-size:16px;"></p>
+        <input id="signup-pw" type="password" maxlength="8" placeholder="비밀번호 (영어·숫자 4~8자)" class="pw-input" autocomplete="off" />
+        <input id="signup-pw2" type="password" maxlength="8" placeholder="비밀번호 한 번 더!" class="pw-input" autocomplete="off" />
+        <p class="nickname-warn hidden" id="signup-warn"></p>
+        <div class="pw-notice">
+          ⚠️ <b>아이디·비밀번호 찾기 기능이 없어요!</b><br>
+          잊어버리면 되찾을 수 없으니, <b>별명·학급 코드·비밀번호를 공책에 꼭 적어 두세요.</b><br>
+          🏫 계정과 비밀번호는 <b>지금 적힌 학급 코드 안에서만</b> 쓸 수 있어요.
+          다른 코드에서는 같은 별명이어도 서로 다른 마법사예요.
+        </div>
+        <div class="pw-notice" style="color:#D14A6A; border-color:#FFB3C7; background:#FFF0F3;">
+          🚫 남에게 불쾌감을 주는 닉네임을 쓰면 <b>예고 없이 아이디와 기록이 삭제</b>될 수 있어요.
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost" id="signup-cancel">취소</button>
+          <button class="btn" id="signup-ok">🔐 만들기!</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🔑 비밀번호 확인 -->
+    <div class="overlay hidden" id="pwask-screen" style="z-index:65;">
+      <div class="menu-wrap" style="width:min(440px,100%);">
+        <div class="big-emoji">🔑</div>
+        <h2>비밀번호를 알려 주세요</h2>
+        <p id="pwask-who" style="font-size:13.5px;"></p>
+        <input id="pwask-pw" type="password" maxlength="8" placeholder="비밀번호" class="pw-input" autocomplete="off" />
+        <p class="nickname-warn hidden" id="pwask-warn">🙅 비밀번호가 달라요!</p>
+        <div class="btn-row">
+          <button class="btn ghost" id="pwask-cancel">← 뒤로</button>
+          <button class="btn" id="pwask-ok">✅ 확인</button>
+        </div>
+        <p style="font-size:11.5px; color:var(--ink-soft);">비밀번호를 잊어버렸다면 다른 별명으로 새로 시작해야 해요 😢<br>별명과 비밀번호는 공책에 꼭 적어 두세요!</p>
+      </div>
+    </div>
+
     <!-- 🎉 업데이트 안내 (처음 한 번만 뜨고, 확인을 누르면 다시 안 떠요) -->
     <div class="overlay hidden" id="update-screen" style="z-index:70;">
       <div class="menu-wrap" style="width:min(560px,100%);">
@@ -1171,6 +1232,7 @@ body.night-mode #field::after{
           <p>📅 <b>출석 도장판</b> — 단계를 클리어하면 도장이 찍히고, <b>5일마다 새 캐릭터 친구</b>를 받아요! (고양이·강아지·토끼·래서판다·펭귄·부엉이)</p>
           <p>🎁 <b>뽑기</b> — 뱃지 <b>5개마다 뽑기권 1장</b>! 모자·액세서리·마법봉 6종을 모아요. 👑 왕관과 🌈 무지개 마법봉은 <b>✨레어</b>! <b>이미 뱃지를 5개 이상 모은 친구는 뽑기권이 벌써 준비되어 있어요!</b></p>
           <p>👕 <b>옷장</b> — 오른쪽 메뉴에서 캐릭터와 아이템을 갈아입어요.</p>
+          <p>🔐 <b>내 별명 지키기</b> — 비밀번호(영어·숫자 4~8자)를 만들면 나만 내 이름으로 게임할 수 있어요. <b>찾기 기능이 없으니 공책에 꼭 적어 두기!</b> (안 만들어도 게임은 그대로 할 수 있어요)</p>
           <p>🏅 <b>뱃지 30종</b> — '첫 뽑기!' 뱃지가 새로 생겼고, '돌다리도 두들겨라' 조건이 공평하게 바뀌었어요. <b>지금까지 모은 뱃지는 그대로예요!</b> 30개를 전부 모으면… 전설의 <b>🌈 무지개 용</b>이 기다려요!</p>
           <p>🏆 <b>주간 랭킹</b> — 월요일마다 새로 시작! 전체 랭킹 점수가 낮게 저장되던 오류도 고쳐서 원래 최고점으로 되돌렸어요.</p>
         </div>
@@ -1388,9 +1450,20 @@ const PARAMS = new URLSearchParams(location.search);
 const SCHOOL_FROM_URL = PARAMS.get("school");   // URL로 학교명이 지정됐는지(QR·링크 방식)
 let SCHOOL = (SCHOOL_FROM_URL || "우리학교").slice(0, 20);
 
+/* ------------------------- 입장 방식 (전국 배포용) -------------------------
+   · 대표 주소(taja-guard.vercel.app)          → 공용 KOREA 코드 고정 (바꿀 수 없음)
+   · /go 주소(?join=1)                        → 컴퓨터실용: 학급 코드를 직접 입력
+   · 선생님 링크·QR(?code=...&school=...)      → 그 학급 코드로 입장                */
+const KOREA_CODE   = "KOREA";
+const KOREA_SCHOOL = "대한민국 타자 수비대";
+const JOIN_MODE = PARAMS.get("join") === "1";
+const CODE_FROM_URL = (PARAMS.get("code") || "")
+  .toUpperCase().replace(/[^A-Z0-9가-힣]/g, "").slice(0, 8);
+const CODE_LOCKED = !CODE_FROM_URL && !JOIN_MODE;   // 대표 주소 = KOREA 고정
+
 /* ------------------------- 랭킹 ------------------------- */
-const DEFAULT_CODE = (PARAMS.get("code") || "SCHOOL")
-  .toUpperCase().replace(/[^A-Z0-9가-힣]/g, "").slice(0, 8) || "SCHOOL";
+const DEFAULT_CODE = CODE_FROM_URL || KOREA_CODE;
+if (!SCHOOL_FROM_URL && DEFAULT_CODE === KOREA_CODE) SCHOOL = KOREA_SCHOOL;
 const RANK_PREFIX  = "rank:";
 const RANK_SIZE    = 10;
 
@@ -3266,7 +3339,7 @@ async function endGame(cleared){
   saveBadges(LEARNER_ID, state.code, state.newBadges);    // 새로 딴 것만 저장
 
   /* 🎁 뽑기권 안내 — 뱃지 5개마다 1장! 이번 판까지 합쳐서 쓸 수 있는 게 있으면 알려줍니다 */
-  state.earnedBadges.forEach(id => { if (!id.startsWith("itm_")) myBadgeSet.add(id); });
+  state.earnedBadges.forEach(id => { if (BADGE_BY_ID[id]) myBadgeSet.add(id); });
   updateGachaDot();
   if (gachaTickets() > 0){
     setTimeout(() => showBadgeToast({ icon:"🎁", name:`뽑기권 ${gachaTickets()}장! 시작 화면 → 뽑기` }), 900);
@@ -3569,7 +3642,7 @@ async function refreshStartBadges(){
     myBadgeSet = new Set();
     updateInfiniteLock();
     renderBadgeGrid("badge-grid-start", "badge-count-start", new Set(), new Set());
-    if (hint) hint.textContent = "이름을 적으면 지금까지 모은 뱃지를 볼 수 있어요.";
+    if (hint) hint.textContent = "별명을 적으면 지금까지 모은 뱃지를 볼 수 있어요.";
     cosmeticsForLearner(LEARNER_ID, []);    // 익명 상태의 소장품으로
     return;
   }
@@ -3578,7 +3651,8 @@ async function refreshStartBadges(){
   const lid = await computeLearnerId(nick, code);
   const ids = await loadBadges(lid);
   if (my !== startBadgeReq) return;        // 그새 이름이 또 바뀌었으면 무시
-  myBadgeSet = new Set(ids.filter(id => !id.startsWith("itm_")));   // itm_은 뽑기 아이템 저장용
+  myBadgeSet = new Set(ids.filter(id => BADGE_BY_ID[id]));   // itm_(아이템)·pw_(비밀번호) 행은 뱃지가 아님
+  PW_CACHE.set(lid, ids.filter(id => id.startsWith("pw_"))); // 🔐 비밀번호 정보는 따로 기억
   applyMasterUnlocks();                    // 🧪 마스터 모드면 뱃지 30개 유지
   updateInfiniteLock();
   renderBadgeGrid("badge-grid-start", "badge-count-start", myBadgeSet, new Set());
@@ -3604,10 +3678,10 @@ const CHARS = [
   { id:"dragon",  name:"무지개 용", unlock:-1, special:"allbadges" }
 ];
 const HATS = [
-  { id:"hat_magic", name:"마법 고깔", gacha:false },        // 기본 소유
-  { id:"hat_party", name:"파티 고깔", gacha:true },
-  { id:"hat_straw", name:"밀짚모자",  gacha:true },
-  { id:"hat_crown", name:"왕관",      gacha:true, rare:true }    // ✨ 레어! 맨 마지막 칸
+  { id:"hat_magic", name:"마법 고깔",     gacha:false },        // 기본 소유
+  { id:"hat_band",  name:"하트별 머리띠", gacha:true },
+  { id:"hat_straw", name:"밀짚모자",      gacha:true },
+  { id:"hat_crown", name:"왕관",          gacha:true, rare:true }    // ✨ 레어! 맨 마지막 칸
 ];
 const ACCS = [
   { id:"acc_glasses", name:"둥근 안경", gacha:true },
@@ -3672,18 +3746,15 @@ const CHAR_SVG = {
     + `<path d="M57,90 L63,90 L60,94 Z" fill="#FF8FA8"/>`
     + `<path d="M60,94 q-2,4 -6,2 M60,94 q2,4 6,2" stroke="#C98A5B" stroke-width="1.8" stroke-linecap="round" fill="none"/>`
     + svgLimbs("#FFCE8A"),
-  /* 🐶 비숑: 복슬복슬 하얀 강아지 */
-  dog: () => `<circle cx="26" cy="74" r="11" fill="#fff" stroke="#ECE4F0" stroke-width="2"/>`
-    + `<circle cx="94" cy="74" r="11" fill="#fff" stroke="#ECE4F0" stroke-width="2"/>`
-    + `<circle cx="40" cy="67" r="10" fill="#fff" stroke="#ECE4F0" stroke-width="2"/>`
-    + `<circle cx="60" cy="62" r="11" fill="#fff" stroke="#ECE4F0" stroke-width="2"/>`
-    + `<circle cx="80" cy="67" r="10" fill="#fff" stroke="#ECE4F0" stroke-width="2"/>`
-    + svgBlob("#FFFFFF", ' stroke="#ECE4F0" stroke-width="2"')
-    + `<circle cx="30" cy="122" r="9" fill="#fff"/><circle cx="90" cy="122" r="9" fill="#fff"/>`
+  /* 🐶 말티즈: 매끈한 하얀 강아지 + 살짝 처진 크림색 귀 */
+  dog: () => `<path d="M28,60 Q15,63 16,82 Q17,95 28,95 Q35,91 34,73 Q33,62 28,60 Z" fill="#F2E6D6"/>`
+    + `<path d="M92,60 Q105,63 104,82 Q103,95 92,95 Q85,91 86,73 Q87,62 92,60 Z" fill="#F2E6D6"/>`
+    + svgBlob("#FFFFFF", ' stroke="#EDE7F0" stroke-width="2"')
+    + `<path d="M52,63 q2,-7 6,-2 q2,-8 7,-2 q3,-6 6,1" stroke="#F2E6D6" stroke-width="3" stroke-linecap="round" fill="none"/>`
     + svgBelly("#FBF3EA") + svgPaws("#EFE6DA")
     + svgEyes() + svgCheeks(".75")
     + `<ellipse cx="60" cy="91" rx="4.5" ry="3.5" fill="#5A4A63"/>`
-    + `<path d="M60,94 q-2,4 -6,2 M60,94 q2,4 6,2" stroke="#C9B8A8" stroke-width="1.8" stroke-linecap="round" fill="none"/>`
+    + `<path d="M60,94 q-2,4 -6,2 M60,94 q2,4 6,2" stroke="#D8C7B5" stroke-width="1.8" stroke-linecap="round" fill="none"/>`
     + `<path d="M56,97 q4,6 8,0 l0,2 q-4,5 -8,0 Z" fill="#FF8FA8"/>`
     + svgLimbs("#FFFFFF"),
   rabbit: () => `<ellipse cx="44" cy="40" rx="8.5" ry="25" fill="#FFF6F8" stroke="#F0D3DC" stroke-width="2" transform="rotate(-8 44 40)"/>`
@@ -3749,9 +3820,12 @@ const ITEM_SVG = {
     + `<path d="M57,36 l2.3,5 5.4,.6 -4,3.7 1.1,5.3 -4.8,-2.7 -4.8,2.7 1.1,-5.3 -4,-3.7 5.4,-.6 Z" fill="#FFD84D"/>`
     + `<path d="M35,62 Q60,72 85,62 L85,67 Q60,77 35,67 Z" fill="#7C6BD8"/>`
     + `<circle cx="60" cy="14" r="5.5" fill="#FFF3C9"/>`,
-  hat_party: `<path d="M60,18 L83,62 Q60,71 37,62 Z" fill="#6FD3B8"/>`
-    + `<circle cx="60" cy="38" r="2.8" fill="#fff"/><circle cx="51" cy="52" r="2.8" fill="#fff"/><circle cx="69" cy="52" r="2.8" fill="#fff"/>`
-    + `<circle cx="60" cy="18" r="5.5" fill="#FF8FA8"/>`,
+  hat_band: `<path d="M35,68 Q60,52 85,68" stroke="#FF8FA8" stroke-width="6" fill="none" stroke-linecap="round"/>`
+    + `<line x1="46" y1="60" x2="45" y2="50" stroke="#E9738E" stroke-width="2.5" stroke-linecap="round"/>`
+    + `<circle cx="42" cy="46" r="3.6" fill="#FF6B8E"/><circle cx="48" cy="46" r="3.6" fill="#FF6B8E"/>`
+    + `<path d="M38.6,47.6 L51.4,47.6 L45,56 Z" fill="#FF6B8E"/>`
+    + `<line x1="74" y1="60" x2="75" y2="50" stroke="#E9738E" stroke-width="2.5" stroke-linecap="round"/>`
+    + `<path d="M75,38 l2.5,5.4 5.9,.7 -4.4,4 1.2,5.8 -5.2,-3 -5.2,3 1.2,-5.8 -4.4,-4 5.9,-.7 Z" fill="#FFD84D" stroke="#F5C451" stroke-width="1"/>`,
   hat_crown: `<path d="M42,64 L42,44 L51,55 L60,38 L69,55 L78,44 L78,64 Q60,72 42,64 Z" fill="#FFD84D" stroke="#F5C451" stroke-width="2"/>`
     + `<circle cx="60" cy="56" r="3" fill="#FF8FA8"/>`
     + `<path class="spark" d="M40,38 l1.3,2.9 3.1,.3 -2.3,2.1 .6,3.1 -2.7,-1.6 -2.7,1.6 .6,-3.1 -2.3,-2.1 3.1,-.3 Z" fill="#fff"/>`
@@ -3995,8 +4069,126 @@ function closeDrawers(){
 }
 document.querySelectorAll(".drawer-close").forEach(b => b.addEventListener("click", closeDrawers));
 $("open-closet").addEventListener("click", () => { renderCloset(); openDrawer("closet-drawer"); });
-$("open-gacha").addEventListener("click", () => { renderGacha(); openDrawer("gacha-drawer"); });
+$("open-gacha").addEventListener("click", () => {
+  ensurePwOk(() => { renderGacha(); openDrawer("gacha-drawer"); });   // 🔐 보호된 이름이면 비밀번호 확인
+});
 $("open-attend").addEventListener("click", () => { renderAttendDrawer(); openDrawer("attend-drawer"); });
+
+/* =========================================================================
+   🔐 이름 보호(비밀번호) — 선택 기능
+   · 닉네임 + 영어·숫자 4~8자 비밀번호로 "내 이름"을 지킬 수 있어요.
+   · 비밀번호는 되돌릴 수 없는 해시로 badges 테이블에 "pw_..." 행으로 저장됩니다.
+     (원문 비밀번호는 어디에도 저장되지 않아요)
+   · 찾기 기능은 없습니다 — 잊어버리면 되찾을 수 없으니 안내문으로 메모를 강조.
+   · 비밀번호가 없는 이름은 예전처럼 그냥 플레이할 수 있어요 (익명도 그대로).
+   ========================================================================= */
+const AUTHED = new Set();          // 이번 접속에서 비밀번호를 통과한 학습자
+const PW_CACHE = new Map();        // lid → ["pw_..."] 저장된 비밀번호 해시들
+function pwRowsOf(ids){ return (ids || []).filter(id => id.startsWith("pw_")); }
+async function pwHashFor(lid, pw){
+  return "pw_" + (await sha256Hex(lid + "::pw::" + pw)).slice(0, 12);
+}
+async function loadPwRows(lid){
+  if (PW_CACHE.has(lid)) return PW_CACHE.get(lid);
+  const rows = pwRowsOf(await loadBadges(lid));
+  PW_CACHE.set(lid, rows);
+  return rows;
+}
+let pwPendingOk = null;
+/* 지금 입력된 이름이 보호 중이면 비밀번호를 물어보고, 통과해야 onOk를 실행합니다 */
+async function ensurePwOk(onOk){
+  if (MASTER) return onOk();                       // 🧪 마스터 모드는 통과
+  const nick = ($("nickname").value || "").trim();
+  if (!nick) return onOk();                         // 이름 없이도 게임은 그대로 가능
+  const code = cleanCode($("roomcode").value);
+  const lid = await computeLearnerId(nick, code);
+  if (AUTHED.has(lid)) return onOk();
+  let rows = [];
+  try { rows = await loadPwRows(lid); } catch(e){}
+  if (!rows.length) return onOk();                  // 비밀번호 없는 이름
+  pwPendingOk = () => { AUTHED.add(lid); onOk(); };
+  $("pwask-who").innerHTML = `<b>${escapeHtml(nick)}</b>는 비밀번호로 보호되는 별명이에요.`;
+  $("pwask-pw").value = "";
+  $("pwask-warn").classList.add("hidden");
+  $("pwask-screen").classList.remove("hidden");
+  setTimeout(() => $("pwask-pw").focus(), 50);
+}
+$("pwask-ok").addEventListener("click", async () => {
+  const nick = ($("nickname").value || "").trim();
+  const code = cleanCode($("roomcode").value);
+  const lid = await computeLearnerId(nick, code);
+  const rows = await loadPwRows(lid);
+  const h = await pwHashFor(lid, $("pwask-pw").value.trim());
+  if (rows.includes(h)){
+    $("pwask-screen").classList.add("hidden");
+    const f = pwPendingOk; pwPendingOk = null;
+    if (f) f();
+  } else {
+    $("pwask-warn").classList.remove("hidden");
+    $("pwask-pw").value = "";
+    $("pwask-pw").focus();
+  }
+});
+$("pwask-cancel").addEventListener("click", () => {
+  pwPendingOk = null;
+  $("pwask-screen").classList.add("hidden");
+});
+$("pwask-pw").addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) $("pwask-ok").click(); });
+
+/* --- 🔐 비밀번호 만들기 --- */
+function signupWarn(msg){
+  const w = $("signup-warn");
+  w.textContent = msg;
+  w.classList.remove("hidden");
+}
+$("open-signup").addEventListener("click", async () => {
+  const nick = ($("nickname").value || "").trim();
+  const code = cleanCode($("roomcode").value);
+  if (!nick){ alert("먼저 위의 ① 칸에 마법사 별명을 적어 주세요!"); return; }
+  if (containsBlockedWord(nick)){ $("nickname-warn").classList.remove("hidden"); return; }
+  if (MASTER){ alert("🧪 마스터 모드에서는 비밀번호를 만들 수 없어요."); return; }
+  if (!SUPA.on){ alert("인터넷 연결이 필요해요!"); return; }
+  const lid = await computeLearnerId(nick, code);
+  let rows = [];
+  try { rows = await loadPwRows(lid); } catch(e){}
+  if (rows.length){
+    alert(`"${nick}"는 이미 비밀번호로 보호되고 있어요!\n비밀번호를 잊어버렸다면 다른 별명으로 새로 시작해야 해요.`);
+    return;
+  }
+  $("signup-who").textContent = `🧙 ${nick} · 🏫 ${code || "(학급 코드 없음)"}`;
+  $("signup-pw").value = ""; $("signup-pw2").value = "";
+  $("signup-warn").classList.add("hidden");
+  $("signup-screen").classList.remove("hidden");
+  setTimeout(() => $("signup-pw").focus(), 50);
+});
+$("signup-ok").addEventListener("click", async () => {
+  const nick = ($("nickname").value || "").trim();
+  const code = cleanCode($("roomcode").value);
+  const pw = $("signup-pw").value.trim(), pw2 = $("signup-pw2").value.trim();
+  if (!/^[A-Za-z0-9]{4,8}$/.test(pw)) return signupWarn("🙅 비밀번호는 영어와 숫자로만 4~8자예요!");
+  if (pw !== pw2) return signupWarn("🙅 두 칸의 비밀번호가 서로 달라요!");
+  const lid = await computeLearnerId(nick, code);
+  let existing = [];
+  try { existing = await loadPwRows(lid); } catch(e){}
+  if (existing.length) return signupWarn("이미 비밀번호가 있는 별명이에요!");
+  const row = await pwHashFor(lid, pw);
+  let ok = false;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/badges?on_conflict=learner_id,badge_id`, {
+      method: "POST",
+      headers: SUPA.headers({ "Prefer": "resolution=ignore-duplicates,return=minimal" }),
+      body: JSON.stringify([{ learner_id: lid, code, badge_id: row }])
+    });
+    ok = res.ok;
+  } catch(e){}
+  if (!ok) return signupWarn("저장에 실패했어요 😢 인터넷을 확인하고 다시 눌러 주세요.");
+  PW_CACHE.set(lid, [row]);
+  AUTHED.add(lid);
+  $("signup-screen").classList.add("hidden");
+  alert(`🔐 비밀번호가 만들어졌어요!\n\n마법사 별명: ${nick}\n학급 코드: ${code || "(없음)"}\n\n⚠️ 찾기 기능이 없으니 비밀번호와 함께 공책에 꼭 적어 두세요!`);
+});
+$("signup-cancel").addEventListener("click", () => $("signup-screen").classList.add("hidden"));
+$("signup-pw2").addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) $("signup-ok").click(); });
 
 /* 게임이 끝날 때 판정하는 뱃지들 */
 function checkEndBadges(){
@@ -4099,7 +4291,7 @@ async function startGame(){
   /* 🏅 이 아이가 예전에 딴 뱃지와 누적 기록을 불러옵니다 (실패해도 게임은 그대로 진행) */
   const thisSession = state;
   loadBadges(LEARNER_ID).then(ids => {
-    if (state === thisSession) ids.filter(id => !id.startsWith("itm_")).forEach(id => state.earnedBadges.add(id));
+    if (state === thisSession) ids.filter(id => BADGE_BY_ID[id]).forEach(id => state.earnedBadges.add(id));
   });
   loadProgress(LEARNER_ID, code).then(p => {
     if (state === thisSession) state.progress = p;
@@ -4223,11 +4415,14 @@ $("to-howto-btn").addEventListener("click", () => {
   }
   $("nickname-warn").classList.add("hidden");
   Sound.init();                                   // 첫 클릭 때 오디오를 깨워 둡니다
-  $("start-screen").classList.add("hidden");
-  $("howto-screen").classList.remove("hidden");
-  showBadgeButton(false);                         // 뱃지 버튼·서랍은 시작 화면에서만
-  refreshStartBadges();                           // 이름 기준 뱃지·해금 상태 불러오기
-  updateInfiniteLock();                           // 무한 잠금 상태 최신화
+  /* 🔐 비밀번호로 보호되는 이름이면 먼저 확인하고 넘어갑니다 */
+  ensurePwOk(() => {
+    $("start-screen").classList.add("hidden");
+    $("howto-screen").classList.remove("hidden");
+    showBadgeButton(false);                       // 뱃지 버튼·서랍은 시작 화면에서만
+    refreshStartBadges();                         // 이름 기준 뱃지·해금 상태 불러오기
+    updateInfiniteLock();                         // 무한 잠금 상태 최신화
+  });
 });
 $("nickname").addEventListener("input", () => {
   $("nickname-warn").classList.add("hidden");     // 이름을 고치기 시작하면 경고를 지웁니다
@@ -4389,8 +4584,10 @@ input.addEventListener("keydown", (e) => {
 
 /* 학교 이름을 화면 곳곳에 반영합니다. 코드로 학교명을 새로 알아냈을 때도 다시 부릅니다. */
 function applySchoolName(){
-  document.title               = `${SCHOOL} 타자 수비대`;
-  $("game-title").textContent  = `${SCHOOL} 타자 수비대`;
+  /* "대한민국 타자 수비대"처럼 이름에 이미 '타자 수비대'가 들어 있으면 겹쳐 붙이지 않습니다 */
+  const title = SCHOOL.includes("타자 수비대") ? SCHOOL : `${SCHOOL} 타자 수비대`;
+  document.title               = title;
+  $("game-title").textContent  = title;
   $("school-story").textContent = SCHOOL;
   const ss = $("start-story-school"); if (ss) ss.textContent = SCHOOL;
 }
@@ -4401,6 +4598,9 @@ function applySchoolName(){
    URL에 학교명이 이미 있으면(QR·링크 방식) 그걸 우선하므로 조회하지 않습니다. */
 let schoolLookupReq = 0;
 async function lookupSchoolByCode(rawCode){
+  /* 🇰🇷 KOREA는 공용 코드 — 누가 뭐라 해도 항상 "대한민국 타자 수비대"입니다
+     (URL의 ?school= 로도 이 이름은 바꿀 수 없어요) */
+  if (cleanCode(rawCode) === KOREA_CODE){ SCHOOL = KOREA_SCHOOL; applySchoolName(); return; }
   if (SCHOOL_FROM_URL) return;            // 링크에 학교명이 있으면 그대로 사용
   if (!SUPA.on) return;
   const code = cleanCode(rawCode);
@@ -4422,7 +4622,27 @@ async function lookupSchoolByCode(rawCode){
 
 /* 첫 화면 준비 */
 applySchoolName();
-$("roomcode").value = DEFAULT_CODE;
+$("roomcode").value = JOIN_MODE ? "" : DEFAULT_CODE;
+if (JOIN_MODE) $("roomcode").placeholder = "코드 입력!";
+
+/* 🔒 대표 주소(KOREA)로 들어온 경우: 입장 코드를 바꿀 수 없습니다 */
+if (CODE_LOCKED){
+  const rc = $("roomcode");
+  rc.readOnly = true;
+  rc.classList.add("locked-code");
+  let noteTimer = null;
+  const showLockedNote = () => {
+    const n = $("code-locked-note");
+    if (!n) return;
+    n.classList.remove("hidden");
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => n.classList.add("hidden"), 5000);
+  };
+  rc.addEventListener("mousedown", e => { e.preventDefault(); showLockedNote(); });
+  rc.addEventListener("focus", () => { rc.blur(); showLockedNote(); });
+  const hint = $("code-hint");
+  if (hint) hint.innerHTML = "💡 지금은 <b>대한민국 공용 코드(KOREA)</b>로 접속 중이에요! 전국 친구들과 함께 랭킹을 겨뤄요.";
+}
 buildKeyboard();
 setMode(1.0);
 syncPeriodUI();          // 📅 주간/전체 토글·안내문구 초기화

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>타자 수비대 - 학급 코드로 입장</title>
+<meta name="robots" content="noindex, follow" />
+<!-- 🖥️ 컴퓨터실용 입장 주소: taja-guard.vercel.app/go
+     학급 코드를 직접 입력할 수 있는 화면으로 이동합니다 -->
+<meta http-equiv="refresh" content="0;url=./?join=1" />
+<script>
+/* 주소에 딸려 온 값(?code=... 등)이 있으면 그대로 이어서 전달합니다 */
+var extra = location.search ? "&" + location.search.slice(1) : "";
+location.replace("./?join=1" + extra);
+</script>
+</head>
+<body style="font-family:sans-serif; padding:30px; text-align:center;">
+  <p>🧙 타자 수비대로 이동 중…</p>
+  <p>자동으로 넘어가지 않으면 <a href="./?join=1">여기</a>를 눌러 주세요.</p>
+</body>
+</html>
