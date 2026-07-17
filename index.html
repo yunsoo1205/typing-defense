@@ -647,6 +647,19 @@ body.night-mode #field::after{
   border:2px solid #E6DDEC; border-radius:999px; background:#fff; color:var(--ink-soft);
 }
 .rank-tab.on{ background:var(--grape); border-color:var(--grape); color:#fff; }
+/* 📅 주간 / 🏆 전체 세그먼트 토글 — 난이도 탭(보라)과 색을 달리해 헷갈리지 않게 */
+.rank-period{
+  display:flex; gap:0; justify-content:center; width:max-content;
+  margin:0 auto 6px; background:#F3EEF7; border-radius:999px; padding:3px;
+}
+.rank-period button{
+  font-family:var(--font-display); font-size:12.5px; padding:4px 16px; cursor:pointer;
+  border:none; background:transparent; color:var(--ink-soft); border-radius:999px;
+  transition:background .12s;
+}
+.rank-period button.on{ background:var(--berry); color:#fff; box-shadow:0 2px 0 rgba(90,74,99,.14); }
+.rank-note{ text-align:center; font-size:11px; color:var(--ink-soft); line-height:1.5; margin:-2px 0 8px; }
+.story-intro{ margin:0 auto; }
 .rank-list{ max-height:140px; overflow-y:auto; }
 .rank-row{ display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:10px; font-size:15px; }
 .rank-row + .rank-row{ margin-top:2px; }
@@ -746,7 +759,14 @@ body.night-mode #field::after{
     <div class="overlay" id="start-screen">
       <div class="big-emoji">🧙‍♂️🏫</div>
       <h1 id="game-title">우리학교 타자 수비대</h1>
-      <p>학교가 몬스터에게 둘러싸였어요.<br>여러분은 <b>글자 마법사</b>! 이름을 알려 주세요.</p>
+      <div class="story story-intro" id="start-story">
+        🏫 어느 날, 평화롭던 <b id="start-story-school">우리학교</b>에 <b>몬스터 떼</b>가 몰려왔어요!
+        머리 위에 <b>글자</b>를 이고 다니는 몬스터들이 학교를 향해 쳐들어오고 있어요.
+        이 학교를 지킬 수 있는 건 오직 <b>글자 마법사</b>뿐! ✨<br>
+        몬스터의 글자를 똑같이 <b>입력</b>하면 마법이 <b>펑!</b> 하고 터진답니다.
+        용감한 마법사님, 학교를 구해 주세요! 🪄
+      </div>
+      <p>먼저 <b>이름</b>을 알려 주세요.</p>
       <div class="name-code-row">
         <div class="ncr-item">
           <label for="nickname" class="ncr-label">① 마법사 이름</label>
@@ -778,6 +798,11 @@ body.night-mode #field::after{
           <button class="rank-tab" data-mode="2">🔥 고급</button>
           <button class="rank-tab" data-mode="inf">♾️ 무한</button>
         </div>
+        <div class="rank-period" id="rank-period-start">
+          <button data-period="week" class="on">📅 주간</button>
+          <button data-period="all">🏆 전체</button>
+        </div>
+        <p class="rank-note" id="rank-note-start"></p>
         <div class="rank-list" id="rank-list-start"></div>
       </div>
 
@@ -892,6 +917,11 @@ body.night-mode #field::after{
       </div>
       <div class="rank-box">
         <h3>🏆 <span id="rank-title-end">명예의 전당</span> TOP 10</h3>
+        <div class="rank-period" id="rank-period-end">
+          <button data-period="week" class="on">📅 주간</button>
+          <button data-period="all">🏆 전체</button>
+        </div>
+        <p class="rank-note" id="rank-note-end"></p>
         <div class="rank-list" id="rank-list-end"></div>
       </div>
       <button class="btn" id="retry-btn">처음부터 다시 하기</button>
@@ -1648,20 +1678,26 @@ async function clearRanks(code){
   try { localStorage.removeItem(key); } catch(e){}
   delete memoryRanks[key];
 }
-function renderRanks(list, boxId, highlightId){
+function renderRanks(list, boxId, highlightId, emptyHtml, highlightName){
   const box = document.getElementById(boxId);
   if (!list || list.length === 0){
-    box.innerHTML = `<p class="rank-empty">아직 기록이 없어요. 첫 주인공이 되어 보세요!</p>`;
+    box.innerHTML = `<p class="rank-empty">${emptyHtml || "아직 기록이 없어요. 첫 주인공이 되어 보세요!"}</p>`;
     return;
   }
   const medal = ["🥇","🥈","🥉"];
-  box.innerHTML = list.map((r, i) => `
-    <div class="rank-row ${r.id === highlightId ? "me" : ""}">
+  box.innerHTML = list.map((r, i) => {
+    /* 내 기록 강조: 전체 랭킹은 서버 id로, 주간 랭킹은 이름으로 찾습니다
+       (주간은 이력 테이블에서 뽑아 오므로 순위표 id가 따로 없어요) */
+    const mine = (highlightId && r.id === highlightId) ||
+                 (highlightName && r.name === highlightName);
+    return `
+    <div class="rank-row ${mine ? "me" : ""}">
       <span class="medal">${medal[i] || (i+1)}</span>
       <span class="who">${escapeHtml(r.name)}</span>
       <span class="stage">${r.stage >= 1 ? r.stage + "단계" : "♾️"}</span>
       <span class="pts">${r.score}</span>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c =>
@@ -1681,6 +1717,88 @@ function rankKeyFor(code, mode){
 function modeLabel(mode){
   if (mode === "inf") return "♾️ 무한";
   return mode > 1 ? "🔥 고급" : "🐣 초급";
+}
+
+/* =========================================================================
+   📅 주간 랭킹 — '지금까지 데이터'는 절대 건드리지 않아요.
+   • 전체 랭킹: 기존 user_high_scores(학습자당 최고점 1줄) 그대로.
+   • 주간 랭킹: 매 게임 기록이 쌓이는 scores(전체 이력) 테이블에서
+     '이번 주 월요일 00:00 이후'만 골라 이름별 최고점으로 뽑습니다.
+   → 테이블/컬럼을 새로 만들거나 지우지 않으므로 기존 기록이 날아갈 일이 없고,
+     월요일이 지나면 조회 시작점만 다음 월요일로 옮겨져 자동으로 새로 시작됩니다.
+   ========================================================================= */
+function weekStartISO(){
+  const d = new Date();
+  const day  = d.getDay();                 // 0=일, 1=월, … 6=토
+  const back = (day === 0 ? 6 : day - 1);  // 이번 주 월요일까지 거슬러 갈 일수
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - back);
+  return d.toISOString();                   // 저장값(UTC)과 안전하게 비교됩니다
+}
+function periodLabel(p){ return p === "week" ? "이번 주" : "전체"; }
+
+async function supaLoadWeekly(code){
+  const since = weekStartISO();
+  const q = `${SUPABASE_URL}/rest/v1/scores`
+          + `?select=name,score,stage`
+          + `&code=eq.${encodeURIComponent(code)}`
+          + `&created_at=gte.${encodeURIComponent(since)}`
+          + `&order=score.desc&limit=500`;
+  const res = await fetch(q, { headers: SUPA.headers() });
+  if (!res.ok) throw new Error("weekly load failed " + res.status);
+  const rows = await res.json();
+  /* 한 아이가 이번 주에 여러 번 플레이해도 '최고점 한 줄'만 순위표에 남깁니다 */
+  const best = new Map();
+  for (const r of rows){
+    const cur = best.get(r.name);
+    if (!cur || r.score > cur.score) best.set(r.name, r);
+  }
+  return Array.from(best.values()).sort((a, b) => b.score - a.score).slice(0, RANK_SIZE);
+}
+
+/* period: "week"(주간) | "all"(전체). 전체는 기존 loadRanks 그대로 씁니다. */
+async function loadRanksByPeriod(code, period){
+  if (period !== "week") return await loadRanks(code);
+  if (SUPA.on){
+    try { return await supaLoadWeekly(code); }
+    catch(e){
+      console.warn("주간 랭킹을 불러오지 못해 전체 랭킹을 대신 보여줍니다.", e);
+      try { return await loadRanks(code); } catch(_){ return { __error:true }; }
+    }
+  }
+  /* Supabase가 없을 땐(로컬 폴백) 주간 개념이 없으니 전체를 그대로 보여줍니다 */
+  return await loadRanks(code);
+}
+
+/* 방금 끝낸 판의 기록을 주간 목록에 즉시 반영합니다.
+   (이력 저장은 응답을 기다리지 않아, 다시 조회하면 잠깐 빠져 보일 수 있어서) */
+function mergeWeeklyEntry(list, entry){
+  const others = (list || []).filter(r => r.name !== entry.name);
+  const prev   = (list || []).find(r => r.name === entry.name);
+  const keep   = (prev && prev.score >= entry.score) ? prev : entry;
+  others.push(keep);
+  others.sort((a, b) => b.score - a.score);
+  return others.slice(0, RANK_SIZE);
+}
+
+/* 순위표 한 칸을 기간·난이도에 맞게 채우는 공통 함수 */
+async function fillRankList(boxId, code, mode, period, opts){
+  opts = opts || {};
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.innerHTML = `<p class="rank-empty">불러오는 중…</p>`;
+  const key  = rankKeyFor(code, mode);
+  const data = await loadRanksByPeriod(key, period);
+  if (data && data.__error){
+    box.innerHTML = `<p class="rank-empty">랭킹을 잠깐 불러오지 못했어요 😢<br>잠시 후 다시 열어 주세요.</p>`;
+    return;
+  }
+  let list = data;
+  if (period === "week" && opts.inject) list = mergeWeeklyEntry(list, opts.inject);
+  const empty = period === "week"
+    ? "이번 주엔 아직 기록이 없어요.<br>첫 주인공이 되어 보세요!"
+    : "아직 기록이 없어요. 첫 주인공이 되어 보세요!";
+  renderRanks(list, boxId, opts.mine && opts.mine.id, empty, opts.mine && opts.mine.name);
 }
 
 /* =========================================================================
@@ -2903,8 +3021,10 @@ async function endGame(cleared){
       `${escapeHtml(state.nickname)} 견습생이 <b>${state.score}점</b>을 얻었어요.<br>` +
       `연습 모드라 랭킹에는 올라가지 않아요. 자신 있으면 <b>🧙 초급 마법사</b>로 도전해 보세요!` +
       maybeOwlNudgeHtml();
-    renderRanks(await loadRanks(rankKeyFor(state.code, 1)), "rank-list-end");
     $("rank-title-end").textContent = `${state.code} 🧙 초급`;
+    lastEntry = null; lastEntryId = null;   // 견습 모드는 랭킹에 올리지 않아요
+    syncPeriodUI();
+    await fillRankList("rank-list-end", state.code, 1, previewPeriod, { mine:{ name: state.nickname } });
     renderBadges();
     $("end-screen").classList.remove("hidden");
     return;
@@ -2941,8 +3061,10 @@ async function endGame(cleared){
     $("rank-title-start").textContent = labelI;
     setDock(false);
 
-    renderRanks(topI, "rank-list-end", entryI.id);
-    renderRanks(topI, "rank-list-start", entryI.id);
+    lastEntry = entryI; lastEntryId = entryI.id;
+    syncPeriodUI();
+    await refreshEndRanks();
+    await refreshStartRanks();
     renderBadges();
     $("end-screen").classList.remove("hidden");
     return;
@@ -2980,8 +3102,10 @@ async function endGame(cleared){
   $("rank-title-start").textContent = label;
   setDock(false);
 
-  renderRanks(top, "rank-list-end", entry.id);
-  renderRanks(top, "rank-list-start", entry.id);
+  lastEntry = entry; lastEntryId = entry.id;
+  syncPeriodUI();
+  await refreshEndRanks();
+  await refreshStartRanks();
   renderBadges();
   $("end-screen").classList.remove("hidden");
 }
@@ -3313,12 +3437,38 @@ function startInfinite(){
 buildStageOptions();
 
 let previewMode = 1.0;     // 시작 화면에서 보고 있는 랭킹의 난이도 (1 / 2 / "inf")
+let previewPeriod = "week";   // 보고 있는 랭킹 기간: "week"(주간) | "all"(전체)
+let lastEntry = null;         // 방금 끝낸 판의 기록(주간 목록 즉시 반영·강조용)
+let lastEntryId = null;       // 방금 끝낸 판의 전체 랭킹 행 id(강조용)
+
+/* 두 화면(시작·종료)의 주간/전체 토글과 안내 문구를 한 번에 맞춰 줍니다 */
+function syncPeriodUI(){
+  document.querySelectorAll(".rank-period").forEach(group => {
+    group.querySelectorAll("button").forEach(b =>
+      b.classList.toggle("on", b.dataset.period === previewPeriod));
+  });
+  const note = previewPeriod === "week"
+    ? "📅 이번 주(월요일부터) 기록이에요 · 전체 기록은 그대로 있어요!"
+    : "🏆 처음부터 지금까지 모든 기록이에요.";
+  const ns = $("rank-note-start"); if (ns) ns.textContent = note;
+  const ne = $("rank-note-end");   if (ne) ne.textContent = note;
+}
 
 async function refreshStartRanks(){
   const code = cleanCode($("roomcode").value);
   $("rank-title-start").textContent = `${code} ${modeLabel(previewMode)}`;
-  $("rank-list-start").innerHTML = `<p class="rank-empty">불러오는 중…</p>`;
-  renderRanks(await loadRanks(rankKeyFor(code, previewMode)), "rank-list-start");
+  await fillRankList("rank-list-start", code, previewMode, previewPeriod, {
+    mine: { name: ($("nickname").value || "").trim() }
+  });
+}
+
+/* 종료 화면 순위표도 같은 기간으로 갱신 (방금 판을 즉시 반영·강조) */
+async function refreshEndRanks(){
+  const mode = state.infinite ? "inf" : state.baseSpeed;
+  await fillRankList("rank-list-end", state.code, mode, previewPeriod, {
+    mine:   { id: lastEntryId, name: state.nickname },
+    inject: (previewPeriod === "week" && lastEntry) ? lastEntry : null
+  });
 }
 
 /* 초급 / 고급 / 무한 랭킹 탭 */
@@ -3328,6 +3478,16 @@ document.querySelectorAll(".rank-tab").forEach(t => {
     document.querySelectorAll(".rank-tab").forEach(c => c.classList.remove("on"));
     t.classList.add("on");
     refreshStartRanks();
+  });
+});
+
+/* 📅 주간 / 🏆 전체 토글 — 두 화면 버튼이 같은 상태를 공유합니다 */
+document.querySelectorAll(".rank-period button").forEach(b => {
+  b.addEventListener("click", () => {
+    previewPeriod = b.dataset.period === "all" ? "all" : "week";
+    syncPeriodUI();
+    refreshStartRanks();
+    if (!$("end-screen").classList.contains("hidden")) refreshEndRanks();
   });
 });
 
@@ -3511,6 +3671,7 @@ function applySchoolName(){
   document.title               = `${SCHOOL} 타자 수비대`;
   $("game-title").textContent  = `${SCHOOL} 타자 수비대`;
   $("school-story").textContent = SCHOOL;
+  const ss = $("start-story-school"); if (ss) ss.textContent = SCHOOL;
 }
 
 /* 🏫 코드로 학교 이름 자동 조회 —
@@ -3543,6 +3704,7 @@ applySchoolName();
 $("roomcode").value = DEFAULT_CODE;
 buildKeyboard();
 setMode(1.0);
+syncPeriodUI();          // 📅 주간/전체 토글·안내문구 초기화
 refreshStartRanks();
 refreshStartBadges();     // 🏅 시작 화면 뱃지판 초기화
 lookupSchoolByCode(DEFAULT_CODE);   // 시작 시 기본 코드로도 한 번 조회
