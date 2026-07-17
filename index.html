@@ -2782,6 +2782,10 @@ function newGame(nickname, code, baseSpeed, infinite){
     charsTyped: 0,                  // 이용 로그용: 정확히 입력한 글자 수 (CPM 계산)
     wrongPresses: 0,                // 이용 로그용: Backspace 누른 횟수 (정확도 계산)
     wordLog: [],                    // 단어별 정답/오답 기록 (세션 끝에 한 번에 전송)
+    /* 📉 단어 기록 표본 추출 — 전국(KOREA)은 이용자가 많아 단어 기록이 폭증하므로
+       5판 중 1판만 저장합니다(통계적으로는 충분). 학급 코드는 연구용이라 전부 저장.
+       비율을 바꾸려면 0.2를 고치세요 (1.0 = 전부 저장). */
+    logWords: (code !== "KOREA") || (Math.random() < 0.2),
     lastActionAt: performance.now(),// 직전 제출(또는 시작) 시각 → 반응시간 계산
     attemptFirstKeyAt: null,        // 이번 시도의 첫 키 입력 시각
     attemptLatencyMs: 0,            // 직전 제출 ~ 첫 키 입력까지 (반응시간)
@@ -2997,6 +3001,7 @@ function errorFinger(expectedWord, typedText){
 /* 단어 하나를 끝냈을 때(정답/오답 모두) 기록을 남기고 다음 시도를 위해 초기화합니다.
    메테오로 자동 처치된 것들은 직접 친 게 아니므로 기록하지 않습니다. */
 function logWordAttempt(expectedWord, typedFinal, correct, errFinger){
+  if (state && state.logWords === false) return;   // 📉 전국(KOREA) 세션은 표본만 기록 (용량 절약)
   const now = performance.now();
   state.wordLog.push({
     session_id:       state.sessionId,
