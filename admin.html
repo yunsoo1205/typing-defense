@@ -133,6 +133,19 @@ a.btn{ display:flex; align-items:center; justify-content:center; text-decoration
 #qr-canvas{ display:inline-block; background:#fff; padding:14px; border-radius:14px; box-shadow:0 3px 10px rgba(90,74,99,.14); }
 #qr-canvas canvas, #qr-canvas img{ display:block; }
 #qr-download{ margin-top:12px; }
+/* QR 못 쓰는 교실 안내 */
+.noqr-box{ margin-top:16px; padding-top:16px; border-top:2px dashed rgba(90,74,99,.2); }
+.noqr-box.hidden{ display:none; }
+.noqr-method{ display:flex; gap:10px; align-items:flex-start; text-align:left; margin:10px 0; }
+.noqr-num{
+  flex:none; background:var(--grape); color:#fff; font-family:var(--font-display);
+  font-size:12px; padding:4px 9px; border-radius:999px; white-space:nowrap; margin-top:2px;
+}
+.noqr-text{ font-size:13px; color:var(--ink); line-height:1.6; }
+.noqr-text b{ color:var(--grape); }
+.guide-canvas{ margin-top:12px; text-align:center; }
+.guide-canvas canvas{ max-width:100%; height:auto; border-radius:14px; box-shadow:0 3px 10px rgba(90,74,99,.14); }
+#guide-download{ margin-top:10px; }
 #link{
   width:100%; font-family:monospace; font-size:13px; line-height:1.5;
   padding:12px 14px; border:3px solid #fff; border-radius:14px;
@@ -230,9 +243,33 @@ details input{
 
       <div id="qr-box" class="qr-box hidden">
         <h2>📱 QR 코드</h2>
-        <p class="qr-help">교실 TV나 칠판에 이 QR을 띄우면, 아이들이 폰·태블릿으로 찍어서 바로 들어와요. (주소를 한 글자도 안 쳐도 돼요!)</p>
+        <p class="qr-help">교실 TV나 칠판에 이 QR을 띄우면, 아이들이 <b>태블릿</b>으로 찍어서 바로 들어와요. (주소를 한 글자도 안 쳐도 돼요!)<br>⌨️ 타자 연습이라 <b>물리 키보드</b>가 연결된 태블릿이나 컴퓨터에서 해야 제대로 즐길 수 있어요.</p>
         <div id="qr-canvas"></div>
         <button class="btn copy" id="qr-download" type="button">QR 이미지 저장</button>
+      </div>
+
+      <div id="noqr-box" class="noqr-box hidden">
+        <h2>🖥️ QR을 못 쓰는 교실이라면?</h2>
+        <p class="qr-help">데스크톱 컴퓨터실처럼 카메라로 QR을 찍기 어려울 땐, 아래 두 가지 방법으로 안내해 주세요.</p>
+
+        <div class="noqr-method">
+          <div class="noqr-num">방법 1</div>
+          <div class="noqr-text">
+            <b>학급 링크 공유 채널에 올리기</b><br>
+            클래스팅 · 하이클래스 · 구글 클래스룸 · 밴드 · e학습터 등 평소 학급에서 링크를 나누는 곳에 위 링크를 그대로 붙여넣으면, 아이들이 눌러서 바로 들어와요.
+          </div>
+        </div>
+
+        <div class="noqr-method">
+          <div class="noqr-num">방법 2</div>
+          <div class="noqr-text">
+            <b>주소와 코드를 칠판·TV에 띄우기</b><br>
+            아래 그림을 교실 화면에 크게 띄우면, 아이들이 보고 직접 입력할 수 있어요.
+          </div>
+        </div>
+
+        <div id="guide-canvas" class="guide-canvas"></div>
+        <button class="btn copy" id="guide-download" type="button">안내 그림 저장</button>
       </div>
     </div>
 
@@ -296,7 +333,7 @@ details input{
         <li>게임 파일은 <b>하나만</b> 있으면 됩니다. 학교마다 파일을 따로 만들 필요가 없어요.</li>
         <li>랭킹은 <b>코드별로 따로</b> 쌓입니다. 다른 학교 점수와 섞이지 않아요.</li>
         <li>아이들이 주소에서 뒷부분을 지우면 기본 학교("우리학교")로 돌아갑니다. 링크를 그대로 복사해 주세요.</li>
-        <li>PC용입니다. 물리 키보드가 없는 휴대폰에서는 타자 연습이 되지 않아요.</li>
+        <li>⌨️ <b>물리 키보드</b>가 있어야 타자 연습을 할 수 있어요. 컴퓨터 또는 키보드를 연결한 태블릿에서 이용해 주세요. (화면 키보드만 있는 휴대폰은 맞지 않아요.)</li>
         <li>⚠️ 닉네임·점수·도달 단계·플레이 시간·타수 등이 저장됩니다. 링크를 나눠주기 전에 학생·학부모에게
             <a href="privacy.html" target="_blank">데이터 수집 안내</a>를 미리 알려 주세요.</li>
         <li>🏫 '우리 반 단계'는 <b>11단계</b>로 맨 뒤에 붙습니다. 아이들에게
@@ -654,8 +691,8 @@ function setChecked(ok){
   $("open-btn").setAttribute("aria-disabled", ok ? "false" : "true");
   $("lock-hint").style.display = ok ? "none" : "";
   // 확인되면 현재 링크로 QR을 그리고, 풀리면 숨깁니다.
-  if (ok) renderQR($("link").value);
-  else $("qr-box").classList.add("hidden");
+  if (ok){ renderQR($("link").value); renderGuide(cleanCode($("code").value)); }
+  else { $("qr-box").classList.add("hidden"); $("noqr-box").classList.add("hidden"); }
 }
 function hideAllDupBoxes(){
   $("dup-ok").classList.add("hidden");
@@ -741,8 +778,8 @@ function build(){
   $("open-btn").href = url.href;
 
   // QR은 '겹치는지 확인' 후(잠금 해제)에만 보여줍니다.
-  if (codeChecked) renderQR(url.href);
-  else { $("qr-box").classList.add("hidden"); }
+  if (codeChecked){ renderQR(url.href); renderGuide(cleanCode($("code").value)); }
+  else { $("qr-box").classList.add("hidden"); $("noqr-box").classList.add("hidden"); }
 }
 
 /* 링크를 QR 코드로 그립니다. 내장 makeQR로 모듈 배열을 얻어 캔버스에 칠합니다. */
@@ -774,8 +811,95 @@ function renderQR(text){
   }
 }
 
+/* 🖥️ 주소+코드 판서용 안내 그림을 그립니다.
+   교실 TV에 크게 띄우면 아이들이 보고 직접 입력할 수 있어요. */
+const BASE_URL_SHORT = "taja-guard.vercel.app";
+function renderGuide(code){
+  const box = $("noqr-box");
+  const host = $("guide-canvas");
+  if (!host) return;
+  const W = 1000, H = 560;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // 배경
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "#EAF4FF");
+  grad.addColorStop(1, "#F3ECFF");
+  ctx.fillStyle = grad;
+  roundRect(ctx, 0, 0, W, H, 28); ctx.fill();
+
+  // 제목
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#5A4A63";
+  ctx.font = "bold 46px 'Jua', sans-serif";
+  ctx.fillText("🧙 타자 수비대 접속 방법", W/2, 78);
+
+  // 1단계 — 주소
+  drawStep(ctx, 120, "1", "주소창에 입력하세요", BASE_URL_SHORT, "#9B8CF0");
+  // 2단계 — 코드
+  const codeText = (code && code !== "SCHOOL") ? code : "(코드 없이 입장)";
+  drawStep(ctx, 320, "2", "학급 코드를 입력하세요", codeText, "#6FD3B8");
+
+  // 하단 안내
+  ctx.fillStyle = "#8C7E95";
+  ctx.font = "26px 'Gowun Dodum', sans-serif";
+  ctx.fillText("주소로 들어간 뒤, 코드 칸에 위 코드를 넣고 시작하면 우리 반으로 입장!", W/2, H - 44);
+
+  host.innerHTML = "";
+  host.appendChild(canvas);
+  if (box) box.classList.remove("hidden");
+
+  // 헬퍼: 둥근 사각형
+  function roundRect(c, x, y, w, h, r){
+    c.beginPath();
+    c.moveTo(x+r, y);
+    c.arcTo(x+w, y, x+w, y+h, r);
+    c.arcTo(x+w, y+h, x, y+h, r);
+    c.arcTo(x, y+h, x, y, r);
+    c.arcTo(x, y, x+w, y, r);
+    c.closePath();
+  }
+  // 헬퍼: 한 단계 박스 그리기
+  function drawStep(c, y, num, label, value, color){
+    const boxX = 80, boxW = W - 160, boxH = 150;
+    // 번호 원
+    c.fillStyle = color;
+    c.beginPath(); c.arc(boxX + 55, y + boxH/2, 40, 0, Math.PI*2); c.fill();
+    c.fillStyle = "#fff";
+    c.font = "bold 44px 'Jua', sans-serif";
+    c.textAlign = "center";
+    c.fillText(num, boxX + 55, y + boxH/2 + 15);
+    // 라벨
+    c.textAlign = "left";
+    c.fillStyle = "#8C7E95";
+    c.font = "27px 'Gowun Dodum', sans-serif";
+    c.fillText(label, boxX + 120, y + 48);
+    // 값 박스 (주소/코드)
+    const vX = boxX + 120, vY = y + 66, vW = boxW - 140, vH = 66;
+    c.fillStyle = "#fff";
+    c.strokeStyle = color; c.lineWidth = 3;
+    roundRect(c, vX, vY, vW, vH, 14); c.fill(); c.stroke();
+    c.fillStyle = "#5A4A63";
+    c.font = "bold 42px 'Jua', monospace";
+    c.textAlign = "left";
+    c.fillText(value, vX + 24, vY + 47);
+  }
+}
+
 ["school", "code", "base"].forEach(id =>
   $(id).addEventListener("input", build));
+
+$("guide-download").addEventListener("click", () => {
+  const canvas = $("guide-canvas").querySelector("canvas");
+  if (!canvas) return;
+  const school = ($("school").value.trim() || "타자수비대").replace(/[^\wㄱ-힣]/g, "");
+  const a = document.createElement("a");
+  a.href = canvas.toDataURL("image/png");
+  a.download = `타자수비대_접속안내_${school}.png`;
+  a.click();
+});
 
 $("qr-download").addEventListener("click", () => {
   const canvas = $("qr-canvas").querySelector("canvas");
