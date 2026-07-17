@@ -818,7 +818,7 @@ function renderGuide(code){
   const box = $("noqr-box");
   const host = $("guide-canvas");
   if (!host) return;
-  const W = 1000, H = 560;
+  const W = 1000, H = 820;
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext("2d");
@@ -834,18 +834,64 @@ function renderGuide(code){
   ctx.textAlign = "center";
   ctx.fillStyle = "#5A4A63";
   ctx.font = "bold 46px 'Jua', sans-serif";
-  ctx.fillText("🧙 타자 수비대 접속 방법", W/2, 78);
+  ctx.fillText("🧙 타자 수비대 접속 방법", W/2, 74);
+
+  const codeText = (code && code !== "SCHOOL") ? code : "코드 없이 입장";
 
   // 1단계 — 주소
-  drawStep(ctx, 120, "1", "주소창에 입력하세요", BASE_URL_SHORT, "#9B8CF0");
+  drawStep(ctx, 108, "1", "주소창에 입력하세요", BASE_URL_SHORT, "#9B8CF0");
   // 2단계 — 코드
-  const codeText = (code && code !== "SCHOOL") ? code : "(코드 없이 입장)";
-  drawStep(ctx, 320, "2", "학급 코드를 입력하세요", codeText, "#6FD3B8");
+  drawStep(ctx, 300, "2", "학급 코드를 입력하세요", codeText, "#6FD3B8");
 
-  // 하단 안내
+  // ── 하단: 실제 화면 목업 ("코드는 여기에!") ──
+  const mockY = 486, mockX = 80, mockW = W - 160, mockH = 250;
+  ctx.fillStyle = "#fff";
+  ctx.strokeStyle = "#E0D6EC"; ctx.lineWidth = 3;
+  roundRect(ctx, mockX, mockY, mockW, mockH, 20); ctx.fill(); ctx.stroke();
+
+  // 목업 제목
   ctx.fillStyle = "#8C7E95";
-  ctx.font = "26px 'Gowun Dodum', sans-serif";
-  ctx.fillText("주소로 들어간 뒤, 코드 칸에 위 코드를 넣고 시작하면 우리 반으로 입장!", W/2, H - 44);
+  ctx.font = "22px 'Gowun Dodum', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("게임 첫 화면은 이렇게 생겼어요 👇", W/2, mockY + 40);
+
+  // 이름칸 · 코드칸 나란히
+  const fieldY = mockY + 76, fieldH = 74;
+  const nameX = mockX + 90, nameW = 320;
+  const codeX = nameX + nameW + 60, codeW = 300;
+
+  // 이름칸
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#9B8CF0"; ctx.font = "22px 'Jua', sans-serif";
+  ctx.fillText("① 마법사 이름", nameX + nameW/2, fieldY - 12);
+  ctx.fillStyle = "#F7F3FB"; ctx.strokeStyle = "#6FD3B8"; ctx.lineWidth = 4;
+  roundRect(ctx, nameX, fieldY, nameW, fieldH, 999); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#C4B8CB"; ctx.font = "26px 'Jua', sans-serif";
+  ctx.fillText("마법사 이름", nameX + nameW/2, fieldY + 48);
+
+  // 코드칸 (강조)
+  ctx.fillStyle = "#6FD3B8"; ctx.font = "bold 24px 'Jua', sans-serif";
+  ctx.fillText("② 학급 코드", codeX + codeW/2, fieldY - 12);
+  ctx.fillStyle = "#FFFBEA"; ctx.strokeStyle = "#F5A623"; ctx.lineWidth = 5;
+  roundRect(ctx, codeX, fieldY, codeW, fieldH, 999); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#5A4A63"; ctx.font = "bold 30px 'Jua', monospace";
+  ctx.fillText(codeText, codeX + codeW/2, fieldY + 48);
+
+  // "여기에 코드!" 화살표 + 말풍선
+  ctx.fillStyle = "#F5A623";
+  ctx.font = "bold 26px 'Jua', sans-serif";
+  ctx.fillText("★ 여기에 코드를 넣어요! ★", codeX + codeW/2, fieldY + fieldH + 52);
+  // 화살표
+  ctx.strokeStyle = "#F5A623"; ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(codeX + codeW/2, fieldY + fieldH + 62);
+  ctx.lineTo(codeX + codeW/2, fieldY + fieldH + 20);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(codeX + codeW/2 - 10, fieldY + fieldH + 32);
+  ctx.lineTo(codeX + codeW/2, fieldY + fieldH + 18);
+  ctx.lineTo(codeX + codeW/2 + 10, fieldY + fieldH + 32);
+  ctx.stroke();
 
   host.innerHTML = "";
   host.appendChild(canvas);
@@ -853,6 +899,7 @@ function renderGuide(code){
 
   // 헬퍼: 둥근 사각형
   function roundRect(c, x, y, w, h, r){
+    r = Math.min(r, h/2, w/2);
     c.beginPath();
     c.moveTo(x+r, y);
     c.arcTo(x+w, y, x+w, y+h, r);
@@ -864,20 +911,17 @@ function renderGuide(code){
   // 헬퍼: 한 단계 박스 그리기
   function drawStep(c, y, num, label, value, color){
     const boxX = 80, boxW = W - 160, boxH = 150;
-    // 번호 원
     c.fillStyle = color;
     c.beginPath(); c.arc(boxX + 55, y + boxH/2, 40, 0, Math.PI*2); c.fill();
     c.fillStyle = "#fff";
     c.font = "bold 44px 'Jua', sans-serif";
     c.textAlign = "center";
     c.fillText(num, boxX + 55, y + boxH/2 + 15);
-    // 라벨
     c.textAlign = "left";
     c.fillStyle = "#8C7E95";
     c.font = "27px 'Gowun Dodum', sans-serif";
-    c.fillText(label, boxX + 120, y + 48);
-    // 값 박스 (주소/코드)
-    const vX = boxX + 120, vY = y + 66, vW = boxW - 140, vH = 66;
+    c.fillText(label, boxX + 120, y + 44);
+    const vX = boxX + 120, vY = y + 62, vW = boxW - 140, vH = 66;
     c.fillStyle = "#fff";
     c.strokeStyle = color; c.lineWidth = 3;
     roundRect(c, vX, vY, vW, vH, 14); c.fill(); c.stroke();

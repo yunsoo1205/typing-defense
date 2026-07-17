@@ -597,6 +597,21 @@ body.night-mode #field::after{
 .speed-btn.on{ background:var(--grape); border-color:var(--grape); color:#fff; transform:scale(1.06); }
 
 /* 닉네임 · 학급 코드 */
+/* 이름 + 코드 가로 나란히 배치 */
+.name-code-row{
+  display:flex; gap:12px; justify-content:center; align-items:flex-start;
+  flex-wrap:wrap; width:min(460px,100%); margin:2px auto;
+}
+.ncr-item{ display:flex; flex-direction:column; align-items:center; gap:5px; }
+.ncr-label{
+  font-family:var(--font-display); font-size:13px; color:var(--grape); font-weight:400;
+}
+.name-code-row #nickname{
+  width:min(210px, 44vw); font-size:20px; padding:11px 16px;
+}
+.name-code-row #roomcode{
+  width:min(160px, 38vw); border:4px solid var(--grape);
+}
 #nickname{
   font-family:var(--font-display); font-size:22px; text-align:center;
   padding:12px 20px; width:min(300px, 82%);
@@ -732,8 +747,20 @@ body.night-mode #field::after{
       <div class="big-emoji">🧙‍♂️🏫</div>
       <h1 id="game-title">우리학교 타자 수비대</h1>
       <p>학교가 몬스터에게 둘러싸였어요.<br>여러분은 <b>글자 마법사</b>! 이름을 알려 주세요.</p>
-      <input id="nickname" maxlength="8" placeholder="마법사 이름" />
+      <div class="name-code-row">
+        <div class="ncr-item">
+          <label for="nickname" class="ncr-label">① 마법사 이름</label>
+          <input id="nickname" maxlength="8" placeholder="마법사 이름" />
+        </div>
+        <div class="ncr-item">
+          <label for="roomcode" class="ncr-label">② 학급 코드</label>
+          <input id="roomcode" maxlength="10" placeholder="코드" />
+        </div>
+      </div>
       <p class="nickname-warn hidden" id="nickname-warn">🙅 다른 마법사 이름을 써 주세요!</p>
+      <p style="font-size:12px; color:var(--ink-soft); max-width:440px; line-height:1.5; margin-top:-2px;">
+        💡 <b>학급 코드</b>를 넣으면 우리 반 랭킹에 참여해요! (선생님이 알려준 코드를 넣어요 · 안 넣어도 게임은 할 수 있어요)
+      </p>
       <p style="font-size:12px; color:var(--grape); max-width:420px; line-height:1.5; margin-top:-6px;">
         💡 집에서도 이어서 하고 싶으면, <b>학교에서 쓴 것과 똑같은 이름</b>을 써 주세요!
       </p>
@@ -755,9 +782,8 @@ body.night-mode #field::after{
       </div>
 
       <div class="code-area">
-        <label for="roomcode">친구들과 랭킹을 함께 보고 싶다면 <b>학급 코드</b>를 입력하세요 (안 써도 괜찮아요)</label>
+        <label style="font-size:11px; opacity:.7;">👩‍🏫 선생님용</label>
         <div class="code-row">
-          <input id="roomcode" maxlength="10" placeholder="코드" />
           <button class="btn ghost" id="clear-rank-btn">이 코드 랭킹 지우기</button>
         </div>
       </div>
