@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://taja-guard.vercel.app/sitemap.xml
