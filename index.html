@@ -202,6 +202,16 @@ body.night-mode #field::after{
   filter:drop-shadow(0 6px 6px rgba(90,74,99,.18));
 }
 #wizard{ font-size:58px; line-height:1; transition:transform .12s; }
+#wizard svg{ height:68px; display:block; }
+/* 캐릭터 대기 동작: 콩콩 숨쉬기 + 눈 깜빡임 */
+#wizard svg{ animation:char-bob 2.6s ease-in-out infinite; transform-origin:50% 100%; }
+@keyframes char-bob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-3px) } }
+.pchar .eye{ animation:char-blink 4.2s infinite; transform-box:fill-box; transform-origin:center; }
+@keyframes char-blink{ 0%,91%,100%{ transform:scaleY(1) } 94%{ transform:scaleY(.08) } }
+.pchar .wand-arm{ transform-box:fill-box; transform-origin:20% 80%; }
+#base.casting .wand-arm{ animation:wand-wave .3s ease; }
+@keyframes wand-wave{ 0%,100%{ transform:rotate(0) } 45%{ transform:rotate(-28deg) } 75%{ transform:rotate(8deg) } }
+#base.hurt .pchar .eye{ animation:none; transform:scaleY(.15); }
 #school{ font-size:46px; line-height:1; margin-top:-6px; }
 #base.hurt{ animation:shake .45s; }
 #base.casting #wizard{ animation:cast .28s; }
@@ -472,6 +482,8 @@ body.night-mode #field::after{
 .overlay h2{ font-family:var(--font-display); font-size:26px; font-weight:400; }
 .overlay p{ font-size:14.5px; color:var(--ink-soft); line-height:1.65; }
 .big-emoji{ font-size:44px; line-height:1; }
+.big-emoji svg{ height:92px; }
+#start-hero svg{ height:66px; }
 /* 📅 출석 도장판 (30칸) */
 .stamp-board{
   display:grid; grid-template-columns:repeat(6, 1fr); gap:6px;
@@ -489,6 +501,13 @@ body.night-mode #field::after{
 .stamp-cell.today{ animation:stamp-pop .6s ease; box-shadow:0 0 0 3px rgba(155,140,240,.35); }
 @keyframes stamp-pop{ 0%{ transform:scale(0); } 60%{ transform:scale(1.25); } 100%{ transform:scale(1); } }
 .stamp-legend{ font-size:12px !important; color:var(--ink-soft); margin-top:2px; }
+/* 🎉 업데이트 안내 */
+.update-list{
+  text-align:left; background:#fff; border-radius:16px; padding:12px 18px;
+  width:min(500px,100%); box-shadow:0 4px 0 rgba(90,74,99,.10);
+}
+.update-list p{ font-size:12.5px !important; line-height:1.7; padding:5px 0; border-bottom:1.5px dashed #F0EAF4; }
+.update-list p:last-child{ border-bottom:none; }
 
 .btn{
   font-family:var(--font-display); font-size:19px; padding:12px 28px;
@@ -551,32 +570,124 @@ body.night-mode #field::after{
 .mode-btn.locked .lock-note{ display:block; color:var(--berry); font-size:11px; margin-top:2px; }
 .mode-btn .lock-note{ display:none; }
 
-/* 🏅 뱃지 서랍 (오른쪽에서 열림) */
-#open-badges{
+/* 🏅 오른쪽 메뉴(뱃지·옷장·뽑기·출석) + 서랍들 */
+#side-menu{
   position:absolute; top:10px; right:10px; z-index:15;
+  display:flex; flex-direction:column; align-items:flex-end; gap:6px;
+}
+#side-menu.hidden{ display:none; }
+.menu-btn{
+  position:relative;
   font-family:var(--font-display); font-size:14px; padding:8px 14px;
   border:none; border-radius:999px; background:var(--mint); color:#fff;
   box-shadow:0 4px 0 #56BFA3; cursor:pointer;
 }
-#open-badges:active{ transform:translateY(3px); box-shadow:0 1px 0 #56BFA3; }
-#open-badges.hidden{ display:none; }
-#badge-drawer{
+.menu-btn:active{ transform:translateY(3px); box-shadow:0 1px 0 #56BFA3; }
+#open-closet{ background:var(--grape); box-shadow:0 4px 0 #7C6BD8; }
+#open-closet:active{ box-shadow:0 1px 0 #7C6BD8; }
+#open-gacha{ background:var(--berry); box-shadow:0 4px 0 #E9738E; }
+#open-gacha:active{ box-shadow:0 1px 0 #E9738E; }
+#open-attend{ background:var(--flame); box-shadow:0 4px 0 #E9822E; }
+#open-attend:active{ box-shadow:0 1px 0 #E9822E; }
+.menu-dot{
+  position:absolute; top:-3px; right:-3px; width:13px; height:13px;
+  border-radius:50%; background:#FF4D6D; border:2.5px solid #fff;
+  animation:pulse 1.2s infinite;
+}
+.menu-dot.hidden{ display:none; }
+#gacha-alert{
+  font-family:var(--font-display); font-size:12.5px; color:#fff;
+  background:#FF4D6D; border-radius:999px; padding:5px 12px;
+  box-shadow:0 3px 0 rgba(90,74,99,.18);
+  animation:hop 1.6s infinite;
+}
+#gacha-alert.hidden{ display:none; }
+.side-drawer{
   position:absolute; top:0; right:0; bottom:0; z-index:25;
   width:min(340px, 88%); background:var(--cream);
   border-left:4px solid #fff; box-shadow:-8px 0 24px rgba(90,74,99,.22);
   display:flex; flex-direction:column; padding:16px;
   transition:transform .28s ease;
 }
-#badge-drawer.hidden{ transform:translateX(102%); }
+/* 숨긴 서랍은 밀어낸 뒤 아예 안 보이게(visibility)까지 처리해,
+   화면이 옆으로 밀려도 유령처럼 나타나지 않습니다 */
+.side-drawer.hidden{
+  transform:translateX(102%); visibility:hidden;
+  transition:transform .28s ease, visibility 0s linear .28s;
+}
 .badge-drawer-head{
   display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;
 }
 .badge-drawer-head h3{ font-family:var(--font-display); font-size:18px; font-weight:400; }
-#close-badges{
+.drawer-close{
   border:none; background:#EDE7F1; color:var(--ink); cursor:pointer;
   width:34px; height:34px; border-radius:50%; font-size:16px;
 }
-#badge-drawer .badge-grid{ max-height:none; flex:1; overflow-y:auto; }
+.side-drawer .badge-grid{ max-height:none; flex:1; overflow-y:auto; }
+.drawer-body{ flex:1; overflow-y:auto; padding-right:2px; }
+
+/* 👕 옷장 */
+.closet-preview{
+  display:flex; justify-content:center; padding:6px 0 2px;
+  background:linear-gradient(180deg,#DFF1FF 68%,#C4E9B5 68%); border-radius:14px; margin-bottom:10px;
+}
+.closet-preview svg{ height:120px; }
+.closet-sub{
+  font-family:var(--font-display); font-size:14px; color:var(--ink-soft);
+  margin:10px 0 6px; font-weight:400;
+}
+.tile-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+.tile{
+  position:relative; background:#fff; border:2.5px solid #EDE7F0; border-radius:12px;
+  padding:5px 2px 4px; text-align:center; cursor:pointer;
+}
+.tile svg{ height:46px; display:block; margin:0 auto; }
+.tile .tn{ font-size:9.5px; color:var(--ink-soft); line-height:1.2; margin-top:2px; }
+.tile.on{ border-color:var(--berry); background:#FFF4F7; }
+.tile.locked{ opacity:.55; filter:grayscale(.6); cursor:not-allowed; }
+.tile.locked .lock{ position:absolute; top:4px; right:5px; font-size:13px; }
+
+/* 🎁 뽑기 */
+.gacha-ticket{
+  font-family:var(--font-display); font-size:16px; text-align:center;
+  background:#fff; border-radius:12px; padding:9px; margin-bottom:8px;
+}
+.gacha-capsule{
+  width:110px; height:110px; margin:8px auto; border-radius:50%;
+  background:linear-gradient(180deg,#FFB3C7 50%,#fff 50%);
+  border:5px solid #fff; box-shadow:0 5px 0 rgba(90,74,99,.15);
+  display:flex; align-items:center; justify-content:center; font-size:44px;
+}
+.gacha-capsule.rolling{ animation:capsule-shake .82s ease-in-out; }
+@keyframes capsule-shake{
+  0%,100%{ transform:rotate(0) }
+  15%{ transform:rotate(-16deg) translateY(-4px) }
+  30%{ transform:rotate(14deg) }
+  45%{ transform:rotate(-12deg) translateY(-6px) }
+  60%{ transform:rotate(10deg) }
+  75%{ transform:rotate(-6deg) translateY(-3px) }
+}
+.gacha-result{ text-align:center; animation:badge-pop .6s ease; }
+.gacha-result svg{ height:100px; }
+.gacha-result .gr-name{ font-family:var(--font-display); font-size:17px; color:var(--berry); }
+.gacha-btn{
+  display:block; margin:8px auto; font-family:var(--font-display); font-size:17px;
+  padding:11px 26px; border:none; border-radius:999px; background:var(--berry); color:#fff;
+  box-shadow:0 5px 0 #E9738E; cursor:pointer;
+}
+.gacha-btn:disabled{ opacity:.5; cursor:not-allowed; }
+.gacha-note{ font-size:12px; color:var(--ink-soft); text-align:center; line-height:1.6; }
+
+/* 📅 출석 서랍의 캐릭터 보상 목록 */
+.reward-row{
+  display:flex; align-items:center; gap:8px; background:#fff;
+  border-radius:12px; padding:5px 10px; margin-top:6px;
+}
+.reward-row svg{ height:38px; }
+.reward-row .rr-txt{ flex:1; font-size:12px; line-height:1.4; }
+.reward-row .rr-txt b{ font-family:var(--font-display); font-weight:400; font-size:13.5px; }
+.reward-row.locked{ opacity:.55; filter:grayscale(.5); }
+.reward-row .rr-ok{ font-size:16px; }
 
 /* 시작 단계 선택 */
 .stage-select{ display:flex; align-items:center; gap:8px; }
@@ -688,6 +799,9 @@ body.night-mode #field::after{
   display:flex; gap:20px; width:min(1080px, 100%);
   align-items:stretch; justify-content:center;
 }
+/* 시작 화면은 오른쪽 메뉴 버튼(뱃지·옷장·뽑기·출석) 자리를 비워 둡니다 */
+#start-screen .menu-cols{ padding-right:78px; }
+@media (max-width:900px){ #start-screen .menu-cols{ padding-right:0; } }
 .menu-main{
   flex:1.35; min-width:0;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
@@ -803,15 +917,46 @@ body.night-mode #field::after{
     <div id="fx"></div>
     <div id="base"><div id="wizard">🧙</div><div id="school">🏫</div></div>
 
-    <!-- 🏅 뱃지 버튼 + 오른쪽 서랍 -->
-    <button id="open-badges" class="hidden">🏅 내 뱃지</button>
-    <aside id="badge-drawer" class="hidden">
+    <!-- 🏅 오른쪽 메뉴 (뱃지·옷장·뽑기·출석) + 서랍들 -->
+    <div id="side-menu" class="hidden">
+      <button class="menu-btn" id="open-badges">🏅 내 뱃지</button>
+      <button class="menu-btn" id="open-closet">👕 옷장</button>
+      <button class="menu-btn" id="open-gacha">🎁 뽑기<span class="menu-dot hidden" id="gacha-dot"></span></button>
+      <button class="menu-btn" id="open-attend">📅 출석</button>
+      <div id="gacha-alert" class="hidden">🎁 뽑기권이 있어요!</div>
+    </div>
+
+    <aside id="badge-drawer" class="side-drawer hidden">
       <div class="badge-drawer-head">
         <h3>🏅 내 뱃지 <span id="badge-count-start"></span></h3>
-        <button id="close-badges" aria-label="닫기">✕</button>
+        <button class="drawer-close" aria-label="닫기">✕</button>
       </div>
       <p class="rank-empty" id="badge-hint-start">이름을 적으면 지금까지 모은 뱃지를 볼 수 있어요.</p>
       <div class="badge-grid" id="badge-grid-start"></div>
+    </aside>
+
+    <aside id="closet-drawer" class="side-drawer hidden">
+      <div class="badge-drawer-head">
+        <h3>👕 옷장</h3>
+        <button class="drawer-close" aria-label="닫기">✕</button>
+      </div>
+      <div class="drawer-body" id="closet-body"></div>
+    </aside>
+
+    <aside id="gacha-drawer" class="side-drawer hidden">
+      <div class="badge-drawer-head">
+        <h3>🎁 뽑기</h3>
+        <button class="drawer-close" aria-label="닫기">✕</button>
+      </div>
+      <div class="drawer-body" id="gacha-body"></div>
+    </aside>
+
+    <aside id="attend-drawer" class="side-drawer hidden">
+      <div class="badge-drawer-head">
+        <h3>📅 출석 도장</h3>
+        <button class="drawer-close" aria-label="닫기">✕</button>
+      </div>
+      <div class="drawer-body" id="attend-body"></div>
     </aside>
 
     <!-- ① 시작 화면 — 왼쪽: 이야기·이름 입력 / 오른쪽: 명예의 전당 -->
@@ -819,7 +964,7 @@ body.night-mode #field::after{
       <div class="menu-wrap">
         <div class="menu-cols">
           <div class="menu-main">
-            <div class="big-emoji">🧙‍♂️🏫</div>
+            <div class="big-emoji" id="start-hero" style="display:flex; align-items:flex-end; justify-content:center; gap:2px;">🧙‍♂️🏫</div>
             <h1 id="game-title">우리학교 타자 수비대</h1>
             <div class="story story-intro" id="start-story">
               🏫 어느 날, 평화롭던 <b id="start-story-school">우리학교</b>에 <b>몬스터 떼</b>가 몰려왔어요!
@@ -981,8 +1126,25 @@ body.night-mode #field::after{
       <h2 id="attend-title"></h2>
       <p id="attend-desc"></p>
       <div id="stamp-board" class="stamp-board"></div>
-      <p class="stamp-legend">⭐ 표시된 칸은 <b>뱃지</b>를 받는 날이에요!</p>
+      <p class="stamp-legend">⭐ <b>뱃지</b> · 🎁 <b>새 캐릭터 친구</b>를 받는 날이에요!</p>
       <button class="btn mint" id="attend-close">✨ 확인</button>
+    </div>
+
+    <!-- 🎉 업데이트 안내 (처음 한 번만 뜨고, 확인을 누르면 다시 안 떠요) -->
+    <div class="overlay hidden" id="update-screen" style="z-index:70;">
+      <div class="menu-wrap" style="width:min(560px,100%);">
+        <div class="big-emoji">🎉</div>
+        <h2>타자 수비대가 새로워졌어요!</h2>
+        <div class="update-list">
+          <p>🐥 <b>새 주인공, 병아리 마법사!</b> 대기·마법·아야 동작까지 살아 움직여요.</p>
+          <p>📅 <b>출석 도장판</b> — 단계를 클리어하면 도장이 찍히고, <b>5일마다 새 캐릭터 친구</b>를 받아요! (고양이·강아지·토끼·래서판다·펭귄·부엉이)</p>
+          <p>🎁 <b>뽑기</b> — 뱃지 <b>5개마다 뽑기권 1장</b>! 모자·액세서리 6종을 모아요. 👑 왕관은 레어! <b>이미 뱃지를 5개 이상 모은 친구는 뽑기권이 벌써 준비되어 있어요!</b></p>
+          <p>👕 <b>옷장</b> — 오른쪽 메뉴에서 캐릭터와 아이템을 갈아입어요.</p>
+          <p>🏅 <b>뱃지 30종</b> — '첫 뽑기!' 뱃지가 새로 생겼고, '돌다리도 두들겨라' 조건이 공평하게 바뀌었어요. <b>지금까지 모은 뱃지는 그대로예요!</b> 30개를 전부 모으면… 전설의 <b>🌈 무지개 용</b>이 기다려요!</p>
+          <p>🏆 <b>주간 랭킹</b> — 월요일마다 새로 시작! 전체 랭킹 점수가 낮게 저장되던 오류도 고쳐서 원래 최고점으로 되돌렸어요.</p>
+        </div>
+        <button class="btn" id="update-close">✅ 확인했어요!</button>
+      </div>
     </div>
 
     <!-- ⑤ 게임 종료 -->
@@ -1357,6 +1519,8 @@ const BADGES = [
   // ♾️ 무한 마법 — 얼마나 오래 버텼는지
   { id:"inf50",    icon:"♾️", name:"끝없는 도전자",   desc:"무한 마법에서 단어를 50개 입력했어요" },
   { id:"inf100",   icon:"🌌", name:"영원의 마법사",   desc:"무한 마법에서 단어를 100개 입력했어요" },
+  // 🎁 뽑기
+  { id:"firstgacha", icon:"🎁", name:"첫 뽑기!",      desc:"뽑기를 처음 해 봤어요 (뱃지 5개마다 뽑기권 1장!)" },
   // 📅 출석 — 꾸준히 접속한 날(누적)
   { id:"attend3",  icon:"📅", name:"출석 3일",       desc:"타자 수비대에 3일 접속했어요" },
   { id:"attend7",  icon:"🗓️", name:"출석 7일",       desc:"타자 수비대에 7일 접속했어요" },
@@ -1452,21 +1616,22 @@ async function markAttendance(learnerId, code){
 
 /* 📅 30칸 출석 도장판을 그립니다. filledDays칸까지 도장이 채워지고,
    배지를 받는 칸(3·7·14·30)엔 ⭐ 표시, 오늘 새로 찍힌 칸은 통 튀는 효과. */
-function renderStampBoard(filledDays, todayCell){
-  const board = $("stamp-board");
+function renderStampBoard(filledDays, todayCell, boardId){
+  const board = $(boardId || "stamp-board");
   if (!board) return;
-  const rewardDays = new Set(ATTEND_MILESTONES.map(m => m.days));  // 3,7,14,30
+  const rewardDays = new Set(ATTEND_MILESTONES.map(m => m.days));            // ⭐ 3,7,14,30
+  const charDays = new Set([5, 10, 15, 20, 25, 30]);                          // 🎁 5일마다 새 캐릭터
   let html = "";
   for (let d = 1; d <= 30; d++){
     const filled = d <= filledDays;
-    const reward = rewardDays.has(d);
+    const reward = rewardDays.has(d) || charDays.has(d);
     const isToday = d === todayCell;
     const cls = ["stamp-cell"];
     if (filled) cls.push("filled");
     if (reward) cls.push("reward");
     if (isToday) cls.push("today");
-    // 채워진 칸은 도장(✨), 배지칸은 ⭐, 빈칸은 날짜만
-    let mark = filled ? (reward ? "⭐" : "✨") : (reward ? "⭐" : "");
+    // 🎁 캐릭터 선물칸 > ⭐ 뱃지칸 > 채워진 칸 ✨ > 빈칸
+    let mark = charDays.has(d) ? "🎁" : rewardDays.has(d) ? "⭐" : (filled ? "✨" : "");
     html += `<div class="${cls.join(" ")}"><span class="day-num">${d}</span>${mark}</div>`;
   }
   board.innerHTML = html;
@@ -1477,6 +1642,8 @@ function renderStampBoard(filledDays, todayCell){
 async function runAttendance(learnerId, code){
   const { days, firstToday } = await markAttendance(learnerId, code);
   if (!days) return;
+
+  cacheAttendDays(days);                    // 🎁 캐릭터 해금 판정에 쓰는 누적 출석일
 
   // 이번 누적일로 달성한 출석 배지들을 찾아 저장합니다(이미 있으면 서버가 무시).
   const earnedNow = ATTEND_MILESTONES.filter(m => days >= m.days).map(m => m.badge);
@@ -1490,9 +1657,14 @@ async function runAttendance(learnerId, code){
   // 오늘 처음 출석했을 때만 모달을 띄웁니다.
   if (!firstToday) return;
 
+  const charHit = CHARS.find(c => c.unlock === days);            // 🎁 오늘 새 캐릭터를 받는 날!
   const justHit = ATTEND_MILESTONES.find(m => m.days === days);
   const emoji = $("attend-emoji"), title = $("attend-title"), desc = $("attend-desc");
-  if (justHit){
+  if (charHit){
+    if (emoji) emoji.innerHTML = charSVG({ char: charHit.id, hat: "hat_magic", acc: null });
+    if (title) title.textContent = `새 친구 등장! 🎉`;
+    if (desc)  desc.innerHTML = `출석 <b>${days}일</b> 선물로 <b>${charHit.name} 마법사</b>를 얻었어요!<br>👕 옷장에서 갈아입을 수 있어요.`;
+  } else if (justHit){
     const b = BADGE_BY_ID[justHit.badge];
     if (emoji) emoji.textContent = b ? b.icon : "🏅";
     if (title) title.textContent = `${b ? b.name : "출석"} 달성! 🎉`;
@@ -1504,6 +1676,7 @@ async function runAttendance(learnerId, code){
   }
   // 30칸 도장판을 그립니다. 오늘 찍힌 칸(days, 30 초과면 30)을 통 튀게 표시.
   renderStampBoard(Math.min(days, 30), Math.min(days, 30));
+  renderAttendDrawer(); renderCloset();     // 서랍들도 최신 상태로
 
   const screen = $("attend-screen");
   if (screen) screen.classList.remove("hidden");
@@ -2904,9 +3077,8 @@ function burstAt(x, y, color){
   setTimeout(() => b.remove(), 460);
 }
 function wizardCast(){
-  wizard.textContent = "🧙‍♂️";
   base.classList.add("casting");
-  setTimeout(() => { wizard.textContent = "🧙"; base.classList.remove("casting"); }, 300);
+  setTimeout(() => base.classList.remove("casting"), 300);
 }
 
 function showPopup(m, gain, tag){
@@ -2941,9 +3113,8 @@ function loseLife(){
   state.life -= 1;
   if (state.stageStats) state.stageStats.heartsLost += 1;
   SFX.damage();
-  wizard.textContent = "😰";
-  base.classList.add("hurt");
-  setTimeout(() => { wizard.textContent = "🧙"; base.classList.remove("hurt"); }, 450);
+  base.classList.add("hurt");                    // 캐릭터가 부르르 떨며 눈을 질끈 감아요
+  setTimeout(() => base.classList.remove("hurt"), 450);
   drawHud();
   if (state.life <= 0) endGame(false);
 }
@@ -3062,6 +3233,13 @@ async function endGame(cleared){
 
   checkEndBadges();                                       // 🏅 마지막 뱃지 판정
   saveBadges(LEARNER_ID, state.code, state.newBadges);    // 새로 딴 것만 저장
+
+  /* 🎁 뽑기권 안내 — 뱃지 5개마다 1장! 이번 판까지 합쳐서 쓸 수 있는 게 있으면 알려줍니다 */
+  state.earnedBadges.forEach(id => { if (!id.startsWith("itm_")) myBadgeSet.add(id); });
+  updateGachaDot();
+  if (gachaTickets() > 0){
+    setTimeout(() => showBadgeToast({ icon:"🎁", name:`뽑기권 ${gachaTickets()}장! 시작 화면 → 뽑기` }), 900);
+  }
 
   /* 📅 출석 도장 — 무한 마법 모드는 클리어가 없으니, 단어를 1개라도
      입력했으면(글자를 쳤으면) 오늘 출석으로 인정합니다.
@@ -3361,17 +3539,381 @@ async function refreshStartBadges(){
     updateInfiniteLock();
     renderBadgeGrid("badge-grid-start", "badge-count-start", new Set(), new Set());
     if (hint) hint.textContent = "이름을 적으면 지금까지 모은 뱃지를 볼 수 있어요.";
+    cosmeticsForLearner(LEARNER_ID, []);    // 익명 상태의 소장품으로
     return;
   }
   if (hint) hint.textContent = "";
   const my = ++startBadgeReq;
-  const lid = computeLearnerId(nick, code);
+  const lid = await computeLearnerId(nick, code);
   const ids = await loadBadges(lid);
   if (my !== startBadgeReq) return;        // 그새 이름이 또 바뀌었으면 무시
-  myBadgeSet = new Set(ids);
+  myBadgeSet = new Set(ids.filter(id => !id.startsWith("itm_")));   // itm_은 뽑기 아이템 저장용
   updateInfiniteLock();
   renderBadgeGrid("badge-grid-start", "badge-count-start", myBadgeSet, new Set());
+  cosmeticsForLearner(lid, ids);           // 👕 이 아이의 캐릭터·아이템으로 갈아끼우기
 }
+
+/* =========================================================================
+   🎨 캐릭터 · 옷장 · 뽑기 · 출석 선물
+   · 기본 캐릭터는 병아리. 출석 5일마다 새 캐릭터 친구를 받아요 (총 6종).
+   · 뱃지 5개마다 뽑기권 1장 → 모자·액세서리 6종을 뽑아요 (중복 없음).
+   · 뽑은 아이템은 badges 테이블에 "itm_..." 이름으로 저장해 다른 기기에서도
+     이어지고, 실패하면 이 브라우저(localStorage)에라도 남깁니다.
+   ========================================================================= */
+const CHARS = [
+  { id:"chick",   name:"병아리",   unlock:0  },
+  { id:"cat",     name:"고양이",   unlock:5  },
+  { id:"dog",     name:"강아지",   unlock:10 },
+  { id:"rabbit",  name:"토끼",     unlock:15 },
+  { id:"redpanda",name:"래서판다", unlock:20 },
+  { id:"penguin", name:"펭귄",     unlock:25 },
+  { id:"owl",     name:"부엉이",   unlock:30 },
+  // 🌈 전설: 뱃지 30개를 전부 모으면!
+  { id:"dragon",  name:"무지개 용", unlock:-1, special:"allbadges" }
+];
+const HATS = [
+  { id:"hat_magic", name:"마법 고깔", gacha:false },        // 기본 소유
+  { id:"hat_party", name:"파티 고깔", gacha:true },
+  { id:"hat_crown", name:"왕관",      gacha:true, rare:true },   // ✨ 레어! 잘 안 나와요
+  { id:"hat_straw", name:"밀짚모자",  gacha:true }
+];
+const ACCS = [
+  { id:"acc_glasses", name:"둥근 안경", gacha:true },
+  { id:"acc_scarf",   name:"목도리",    gacha:true },
+  { id:"acc_bow",     name:"나비 리본", gacha:true }
+];
+const GACHA_POOL = [...HATS, ...ACCS].filter(i => i.gacha);   // 6종
+const ITEM_BY_ID = Object.fromEntries([...HATS, ...ACCS].map(i => [i.id, i]));
+
+/* ---- 캐릭터 SVG 부품 (공통 좌표: 몸 (60,99), 눈 (46,86)(74,86), 볼 (36,95)(84,95)) ---- */
+const SVG_WAND = `<line x1="101" y1="84" x2="112" y2="60" stroke="#B8860B" stroke-width="4" stroke-linecap="round"/>`
+  + `<path class="wand-star" d="M112,44 l2.7,6 6.3,.7 -4.7,4.3 1.3,6.2 -5.6,-3.2 -5.6,3.2 1.3,-6.2 -4.7,-4.3 6.3,-.7 Z" fill="#FF8FA8" stroke="#E9738E" stroke-width="1"/>`;
+const svgBlob   = (c, extra) => `<ellipse cx="60" cy="99" rx="40" ry="39" fill="${c}"${extra || ""}/>`;
+const svgBelly  = c => `<ellipse cx="60" cy="115" rx="26" ry="20" fill="${c}"/>`;
+const svgEyes   = () =>
+  `<g class="eye"><circle cx="46" cy="86" r="5.2" fill="#5A4A63"/><circle cx="47.8" cy="83.8" r="2" fill="#fff"/><circle cx="44.2" cy="88" r="1" fill="#fff" opacity=".85"/></g>`
+  + `<g class="eye"><circle cx="74" cy="86" r="5.2" fill="#5A4A63"/><circle cx="75.8" cy="83.8" r="2" fill="#fff"/><circle cx="72.2" cy="88" r="1" fill="#fff" opacity=".85"/></g>`;
+const svgCheeks = (op) => `<circle cx="36" cy="95" r="6.5" fill="#FFB3C7" opacity="${op || ".85"}"/><circle cx="84" cy="95" r="6.5" fill="#FFB3C7" opacity="${op || ".85"}"/>`;
+const svgLimbs  = c =>
+  `<ellipse cx="23" cy="109" rx="8.5" ry="12" fill="${c}" transform="rotate(22 23 109)"/>`
+  + `<g class="wand-arm"><ellipse cx="99" cy="97" rx="8.5" ry="13" fill="${c}" transform="rotate(-140 99 97)"/>${SVG_WAND}</g>`;
+const svgPaws   = c => `<ellipse cx="46" cy="137" rx="9" ry="5.5" fill="${c}"/><ellipse cx="74" cy="137" rx="9" ry="5.5" fill="${c}"/>`;
+const SVG_FEET_BIRD =
+  `<path d="M46,134 L46,142 M40,145 Q46,139 52,145 M46,142 L46,145" stroke="#FF9736" stroke-width="4" stroke-linecap="round" fill="none"/>`
+  + `<path d="M74,134 L74,142 M68,145 Q74,139 80,145 M74,142 L74,145" stroke="#FF9736" stroke-width="4" stroke-linecap="round" fill="none"/>`;
+
+const CHAR_SVG = {
+  chick: () => SVG_FEET_BIRD + svgBlob("#FFD84D") + svgBelly("#FFF3C9")
+    + `<path d="M52,62 q2,-8 6,-2 q2,-9 7,-3 q3,-7 6,0" stroke="#FFC94B" stroke-width="3" stroke-linecap="round" fill="none"/>`
+    + svgEyes() + svgCheeks()
+    + `<path d="M55,91.5 Q60,88 65,91.5 Q60,98 55,91.5 Z" fill="#FF9736"/>`
+    + svgLimbs("#FFE47A"),
+  cat: () => `<path d="M28,76 L34,50 L52,64 Z" fill="#FFCE8A"/><path d="M33,70 L36,57 L46,63 Z" fill="#FFB3C7"/>`
+    + `<path d="M92,76 L86,50 L68,64 Z" fill="#FFCE8A"/><path d="M87,70 L84,57 L74,63 Z" fill="#FFB3C7"/>`
+    + svgBlob("#FFCE8A") + svgBelly("#FFF3DC") + svgPaws("#F5B96B")
+    + `<path d="M20,90 L34,92 M20,98 L34,97 M100,90 L86,92 M100,98 L86,97" stroke="#D9A05B" stroke-width="1.6" stroke-linecap="round"/>`
+    + svgEyes() + svgCheeks(".7")
+    + `<path d="M57,90 L63,90 L60,94 Z" fill="#FF8FA8"/>`
+    + `<path d="M60,94 q-2,4 -6,2 M60,94 q2,4 6,2" stroke="#C98A5B" stroke-width="1.8" stroke-linecap="round" fill="none"/>`
+    + svgLimbs("#FFCE8A"),
+  dog: () => `<path d="M28,58 Q14,60 15,78 Q16,92 27,92 Q34,88 33,71 Q32,60 28,58 Z" fill="#C98A5B"/>`
+    + `<path d="M92,58 Q106,60 105,78 Q104,92 93,92 Q86,88 87,71 Q88,60 92,58 Z" fill="#C98A5B"/>`
+    + svgBlob("#F2CFA0") + svgBelly("#FFF6E3") + svgPaws("#E0B27D")
+    + svgEyes() + svgCheeks(".7")
+    + `<ellipse cx="60" cy="91" rx="4.5" ry="3.5" fill="#5A4A63"/>`
+    + `<path d="M60,94 q-2,4 -6,2 M60,94 q2,4 6,2" stroke="#B98A5E" stroke-width="1.8" stroke-linecap="round" fill="none"/>`
+    + `<path d="M56,97 q4,6 8,0 l0,2 q-4,5 -8,0 Z" fill="#FF8FA8"/>`
+    + svgLimbs("#F2CFA0"),
+  rabbit: () => `<ellipse cx="44" cy="40" rx="8.5" ry="25" fill="#FFF6F8" stroke="#F0D3DC" stroke-width="2" transform="rotate(-8 44 40)"/>`
+    + `<ellipse cx="44" cy="44" rx="4.5" ry="17" fill="#FFC9D6" transform="rotate(-8 44 44)"/>`
+    + `<ellipse cx="76" cy="40" rx="8.5" ry="25" fill="#FFF6F8" stroke="#F0D3DC" stroke-width="2" transform="rotate(8 76 40)"/>`
+    + `<ellipse cx="76" cy="44" rx="4.5" ry="17" fill="#FFC9D6" transform="rotate(8 76 44)"/>`
+    + svgBlob("#FFF6F8", ' stroke="#F0D3DC" stroke-width="2"') + svgBelly("#fff") + svgPaws("#F7DEE6")
+    + svgEyes() + svgCheeks(".8")
+    + `<path d="M57,89.5 L63,89.5 L60,93 Z" fill="#FF8FA8"/>`
+    + `<rect x="56.5" y="94" width="7" height="5.5" rx="1.5" fill="#fff" stroke="#EED7DE" stroke-width="1"/>`
+    + `<line x1="60" y1="94" x2="60" y2="99.5" stroke="#EED7DE" stroke-width="1"/>`
+    + svgLimbs("#FFF6F8"),
+  redpanda: () => `<path d="M28,74 L33,50 L52,63 Z" fill="#E8896B"/><path d="M32,69 L35,56 L46,62 Z" fill="#FFF3E6"/>`
+    + `<path d="M92,74 L87,50 L68,63 Z" fill="#E8896B"/><path d="M88,69 L85,56 L74,62 Z" fill="#FFF3E6"/>`
+    + svgBlob("#F2A177") + svgBelly("#E8896B") + svgPaws("#B96A4E")
+    + `<circle cx="40" cy="79" r="10" fill="#FFF3E6"/><circle cx="80" cy="79" r="10" fill="#FFF3E6"/>`
+    + `<ellipse cx="60" cy="95" rx="14" ry="11" fill="#FFF3E6"/>`
+    + svgEyes() + svgCheeks(".7")
+    + `<ellipse cx="60" cy="91" rx="4" ry="3" fill="#5A4A63"/>`
+    + `<path d="M60,94 q-2,4 -6,2 M60,94 q2,4 6,2" stroke="#B96A4E" stroke-width="1.8" stroke-linecap="round" fill="none"/>`
+    + svgLimbs("#F2A177"),
+  penguin: () => SVG_FEET_BIRD + svgBlob("#5E6FA3")
+    + `<ellipse cx="60" cy="102" rx="27" ry="33" fill="#FFFDF5"/>`
+    + svgEyes() + svgCheeks(".7")
+    + `<path d="M55,91.5 Q60,88 65,91.5 Q60,98 55,91.5 Z" fill="#FF9736"/>`
+    + svgLimbs("#5E6FA3"),
+  owl: () => `<path d="M32,66 Q28,50 40,52 Q42,62 38,68 Z" fill="#C9A87F"/>`
+    + `<path d="M88,66 Q92,50 80,52 Q78,62 82,68 Z" fill="#C9A87F"/>`
+    + svgBlob("#D8B48A") + svgBelly("#FFF6E3")
+    + `<path d="M44,116 q8,7 16,0 M60,116 q8,7 16,0 M50,126 q7,6 14,0" stroke="#EAD9BC" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
+    + `<circle cx="46" cy="86" r="12.5" fill="#FFF6E3"/><circle cx="74" cy="86" r="12.5" fill="#FFF6E3"/>`
+    + svgEyes() + svgCheeks(".6")
+    + `<path d="M56,92 Q60,89 64,92 Q60,99 56,92 Z" fill="#FF9736"/>`
+    + svgLimbs("#D8B48A"),
+  /* 🌈 솜사탕 용 — 몸 전체가 파스텔 무지개로 녹아든 전설의 용 */
+  dragon: () => `<defs>
+      <linearGradient id="cottonGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#FFC9D9"/><stop offset=".3" stop-color="#FFE9B8"/>
+        <stop offset=".55" stop-color="#C5EBC2"/><stop offset=".78" stop-color="#B5D9F5"/>
+        <stop offset="1" stop-color="#D3C6F7"/>
+      </linearGradient>
+      <linearGradient id="cottonWing" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#FFD9E4"/><stop offset="1" stop-color="#CFC2F5"/>
+      </linearGradient></defs>`
+    + `<path d="M18,84 Q4,74 8,60 Q22,66 26,80 Z" fill="url(#cottonWing)"/>`
+    + `<path d="M102,84 Q116,74 112,60 Q98,66 94,80 Z" fill="url(#cottonWing)"/>`
+    + `<path d="M46,62 Q43,48 52,45 Q53,56 51,61 Z" fill="#FFF3C9"/>`
+    + `<path d="M74,62 Q77,48 68,45 Q67,56 69,61 Z" fill="#FFF3C9"/>`
+    + svgBlob("url(#cottonGrad)") + `<ellipse cx="60" cy="115" rx="26" ry="20" fill="#FFFDF5" opacity=".65"/>`
+    + svgPaws("#CBBCF0")
+    + `<circle cx="35" cy="72" r="1.8" fill="#fff" opacity=".9"/><circle cx="86" cy="106" r="1.8" fill="#fff" opacity=".9"/>`
+    + `<circle cx="79" cy="68" r="1.4" fill="#fff" opacity=".8"/><circle cx="30" cy="112" r="1.4" fill="#fff" opacity=".8"/>`
+    + `<path d="M52,64 l1.5,3.5 3.7,.4 -2.8,2.5 .8,3.6 -3.2,-1.9 -3.2,1.9 .8,-3.6 -2.8,-2.5 3.7,-.4 Z" fill="#fff" opacity=".85"/>`
+    + svgEyes() + svgCheeks(".6")
+    + `<circle cx="56.5" cy="92" r="2" fill="#9B8CF0"/><circle cx="63.5" cy="92" r="2" fill="#9B8CF0"/>`
+    + `<path d="M55,98 q5,3.5 10,0" stroke="#9B8CF0" stroke-width="1.8" fill="none" stroke-linecap="round"/>`
+    + svgLimbs("#E3D3F5")
+};
+
+const ITEM_SVG = {
+  hat_magic: `<path d="M60,14 L85,62 Q60,72 35,62 Z" fill="#9B8CF0"/>`
+    + `<path d="M57,36 l2.3,5 5.4,.6 -4,3.7 1.1,5.3 -4.8,-2.7 -4.8,2.7 1.1,-5.3 -4,-3.7 5.4,-.6 Z" fill="#FFD84D"/>`
+    + `<path d="M35,62 Q60,72 85,62 L85,67 Q60,77 35,67 Z" fill="#7C6BD8"/>`
+    + `<circle cx="60" cy="14" r="5.5" fill="#FFF3C9"/>`,
+  hat_party: `<path d="M60,18 L83,62 Q60,71 37,62 Z" fill="#6FD3B8"/>`
+    + `<circle cx="60" cy="38" r="2.8" fill="#fff"/><circle cx="51" cy="52" r="2.8" fill="#fff"/><circle cx="69" cy="52" r="2.8" fill="#fff"/>`
+    + `<circle cx="60" cy="18" r="5.5" fill="#FF8FA8"/>`,
+  hat_crown: `<path d="M42,64 L42,44 L51,55 L60,38 L69,55 L78,44 L78,64 Q60,72 42,64 Z" fill="#FFD84D" stroke="#F5C451" stroke-width="2"/>`
+    + `<circle cx="60" cy="56" r="3" fill="#FF8FA8"/>`,
+  hat_straw: `<ellipse cx="60" cy="60" rx="34" ry="10" fill="#F2DA9C"/>`
+    + `<path d="M40,58 Q42,36 60,36 Q78,36 80,58 Q60,66 40,58 Z" fill="#F7E4B0"/>`
+    + `<path d="M40,56 Q60,64 80,56 L80,60 Q60,68 40,60 Z" fill="#FF8FA8"/>`,
+  acc_glasses: `<circle cx="46" cy="86" r="9.5" fill="none" stroke="#5A4A63" stroke-width="2.2"/>`
+    + `<circle cx="74" cy="86" r="9.5" fill="none" stroke="#5A4A63" stroke-width="2.2"/>`
+    + `<path d="M55.5,86 Q60,83 64.5,86" stroke="#5A4A63" stroke-width="2.2" fill="none"/>`,
+  acc_scarf: `<path d="M28,107 Q60,121 92,107 L90,117 Q60,129 30,117 Z" fill="#FF8FA8"/>`
+    + `<path d="M76,117 l4,16 8,-3 -5,-15 Z" fill="#FF8FA8"/><path d="M80,133 l8,-3 1,4 -8,3 Z" fill="#E9738E"/>`,
+  acc_bow: `<path d="M60,110 L45,102 Q42,110 45,118 Z" fill="#FF8FA8"/>`
+    + `<path d="M60,110 L75,102 Q78,110 75,118 Z" fill="#FF8FA8"/><circle cx="60" cy="110" r="4.5" fill="#E9738E"/>`
+};
+
+/* 캐릭터 + 장착 아이템을 SVG 문자열로 조립합니다 */
+function charSVG(equip){
+  const body = (CHAR_SVG[equip.char] || CHAR_SVG.chick)();
+  const acc  = equip.acc && ITEM_SVG[equip.acc] ? ITEM_SVG[equip.acc] : "";
+  const hat  = equip.hat && ITEM_SVG[equip.hat] ? ITEM_SVG[equip.hat] : "";
+  return `<svg class="pchar" viewBox="0 0 134 150">${body}${acc}${hat}</svg>`;
+}
+
+/* ---- 소장품 상태 (학습자별) ---- */
+let COSMETIC = { char:"chick", hat:"hat_magic", acc:null };   // 지금 장착한 것
+let ownedItems = new Set();                                    // 뽑기로 얻은 아이템
+let attendDaysKnown = 0;                                       // 알려진 누적 출석일
+let COSY_LID = null;                                           // 소장품 기준 학습자
+
+function cosyKey(p){ return p + "_" + (COSY_LID || LEARNER_ID || "anon"); }
+function loadLocalCosy(){
+  try { const e = JSON.parse(localStorage.getItem(cosyKey("equip")) || "null"); if (e && e.char) COSMETIC = e; } catch(_){}
+  try { JSON.parse(localStorage.getItem(cosyKey("items")) || "[]").forEach(i => ownedItems.add(i)); } catch(_){}
+  attendDaysKnown = parseInt(localStorage.getItem(cosyKey("adays")) || "0", 10) || 0;
+}
+function saveEquip(){ try { localStorage.setItem(cosyKey("equip"), JSON.stringify(COSMETIC)); } catch(_){} }
+function saveItemsLocal(){ try { localStorage.setItem(cosyKey("items"), JSON.stringify([...ownedItems])); } catch(_){} }
+function cacheAttendDays(d){
+  if (d > attendDaysKnown){
+    attendDaysKnown = d;
+    try { localStorage.setItem(cosyKey("adays"), String(d)); } catch(_){}
+  }
+}
+function isCharUnlocked(id){
+  const c = CHARS.find(c => c.id === id);
+  if (!c) return false;
+  if (c.special === "allbadges") return myBadgeSet.size >= BADGES.length;   // 🌈 뱃지 30개 전부!
+  return attendDaysKnown >= c.unlock;
+}
+/* 🎟️ 뽑기권 = 뱃지 5개당 1장 − 이미 뽑은 수 */
+function gachaTickets(){
+  const n = Math.floor(myBadgeSet.size / 5) - ownedItems.size;
+  return Math.max(0, Math.min(n, GACHA_POOL.length - ownedItems.size));
+}
+
+/* 이름(학습자)이 바뀌면 그 아이의 소장품으로 갈아끼웁니다 */
+function cosmeticsForLearner(lid, allBadgeIds){
+  COSY_LID = lid;
+  COSMETIC = { char:"chick", hat:"hat_magic", acc:null };
+  ownedItems = new Set((allBadgeIds || []).filter(id => id.startsWith("itm_")).map(id => id.slice(4)));
+  attendDaysKnown = 0;
+  loadLocalCosy();
+  if (!isCharUnlocked(COSMETIC.char)) COSMETIC.char = "chick";
+  if (COSMETIC.hat && COSMETIC.hat !== "hat_magic" && !ownedItems.has(COSMETIC.hat)) COSMETIC.hat = "hat_magic";
+  if (COSMETIC.acc && !ownedItems.has(COSMETIC.acc)) COSMETIC.acc = null;
+  renderWizard(); renderCloset(); renderGacha(); renderAttendDrawer(); updateGachaDot();
+}
+
+function renderWizard(){
+  const w = $("wizard");
+  if (w) w.innerHTML = charSVG(COSMETIC);
+  // 시작 화면 제목 위의 주인공도 내 캐릭터로!
+  const h = $("start-hero");
+  if (h) h.innerHTML = charSVG(COSMETIC) + '<span style="font-size:44px; line-height:1;">🏫</span>';
+}
+
+/* ---- 👕 옷장 ---- */
+function closetTile(kind, id, name, svg, on, locked, hint){
+  return `<div class="tile ${on ? "on" : ""} ${locked ? "locked" : ""}" data-kind="${kind}" data-id="${id}">
+    ${locked ? '<span class="lock">🔒</span>' : ""}${svg}
+    <div class="tn">${locked && hint ? hint : name}</div></div>`;
+}
+function renderCloset(){
+  const body = $("closet-body");
+  if (!body) return;
+  const charTiles = CHARS.map(c => {
+    const locked = !isCharUnlocked(c.id);
+    const hint = c.special === "allbadges" ? "뱃지 30개 전부!" : `출석 ${c.unlock}일`;
+    return closetTile("char", c.id, c.special ? "🌈 " + c.name : c.name,
+      charSVG({ char:c.id, hat:null, acc:null }), COSMETIC.char === c.id, locked, hint);
+  }).join("");
+  const hatTiles = closetTile("hat", "none", "안 쓰기", charSVG({ char:COSMETIC.char, hat:null, acc:null }), !COSMETIC.hat, false)
+    + HATS.map(h => {
+      const locked = h.gacha && !ownedItems.has(h.id);
+      return closetTile("hat", h.id, h.name, charSVG({ char:COSMETIC.char, hat:h.id, acc:null }),
+        COSMETIC.hat === h.id, locked, "뽑기에서!");
+    }).join("");
+  const accTiles = closetTile("acc", "none", "없음", charSVG({ char:COSMETIC.char, hat:null, acc:null }), !COSMETIC.acc, false)
+    + ACCS.map(a => {
+      const locked = !ownedItems.has(a.id);
+      return closetTile("acc", a.id, a.name, charSVG({ char:COSMETIC.char, hat:null, acc:a.id }),
+        COSMETIC.acc === a.id, locked, "뽑기에서!");
+    }).join("");
+  body.innerHTML = `
+    <div class="closet-preview">${charSVG(COSMETIC)}</div>
+    <p class="closet-sub">🐾 캐릭터 (출석 5일마다 새 친구!)</p><div class="tile-grid">${charTiles}</div>
+    <p class="closet-sub">🎩 모자</p><div class="tile-grid">${hatTiles}</div>
+    <p class="closet-sub">🎀 액세서리</p><div class="tile-grid">${accTiles}</div>`;
+}
+$("closet-body").addEventListener("click", e => {
+  const t = e.target.closest(".tile");
+  if (!t || t.classList.contains("locked")) return;
+  const { kind, id } = t.dataset;
+  if (kind === "char") COSMETIC.char = id;
+  if (kind === "hat")  COSMETIC.hat  = id === "none" ? null : id;
+  if (kind === "acc")  COSMETIC.acc  = id === "none" ? null : id;
+  saveEquip(); renderWizard(); renderCloset();
+});
+
+/* ---- 🎁 뽑기 ---- */
+function renderGacha(){
+  const body = $("gacha-body");
+  if (!body) return;
+  const t = gachaTickets();
+  const left = GACHA_POOL.filter(i => !ownedItems.has(i.id));
+  const nextAt = (Math.floor(myBadgeSet.size / 5) + 1) * 5;
+  const ownedRow = GACHA_POOL.map(i =>
+    `<span title="${i.name}" style="font-size:11px; padding:2px 7px; border-radius:999px; margin:1px;
+       background:${ownedItems.has(i.id) ? "var(--butter)" : "#EFEAF3"}; color:${ownedItems.has(i.id) ? "var(--ink)" : "#B9AEC4"};">
+       ${ownedItems.has(i.id) ? "✅ " + i.name : (i.rare ? "🌟 레어 ???" : "❓ ???")}</span>`).join("");
+  body.innerHTML = `
+    <div class="gacha-ticket">🎟️ 내 뽑기권: <b style="color:var(--berry)">${t}</b>장</div>
+    <div class="gacha-capsule" id="gacha-capsule">🎁</div>
+    <div id="gacha-stage"></div>
+    <button class="gacha-btn" id="gacha-roll" ${t > 0 && left.length ? "" : "disabled"}>🎲 뽑기!</button>
+    <p class="gacha-note">${
+      left.length === 0 ? "모자·액세서리를 전부 모았어요! 🎉 대단해요!"
+      : t > 0 ? `무엇이 나올까요? 남은 아이템 ${left.length}개 · 중복은 안 나와요!`
+      : `뱃지 <b>5개</b>를 모을 때마다 뽑기권 1장!<br>지금 뱃지 ${myBadgeSet.size}개 → <b>${nextAt}개</b>가 되면 +1장 🎟️`
+    }</p>
+    <p class="closet-sub" style="text-align:center;">📦 수집 현황</p>
+    <div style="text-align:center; line-height:2;">${ownedRow}</div>`;
+  const btn = $("gacha-roll");
+  if (btn) btn.addEventListener("click", rollGacha);
+}
+function rollGacha(){
+  const left = GACHA_POOL.filter(i => !ownedItems.has(i.id));
+  if (!left.length || gachaTickets() <= 0) return;
+  const btn = $("gacha-roll"), cap = $("gacha-capsule");
+  if (btn) btn.disabled = true;
+  if (cap) cap.classList.add("rolling");
+  SFX.freeze && SFX.freeze();
+  /* 🎲 안 가진 것 중에서만! ✨레어(왕관)는 확률이 1/4로 낮아요 */
+  const weighted = left.flatMap(i => Array(i.rare ? 1 : 4).fill(i));
+  const item = weighted[Math.floor(Math.random() * weighted.length)];
+  setTimeout(() => {
+    ownedItems.add(item.id);
+    saveItemsLocal();
+    const code = cleanCode($("roomcode").value);
+    saveBadges(COSY_LID || LEARNER_ID, code, ["itm_" + item.id]);
+    // 🎁 첫 뽑기 뱃지 (30번째 뱃지!)
+    if (!myBadgeSet.has("firstgacha")){
+      myBadgeSet.add("firstgacha");
+      saveBadges(COSY_LID || LEARNER_ID, code, ["firstgacha"]);
+      showBadgeToast(BADGE_BY_ID.firstgacha);
+      renderBadgeGrid("badge-grid-start", "badge-count-start", myBadgeSet, new Set(["firstgacha"]));
+    }
+    // 바로 장착해서 보여줍니다
+    if (item.id.startsWith("hat_")) COSMETIC.hat = item.id;
+    else COSMETIC.acc = item.id;
+    saveEquip(); renderWizard();
+    renderGacha(); updateGachaDot();
+    const stage = $("gacha-stage");
+    if (stage) stage.innerHTML =
+      `<div class="gacha-result">${charSVG(COSMETIC)}
+        <div class="gr-name">${item.rare ? "🌟 레어! " : "✨ "}${item.name} 획득!</div>
+        <div style="font-size:11.5px; color:var(--ink-soft);">${item.rare ? "우와, 정말 귀한 아이템이에요!<br>" : ""}바로 입어봤어요 · 옷장에서 바꿀 수 있어요</div></div>`;
+    SFX.stageClear();
+  }, 900);
+}
+
+/* ---- 📅 출석 서랍 ---- */
+function renderAttendDrawer(){
+  const body = $("attend-body");
+  if (!body) return;
+  const d = attendDaysKnown;
+  body.innerHTML = `
+    <p style="font-size:12.5px; color:var(--ink-soft); text-align:center; margin-bottom:8px;">
+      지금까지 <b>${d}일</b> 출석했어요!<br>단계를 하나 클리어하면 그날 출석 도장이 찍혀요.</p>
+    <div class="stamp-board" id="stamp-board-drawer" style="max-width:100%;"></div>
+    <p class="stamp-legend" style="text-align:center;">⭐ 뱃지 · 🎁 새 캐릭터 친구를 받는 날!</p>
+    <p class="closet-sub">🎁 출석 선물</p>
+    ${CHARS.filter(c => c.unlock > 0).map(c => `
+      <div class="reward-row ${d >= c.unlock ? "" : "locked"}">
+        ${charSVG({ char:c.id, hat:null, acc:null })}
+        <div class="rr-txt"><b>${c.name}</b> · 출석 ${c.unlock}일</div>
+        <span class="rr-ok">${d >= c.unlock ? "✅" : "🔒"}</span>
+      </div>`).join("")}`;
+  renderStampBoard(Math.min(d, 30), 0, "stamp-board-drawer");
+}
+
+/* ---- 🔔 뽑기 가능 알림 ---- */
+function updateGachaDot(){
+  const t = gachaTickets();
+  const dot = $("gacha-dot"), alert_ = $("gacha-alert");
+  if (dot) dot.classList.toggle("hidden", t <= 0);
+  if (alert_){
+    alert_.classList.toggle("hidden", t <= 0);
+    if (t > 0) alert_.textContent = `🎁 뽑기권 ${t}장 있어요!`;
+  }
+}
+
+/* ---- 서랍 열고 닫기 ---- */
+const DRAWERS = ["badge-drawer", "closet-drawer", "gacha-drawer", "attend-drawer"];
+function openDrawer(id){
+  const f = $("field");
+  if (f){ f.scrollLeft = 0; f.scrollTop = 0; }   // 필드가 옆으로 밀려 있으면 원위치
+  DRAWERS.forEach(d => { const el = $(d); if (el) el.classList.toggle("hidden", d !== id); });
+}
+function closeDrawers(){
+  DRAWERS.forEach(d => { const el = $(d); if (el) el.classList.add("hidden"); });
+}
+document.querySelectorAll(".drawer-close").forEach(b => b.addEventListener("click", closeDrawers));
+$("open-closet").addEventListener("click", () => { renderCloset(); openDrawer("closet-drawer"); });
+$("open-gacha").addEventListener("click", () => { renderGacha(); openDrawer("gacha-drawer"); });
+$("open-attend").addEventListener("click", () => { renderAttendDrawer(); openDrawer("attend-drawer"); });
 
 /* 게임이 끝날 때 판정하는 뱃지들 */
 function checkEndBadges(){
@@ -3474,7 +4016,7 @@ async function startGame(){
   /* 🏅 이 아이가 예전에 딴 뱃지와 누적 기록을 불러옵니다 (실패해도 게임은 그대로 진행) */
   const thisSession = state;
   loadBadges(LEARNER_ID).then(ids => {
-    if (state === thisSession) ids.forEach(id => state.earnedBadges.add(id));
+    if (state === thisSession) ids.filter(id => !id.startsWith("itm_")).forEach(id => state.earnedBadges.add(id));
   });
   loadProgress(LEARNER_ID, code).then(p => {
     if (state === thisSession) state.progress = p;
@@ -3608,17 +4150,14 @@ $("nickname").addEventListener("input", () => {
   $("nickname-warn").classList.add("hidden");     // 이름을 고치기 시작하면 경고를 지웁니다
 });
 
-/* 🏅 뱃지 서랍 열고 닫기 (시작 화면에서만 버튼이 보입니다) */
+/* 🏅 오른쪽 메뉴(뱃지·옷장·뽑기·출석) 열고 닫기 (시작 화면에서만 보입니다) */
 function showBadgeButton(on){
-  $("open-badges").classList.toggle("hidden", !on);
-  if (!on) $("badge-drawer").classList.add("hidden");
+  $("side-menu").classList.toggle("hidden", !on);
+  if (!on) closeDrawers();
 }
 $("open-badges").addEventListener("click", () => {
   refreshStartBadges();
-  $("badge-drawer").classList.remove("hidden");
-});
-$("close-badges").addEventListener("click", () => {
-  $("badge-drawer").classList.add("hidden");
+  openDrawer("badge-drawer");
 });
 $("mute-btn").addEventListener("click", () => {
   Sound.init();
@@ -3807,9 +4346,24 @@ syncPeriodUI();          // 📅 주간/전체 토글·안내문구 초기화
 refreshStartRanks();
 refreshStartBadges();     // 🏅 시작 화면 뱃지판 초기화
 lookupSchoolByCode(DEFAULT_CODE);   // 시작 시 기본 코드로도 한 번 조회
-showBadgeButton(true);    // 시작 화면에서는 뱃지 버튼 노출
+showBadgeButton(true);    // 시작 화면에서는 오른쪽 메뉴 노출
 updateInfiniteLock();     // 무한 마법 잠금 표시
-getLearnerId().then(id => { LEARNER_ID = id; });
+renderWizard();           // 🐥 기본 캐릭터(병아리)를 바로 그려 둡니다
+getLearnerId().then(id => {
+  LEARNER_ID = id;
+  // 아직 이름을 안 적었으면 이 기기의 익명 소장품으로 시작합니다
+  if (!($("nickname").value || "").trim()) cosmeticsForLearner(id, []);
+});
+
+/* 🎉 업데이트 안내 — 처음 한 번만 보여주고, 확인을 누르면 기억합니다 */
+const UPDATE_SEEN_KEY = "update-seen-v47";
+try {
+  if (!localStorage.getItem(UPDATE_SEEN_KEY)) $("update-screen").classList.remove("hidden");
+} catch(e){}
+$("update-close").addEventListener("click", () => {
+  try { localStorage.setItem(UPDATE_SEEN_KEY, "1"); } catch(e){}
+  $("update-screen").classList.add("hidden");
+});
 
 /* 예전 방식(브라우저 전체 공유)으로 남은 무한 해금 값을 청소합니다.
    이 값 때문에 공용 컴퓨터에서 남의 해금이 유지되던 문제를 없앱니다. */
