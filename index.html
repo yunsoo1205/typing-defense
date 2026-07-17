@@ -3017,8 +3017,22 @@ function renderBadges(){
    둘 중 하나면 열립니다. (기기가 바뀌어도 같은 이름으로 접속하면 이어져요)
    ========================================================================= */
 let myBadgeSet = new Set();     // 시작 화면에서 이름으로 불러온 뱃지들
-function markInfUnlocked(){ try { localStorage.setItem("inf-unlocked", "1"); } catch(e){} }
-function readInfUnlockedLocal(){ try { return localStorage.getItem("inf-unlocked") === "1"; } catch(e){ return false; } }
+/* 무한 해금을 '이 학생'에게만 기억합니다. 예전에는 브라우저 전체에 하나(inf-unlocked)만
+   저장해서, 학교 공용 컴퓨터에서 A가 열면 B에게도 열리는 문제가 있었어요.
+   이제 learner_id별로 따로 저장해, 그 학생일 때만 로컬 해금이 유효합니다. */
+function markInfUnlocked(){
+  try {
+    if (LEARNER_ID && LEARNER_ID !== "unknown"){
+      localStorage.setItem("inf-unlocked_" + LEARNER_ID, "1");
+    }
+  } catch(e){}
+}
+function readInfUnlockedLocal(){
+  try {
+    if (!LEARNER_ID || LEARNER_ID === "unknown") return false;
+    return localStorage.getItem("inf-unlocked_" + LEARNER_ID) === "1";
+  } catch(e){ return false; }
+}
 function isInfiniteUnlocked(){
   return myBadgeSet.has("advten") || readInfUnlockedLocal()
       || (state && state.earnedBadges && state.earnedBadges.has("advten"));
@@ -3431,6 +3445,10 @@ refreshStartBadges();     // 🏅 시작 화면 뱃지판 초기화
 showBadgeButton(true);    // 시작 화면에서는 뱃지 버튼 노출
 updateInfiniteLock();     // 무한 마법 잠금 표시
 getLearnerId().then(id => { LEARNER_ID = id; });
+
+/* 예전 방식(브라우저 전체 공유)으로 남은 무한 해금 값을 청소합니다.
+   이 값 때문에 공용 컴퓨터에서 남의 해금이 유지되던 문제를 없앱니다. */
+try { localStorage.removeItem("inf-unlocked"); } catch(e){}
 refreshClassStage();      // 🏫 우리 반 단계가 있으면 드롭다운에 추가
 </script>
 </body>
