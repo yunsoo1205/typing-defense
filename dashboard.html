@@ -121,6 +121,15 @@ tr:last-child td{ border-bottom:none; }
     <p>선생님·학생용 페이지가 아닌, 운영자(윤수)만 보는 요약 화면이에요.</p>
   </header>
 
+  <div class="card" style="margin-bottom:14px;">
+    <h2>📊 데이터 범위</h2>
+    <label style="margin-right:16px; cursor:pointer;"><input type="checkbox" id="scope-korea" checked> 🇰🇷 전국 (KOREA 공용)</label>
+    <label style="cursor:pointer;"><input type="checkbox" id="scope-school" checked> 🏫 학교 (학급 코드)</label>
+    <p class="help" style="margin-top:8px;">둘 다 체크하면 합친 전체 데이터예요. 범위를 바꾸면
+      <b>오늘 한눈에 · 평균 타수 · 모드별 타수 · 가장 많이 틀리는 단계 · 무한 마법 기록</b> 카드가 다시 계산돼요.
+      (나머지 카드는 항상 전체 기준 · '대시보드범위.sql' 적용 후 작동)</p>
+  </div>
+
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="main">메인</button>
     <button class="tab-btn" data-tab="typing">평균 타수</button>
@@ -338,12 +347,32 @@ function headers(){
     "Content-Type": "application/json"
   };
 }
+/* 📊 데이터 범위(전국/학교) — 체크박스로 고른 범위를 지원하는 함수들에 전달합니다 */
+const SCOPED_RPCS = new Set([
+  "get_dashboard_today_summary",
+  "get_dashboard_today_typing_speed",
+  "get_dashboard_today_typing_speed_by_mode",
+  "get_dashboard_stage_difficulty",
+  "get_dashboard_infinite_leaderboard"
+]);
+function dashScope(){
+  const k = document.getElementById("scope-korea")?.checked;
+  const s = document.getElementById("scope-school")?.checked;
+  if (k && !s) return "korea";
+  if (!k && s) return "school";
+  return "all";                       // 둘 다 켜짐(합친 데이터) 또는 UI 없음
+}
 async function rpc(name, body){
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify(body || {})
+  const withScope = SCOPED_RPCS.has(name) ? { ...(body || {}), p_scope: dashScope() } : (body || {});
+  let res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: "POST", headers: headers(), body: JSON.stringify(withScope)
   });
+  /* 아직 범위 SQL(대시보드범위.sql)을 적용 안 했으면 예전 방식으로 재시도 */
+  if (!res.ok && SCOPED_RPCS.has(name)){
+    res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+      method: "POST", headers: headers(), body: JSON.stringify(body || {})
+    });
+  }
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -860,6 +889,15 @@ function initDashboard(){
 
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+
+  /* 📊 데이터 범위 체크박스 — 최소 1개는 켜져 있어야 하고, 바꾸면 지원 카드를 다시 불러옵니다 */
+  ["scope-korea", "scope-school"].forEach(id => {
+    document.getElementById(id).addEventListener("change", (e) => {
+      const k = document.getElementById("scope-korea"), s = document.getElementById("scope-school");
+      if (!k.checked && !s.checked){ e.target.checked = true; return; }
+      loadToday(); loadTypingSpeed(); loadTypingSpeedByMode(); loadDifficulty(); loadInfBoard();
+    });
   });
 
   document.getElementById("refresh-today").addEventListener("click", loadToday);
