@@ -824,6 +824,9 @@ body.night-mode #field::after{
 .rank-row + .rank-row{ margin-top:2px; }
 .rank-row.me{ background:var(--butter); }
 .rank-row .medal{ width:26px; font-family:var(--font-display); }
+/* 🐥 랭킹 속 미니 아바타 (각자 옷장에서 꾸민 모습 그대로!) */
+.rank-row .rank-avatar{ flex:none; width:30px; }
+.rank-row .rank-avatar svg{ height:30px; display:block; margin:0 auto; }
 .rank-row .who{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .rank-row .stage{ font-size:12px; color:var(--ink-soft); }
 .rank-row .pts{ font-family:var(--font-display); font-size:17px; }
@@ -1032,6 +1035,7 @@ body.night-mode #field::after{
                 <input id="roomcode" maxlength="10" placeholder="코드" />
               </div>
             </div>
+            <p style="font-size:11.5px; color:var(--ink-soft); margin-top:-4px;">🌸 건전하고 아름다운 별명을 사용해 주세요</p>
             <p class="nickname-warn hidden" id="nickname-warn">🙅 다른 별명을 써 주세요!</p>
             <p class="nickname-warn hidden" id="code-locked-note" style="color:var(--grape);">🏫 학급 코드로 입장하려면 담임 선생님께 받은 주소나 QR로 들어와야 해요!</p>
             <button class="btn ghost" id="open-signup" style="font-size:12.5px; padding:6px 16px;">🔐 비밀번호 만들기 (내 별명 지키기)</button>
@@ -1923,11 +1927,13 @@ const memoryRanks = {};
 
 /* --- ① Supabase --- */
 async function supaLoad(code){
-  const q = `${SUPABASE_URL}/rest/v1/user_high_scores`
-          + `?select=id,name,score,stage`
+  const make = (cols) => `${SUPABASE_URL}/rest/v1/user_high_scores`
+          + `?select=${cols}`
           + `&code=eq.${encodeURIComponent(code)}`
           + `&order=score.desc&limit=${RANK_SIZE}`;
-  const res = await fetch(q, { headers: SUPA.headers() });
+  /* avatar 컬럼(랭킹아바타.sql)이 아직 없으면 예전 방식으로 다시 시도합니다 */
+  let res = await fetch(make("id,name,score,stage,avatar"), { headers: SUPA.headers() });
+  if (!res.ok) res = await fetch(make("id,name,score,stage"), { headers: SUPA.headers() });
   if (!res.ok) throw new Error("load failed");
   return await res.json();
 }
@@ -1949,16 +1955,22 @@ async function supaUpsertHigh(code, learnerId, entry){
   /* 일부 DB에는 stage 컬럼에 '10 이하'(CHECK) 제약이 남아 있어, 우리 반 단계(11)나
      무한 마법 기록이 거부될 수 있어요. 그럴 때를 대비해 안전값(10)으로 한 번 더 시도합니다.
      Supabase에서 제약을 풀면 원래 단계 숫자가 그대로 저장됩니다. */
-  const send = (stage) => fetch(
-    `${SUPABASE_URL}/rest/v1/user_high_scores?on_conflict=learner_id,code`,
-    {
-      method: "POST",
-      headers: SUPA.headers({ "Prefer": "resolution=merge-duplicates,return=representation" }),
-      body: JSON.stringify({ learner_id: learnerId, code, name: entry.name, score: entry.score, stage })
-    }
-  );
-  let res = await send(entry.stage);
-  if (!res.ok && entry.stage > 10) res = await send(10);   // stage 제약에 걸리면 10으로 재시도
+  const send = (stage, withAvatar) => {
+    const row = { learner_id: learnerId, code, name: entry.name, score: entry.score, stage };
+    if (withAvatar && entry.avatar) row.avatar = entry.avatar;   // 🐥 랭킹 아바타 (컬럼 없으면 재시도)
+    return fetch(
+      `${SUPABASE_URL}/rest/v1/user_high_scores?on_conflict=learner_id,code`,
+      {
+        method: "POST",
+        headers: SUPA.headers({ "Prefer": "resolution=merge-duplicates,return=representation" }),
+        body: JSON.stringify(row)
+      }
+    );
+  };
+  let res = await send(entry.stage, true);
+  if (!res.ok) res = await send(entry.stage, false);
+  if (!res.ok && entry.stage > 10) res = await send(10, true);   // stage 제약에 걸리면 10으로 재시도
+  if (!res.ok && entry.stage > 10) res = await send(10, false);
   if (!res.ok) throw new Error("upsert failed");
   const rows = await res.json();
   return rows[0];
@@ -1966,14 +1978,19 @@ async function supaUpsertHigh(code, learnerId, entry){
 /* 전체 이력은 그대로 scores 에도 남깁니다 (연구용 쿼리들이 이걸 씁니다).
    실패해도 화면 순위표(위 함수)에는 영향이 없도록 따로 분리해 둡니다. */
 async function supaInsertHistory(code, entry){
-  const send = (stage) => fetch(`${SUPABASE_URL}/rest/v1/scores`, {
-    method: "POST",
-    headers: SUPA.headers({ "Prefer": "return=minimal" }),
-    body: JSON.stringify({ code, name: entry.name, score: entry.score, stage })
-  });
+  const send = (stage, withAvatar) => {
+    const row = { code, name: entry.name, score: entry.score, stage };
+    if (withAvatar && entry.avatar) row.avatar = entry.avatar;   // 🐥 랭킹 아바타
+    return fetch(`${SUPABASE_URL}/rest/v1/scores`, {
+      method: "POST",
+      headers: SUPA.headers({ "Prefer": "return=minimal" }),
+      body: JSON.stringify(row)
+    });
+  };
   try {
-    let res = await send(entry.stage);
-    if (res && !res.ok && entry.stage > 10) await send(10);   // stage 제약 대비 재시도
+    let res = await send(entry.stage, true);
+    if (res && !res.ok) res = await send(entry.stage, false);   // avatar 컬럼이 아직 없으면
+    if (res && !res.ok && entry.stage > 10) await send(10, false);   // stage 제약 대비 재시도
   } catch(e){ /* 이력 저장 실패는 조용히 무시 */ }
 }
 
@@ -2061,6 +2078,7 @@ function renderRanks(list, boxId, highlightId, emptyHtml, highlightName){
     return `
     <div class="rank-row ${mine ? "me" : ""}">
       <span class="medal">${medal[i] || (i+1)}</span>
+      <span class="rank-avatar">${avatarSVG(r.avatar)}</span>
       <span class="who">${escapeHtml(r.name)}</span>
       <span class="stage">${r.stage >= 1 ? r.stage + "단계" : "♾️"}</span>
       <span class="pts">${r.score}</span>
@@ -2107,12 +2125,14 @@ function periodLabel(p){ return p === "week" ? "이번 주" : "전체"; }
 
 async function supaLoadWeekly(code){
   const since = weekStartISO();
-  const q = `${SUPABASE_URL}/rest/v1/scores`
-          + `?select=name,score,stage`
+  const make = (cols) => `${SUPABASE_URL}/rest/v1/scores`
+          + `?select=${cols}`
           + `&code=eq.${encodeURIComponent(code)}`
           + `&created_at=gte.${encodeURIComponent(since)}`
           + `&order=score.desc&limit=500`;
-  const res = await fetch(q, { headers: SUPA.headers() });
+  /* avatar 컬럼(랭킹아바타.sql)이 아직 없으면 예전 방식으로 다시 시도합니다 */
+  let res = await fetch(make("name,score,stage,avatar"), { headers: SUPA.headers() });
+  if (!res.ok) res = await fetch(make("name,score,stage"), { headers: SUPA.headers() });
   if (!res.ok) throw new Error("weekly load failed " + res.status);
   const rows = await res.json();
   /* 한 아이가 이번 주에 여러 번 플레이해도 '최고점 한 줄'만 순위표에 남깁니다 */
@@ -3417,7 +3437,8 @@ async function endGame(cleared){
 
     const entryI = {
       id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
-      name: state.nickname, score: state.score, stage: 0
+      name: state.nickname, score: state.score, stage: 0,
+      avatar: equipString()                          // 🐥 랭킹에 보일 내 아바타
     };
     const topI = await addRank(state.rankCode, entryI, LEARNER_ID);
     const rankI = topI.findIndex(r => r.id === entryI.id);
@@ -3452,6 +3473,7 @@ async function endGame(cleared){
     id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
     name: state.nickname,
     score: state.score,
+    avatar: equipString(),                           // 🐥 랭킹에 보일 내 아바타
     stage: STAGES[state.stageIndex].num
   };
   const top  = await addRank(state.rankCode, entry, LEARNER_ID);
@@ -3901,6 +3923,23 @@ function cosmeticsForLearner(lid, allBadgeIds){
   if (COSMETIC.acc && !ownedItems.has(COSMETIC.acc)) COSMETIC.acc = null;
   if (COSMETIC.wand && !ownedItems.has(COSMETIC.wand)) COSMETIC.wand = null;
   renderWizard(); renderCloset(); renderGacha(); renderAttendDrawer(); updateGachaDot();
+}
+
+/* 🏆 랭킹 아바타 — 지금 장착 상태를 짧은 문자열로 저장/복원합니다 (예: "dragon|hat_crown||wand_rainbow") */
+function equipString(){
+  return [COSMETIC.char, COSMETIC.hat || "", COSMETIC.acc || "", COSMETIC.wand || ""].join("|").slice(0, 60);
+}
+function avatarSVG(str){
+  try {
+    const parts = String(str || "").split("|");
+    const ch = CHAR_SVG[parts[0]] ? parts[0] : "chick";
+    return charSVG({
+      char: ch,
+      hat:  ITEM_SVG[parts[1]] ? parts[1] : (parts[0] ? null : "hat_magic"),
+      acc:  ITEM_SVG[parts[2]] ? parts[2] : null,
+      wand: parts[3] === "wand_rainbow" ? parts[3] : null
+    });
+  } catch(e){ return charSVG({ char:"chick", hat:"hat_magic" }); }
 }
 
 function renderWizard(){
