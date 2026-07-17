@@ -893,6 +893,14 @@ body.night-mode #field::after{
 @media (max-width:520px){
   .spellbook, #mode-picker{ grid-template-columns:1fr; }
 }
+/* 📏 낮은 화면(컴퓨터실 모니터·노트북)에서는 시작 화면을 살짝 압축해 스크롤이 안 생기게 합니다 */
+@media (max-height:820px){
+  #start-hero svg{ height:52px; }
+  #start-hero span{ font-size:36px !important; }
+  #start-screen h1{ font-size:27px; }
+  #start-screen .story-intro{ font-size:13.5px; line-height:1.55; padding:9px 16px; }
+  #start-screen .menu-main{ gap:7px; }
+}
 
 #banner{ background:rgba(255,243,201,.95); }
 #banner .samples{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
@@ -1024,7 +1032,6 @@ body.night-mode #field::after{
               몬스터의 글자를 똑같이 <b>입력</b>하면 마법이 <b>펑!</b> 하고 터진답니다.
               용감한 마법사님, 학교를 구해 주세요! 🪄
             </div>
-            <p>먼저 <b>별명</b>을 알려 주세요.</p>
             <div class="name-code-row">
               <div class="ncr-item">
                 <label for="nickname" class="ncr-label">① 마법사 별명</label>
@@ -3725,8 +3732,14 @@ const ITEM_BY_ID = Object.fromEntries([...HATS, ...ACCS, ...WANDS].map(i => [i.i
    서버에도, 이 브라우저에도 아무것도 저장되지 않는 순수 테스트 상태입니다. */
 let MASTER = false;
 try { MASTER = new URLSearchParams(location.search).get("master") === "songmaster"; } catch(e){}
+/* 🧑‍🏫 admin 계정 — 비밀번호 인증을 통과하면 켜집니다.
+   별명 칸이 admin일 때만 해금이 적용되고, 다른 별명으로 바꾸면 원래대로 돌아가요. */
+let ADMIN_MODE = false;
+function adminUnlockActive(){
+  try { return ADMIN_MODE && isMasterNick(($("nickname").value || "").trim()); } catch(e){ return false; }
+}
 function applyMasterUnlocks(){
-  if (!MASTER) return;
+  if (!MASTER && !adminUnlockActive()) return;
   BADGES.forEach(b => myBadgeSet.add(b.id));
   attendDaysKnown = 30;
 }
@@ -4112,7 +4125,14 @@ function closeDrawers(){
   DRAWERS.forEach(d => { const el = $(d); if (el) el.classList.add("hidden"); });
 }
 document.querySelectorAll(".drawer-close").forEach(b => b.addEventListener("click", closeDrawers));
-$("open-closet").addEventListener("click", () => { renderCloset(); openDrawer("closet-drawer"); });
+$("open-closet").addEventListener("click", () => {
+  const nick = ($("nickname").value || "").trim();
+  if (nick && isMasterNick(nick)){   // 🧑‍🏫 admin이면 먼저 인증 → 전부 해금된 옷장이 열려요
+    ensurePwOk(() => { renderCloset(); openDrawer("closet-drawer"); });
+    return;
+  }
+  renderCloset(); openDrawer("closet-drawer");
+});
 $("open-gacha").addEventListener("click", () => {
   ensurePwOk(() => { renderGacha(); openDrawer("gacha-drawer"); });   // 🔐 보호된 이름이면 비밀번호 확인
 });
@@ -4154,6 +4174,15 @@ function isMasterNick(nick){
 async function isMasterPw(pw){
   return (await sha256Hex("taja-master::" + pw)) === MASTER_PW_HASH;
 }
+/* 🧑‍🏫 admin 인증 성공 → 마스터 테스트 모드처럼 뱃지 30개·출석 30일이 채워져
+   캐릭터와 뽑기권이 전부 열립니다. (별명을 다른 이름으로 바꾸면 원래대로) */
+function enterAdminMode(){
+  ADMIN_MODE = true;
+  applyMasterUnlocks();
+  updateInfiniteLock();
+  renderBadgeGrid("badge-grid-start", "badge-count-start", myBadgeSet, new Set());
+  renderWizard(); renderCloset(); renderGacha(); renderAttendDrawer(); updateGachaDot();
+}
 function openPwAsk(whoHtml){
   $("pwask-who").innerHTML = whoHtml;
   $("pwask-pw").value = "";
@@ -4168,8 +4197,8 @@ async function ensurePwOk(onOk){
   if (!nick) return onOk();                         // 별명 없이도 게임은 그대로 가능
   /* 🧑‍🏫 admin = 관리자 전용 별명 (어느 코드에서든, 전각·대문자 변형 포함) */
   if (isMasterNick(nick)){
-    if (AUTHED.has("::master")) return onOk();
-    pwPendingOk = () => { AUTHED.add("::master"); onOk(); };
+    if (AUTHED.has("::master")){ enterAdminMode(); return onOk(); }
+    pwPendingOk = () => { AUTHED.add("::master"); enterAdminMode(); onOk(); };
     pwPendingCheck = isMasterPw;
     openPwAsk(`<b>admin</b>은 관리자 전용 별명이에요.<br>관리자 비밀번호를 입력해 주세요.`);
     return;
@@ -4714,6 +4743,9 @@ if (CODE_LOCKED){
      (전국에서는 누구나 같은 별명을 쓸 수 있어서, 비밀번호가 있어야 안전하게 이어져요) */
   const ch = $("continue-hint");
   if (ch) ch.innerHTML = "💡 집에서도 <b>안전하게 이어서</b> 하고 싶으면, <b>🔐 비밀번호를 만들어</b> 내 별명을 지켜요!";
+  /* 전국 화면에는 '이 코드 랭킹 지우기'(선생님용) 버튼을 숨깁니다 */
+  const ca = document.querySelector("#start-screen .code-area");
+  if (ca) ca.style.display = "none";
 }
 buildKeyboard();
 setMode(1.0);
