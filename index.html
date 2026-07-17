@@ -828,6 +828,14 @@ body.night-mode #field::after{
       </div>
     </div>
 
+    <!-- 📅 출석 도장 모달 (오늘 첫 출석일 때만 뜸) -->
+    <div class="overlay hidden" id="attend-screen" style="z-index:60;">
+      <div class="big-emoji" id="attend-emoji">📅</div>
+      <h2 id="attend-title"></h2>
+      <p id="attend-desc"></p>
+      <button class="btn mint" id="attend-close">✨ 확인</button>
+    </div>
+
     <!-- ⑤ 게임 종료 -->
     <div class="overlay hidden" id="end-screen">
       <div class="big-emoji" id="end-emoji">😿</div>
@@ -1248,21 +1256,25 @@ function kstTodayStr(){
   return kst.toISOString().slice(0, 10);
 }
 
-/* 서버가 막혔을 때를 대비한 로컬 백업(접속한 날짜 목록) */
+/* 서버가 막혔을 때를 대비한 로컬 백업(접속한 날짜 목록).
+   반환: { days: 누적일, firstToday: 오늘 처음이면 true } */
 function localAttendDays(learnerId){
   const key = "ATTEND_" + learnerId;
-  let set;
-  try { set = new Set(JSON.parse(localStorage.getItem(key) || "[]")); }
-  catch(e){ set = new Set(); }
-  set.add(kstTodayStr());
+  let arr;
+  try { arr = JSON.parse(localStorage.getItem(key) || "[]"); }
+  catch(e){ arr = []; }
+  const set = new Set(arr);
+  const today = kstTodayStr();
+  const firstToday = !set.has(today);
+  set.add(today);
   try { localStorage.setItem(key, JSON.stringify([...set])); } catch(e){}
-  return set.size;
+  return { days: set.size, firstToday };
 }
 
-/* 오늘 출석을 기록하고, 누적 접속일(정수)을 돌려줍니다.
+/* 오늘 출석을 기록하고 { days, firstToday } 를 돌려줍니다.
    서버 우선, 실패하면 로컬 백업으로 폴백합니다. */
 async function markAttendance(learnerId, code){
-  if (!learnerId || learnerId === "unknown") return 0;
+  if (!learnerId || learnerId === "unknown") return { days: 0, firstToday: false };
   if (SUPA.on){
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/mark_attendance`, {
@@ -1271,20 +1283,22 @@ async function markAttendance(learnerId, code){
         body: JSON.stringify({ p_learner_id: learnerId, p_code: code })
       });
       if (res.ok){
-        const days = await res.json();      // 함수가 정수 하나를 반환합니다
-        const n = typeof days === "number" ? days : parseInt(days, 10);
-        if (!isNaN(n) && n > 0) return n;
+        const rows = await res.json();      // [{ total_days, is_first_today }]
+        const r = Array.isArray(rows) ? rows[0] : rows;
+        if (r && typeof r.total_days !== "undefined"){
+          const n = parseInt(r.total_days, 10);
+          if (!isNaN(n) && n > 0) return { days: n, firstToday: !!r.is_first_today };
+        }
       }
     } catch(e){ /* 서버 실패 시 아래 로컬 백업으로 */ }
   }
   return localAttendDays(learnerId);
 }
 
-/* 접속 시 호출: 출석 기록 → 누적일에 맞는 배지 저장 → 도장 팝업.
-   게임 시작 전 화면(state 없음)에서도 동작해야 하므로 grantBadge 대신
-   서버에 직접 저장(saveBadges)하고, 화면의 뱃지 서랍도 갱신합니다. */
+/* 한 판 클리어(또는 무한모드 입력) 시 호출: 출석 기록 → 배지 저장 →
+   오늘 처음이면 안내 모달을 띄웁니다. 같은 날 두 번째부터는 조용히 넘어갑니다. */
 async function runAttendance(learnerId, code){
-  const days = await markAttendance(learnerId, code);
+  const { days, firstToday } = await markAttendance(learnerId, code);
   if (!days) return;
 
   // 이번 누적일로 달성한 출석 배지들을 찾아 저장합니다(이미 있으면 서버가 무시).
@@ -1292,35 +1306,27 @@ async function runAttendance(learnerId, code){
   if (earnedNow.length){
     saveBadges(learnerId, code, earnedNow);
     earnedNow.forEach(id => myBadgeSet.add(id));
-    // 시작 화면 뱃지 서랍이 열려 있으면 새로 딴 걸 반영
-    if (typeof renderBadgeGrid === "function"){
-      renderBadgeGrid("badge-grid-start", "badge-count-start", myBadgeSet, new Set());
-    }
+    if (state) earnedNow.forEach(id => state.earnedBadges.add(id));
+    if (typeof renderBadges === "function" && state) renderBadges();
   }
 
-  // 방금 딱 달성한 마일스톤이 있으면 그 배지 팝업을, 아니면 출석 도장 팝업을 띄웁니다.
+  // 오늘 처음 출석했을 때만 모달을 띄웁니다.
+  if (!firstToday) return;
+
   const justHit = ATTEND_MILESTONES.find(m => m.days === days);
+  const emoji = $("attend-emoji"), title = $("attend-title"), desc = $("attend-desc");
   if (justHit){
     const b = BADGE_BY_ID[justHit.badge];
-    if (b) showStampToast(`${b.icon} ${b.name} 달성!`, `${days}일 개근 마법사!`);
+    if (emoji) emoji.textContent = b ? b.icon : "🏅";
+    if (title) title.textContent = `${b ? b.name : "출석"} 달성! 🎉`;
+    if (desc)  desc.innerHTML = `오늘까지 <b>${days}일</b> 접속했어요!<br>꾸준히 온 걸 축하해요 👏`;
   } else {
-    showStampToast(`📅 오늘도 출석!`, `지금까지 ${days}일 왔어요`);
+    if (emoji) emoji.textContent = "📅";
+    if (title) title.textContent = `오늘도 출석 완료!`;
+    if (desc)  desc.innerHTML = `지금까지 <b>${days}일</b> 접속했어요 ✨`;
   }
-}
-
-/* 출석 전용 도장 팝업 — 화면 어디서든(게임 시작 전 포함) 뜹니다.
-   기존 뱃지 토스트와 스타일을 공유하되, field가 없을 때는 body에 붙입니다. */
-function showStampToast(title, sub){
-  const host = document.getElementById("field") || document.body;
-  const el = document.createElement("div");
-  el.className = "badge-toast";
-  el.innerHTML =
-    `<div class="bt-icon">📅</div>
-     <div class="bt-text"><b>${escapeHtml(title)}</b><span>${escapeHtml(sub)}</span></div>`;
-  host.appendChild(el);
-  try { SFX.stageClear(); } catch(e){}
-  setTimeout(() => el.classList.add("out"), 2600);
-  setTimeout(() => el.remove(), 3200);
+  const screen = $("attend-screen");
+  if (screen) screen.classList.remove("hidden");
 }
 
 /* 누적 조건(견습 5판, 3번 실패 후 클리어)을 판단하려면 지난 기록이 필요합니다.
@@ -2677,6 +2683,10 @@ function stageCleared(){
 
   checkStageBadges();                              // 🏅 뱃지 판정
 
+  /* 📅 출석 도장 — 한 단계를 클리어했으니 오늘 출석으로 인정합니다.
+     (견습·일반 모드 모두 해당. 오늘 처음이면 안내 모달이 뜹니다) */
+  runAttendance(LEARNER_ID, state.code);
+
   if (HEART_ON_CLEAR && state.life < START_LIFE) state.life += 1;   // 기본 하트까지만 회복
   drawHud();
   drawStatus(performance.now());
@@ -2772,6 +2782,13 @@ async function endGame(cleared){
 
   checkEndBadges();                                       // 🏅 마지막 뱃지 판정
   saveBadges(LEARNER_ID, state.code, state.newBadges);    // 새로 딴 것만 저장
+
+  /* 📅 출석 도장 — 무한 마법 모드는 클리어가 없으니, 단어를 1개라도
+     입력했으면(글자를 쳤으면) 오늘 출석으로 인정합니다.
+     (일반·견습 모드는 stageCleared에서 이미 처리되므로 중복 방지 위해 무한만) */
+  if (state.infinite && state.charsTyped > 0){
+    runAttendance(LEARNER_ID, state.code);
+  }
 
   /* 이용 로그: 견습 포함 모든 판을 승패와 무관하게 남깁니다 */
   const minutes = Math.max(1, (performance.now() - state.startedAt) / 60000);
@@ -3137,10 +3154,6 @@ async function startGame(){
 
   LEARNER_ID = await computeLearnerId(nickname, code);   // 다른 기기에서도 이어지도록 (닉네임은 해시로 저장)
 
-  /* 📅 출석 도장 — 오늘 접속을 기록하고 누적일에 맞는 배지·팝업을 띄웁니다.
-     기다리지 않고(비동기) 진행해 게임 시작이 느려지지 않게 합니다. */
-  runAttendance(LEARNER_ID, code);
-
   cancelAnimationFrame(rafId);
   if (state) clearMonsters();
 
@@ -3293,6 +3306,10 @@ async function refreshClassStage(){
 }
 $("roomcode").addEventListener("change", refreshClassStage);
 $("roomcode").addEventListener("blur", refreshClassStage);
+
+$("attend-close").addEventListener("click", () => {   // 📅 출석 모달 닫기
+  $("attend-screen").classList.add("hidden");
+});
 
 $("again-btn").addEventListener("click", () => {      // 같은 단계 반복 — 고른 배속 적용
   $("clear-screen").classList.add("hidden");
