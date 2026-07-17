@@ -1193,7 +1193,12 @@ const BADGES = [
   { id:"classhero",icon:"🏫", name:"우리 반 챔피언",  desc:"선생님이 만든 '우리 반 단계'를 클리어했어요" },
   // ♾️ 무한 마법 — 얼마나 오래 버텼는지
   { id:"inf50",    icon:"♾️", name:"끝없는 도전자",   desc:"무한 마법에서 단어를 50개 입력했어요" },
-  { id:"inf100",   icon:"🌌", name:"영원의 마법사",   desc:"무한 마법에서 단어를 100개 입력했어요" }
+  { id:"inf100",   icon:"🌌", name:"영원의 마법사",   desc:"무한 마법에서 단어를 100개 입력했어요" },
+  // 📅 출석 — 꾸준히 접속한 날(누적)
+  { id:"attend3",  icon:"📅", name:"출석 3일",       desc:"타자 수비대에 3일 접속했어요" },
+  { id:"attend7",  icon:"🗓️", name:"출석 7일",       desc:"타자 수비대에 7일 접속했어요" },
+  { id:"attend14", icon:"⭐", name:"출석 14일",      desc:"타자 수비대에 14일 접속했어요" },
+  { id:"attend30", icon:"🏅", name:"출석 30일",      desc:"타자 수비대에 30일 접속했어요" }
 ];
 const BADGE_BY_ID = Object.fromEntries(BADGES.map(b => [b.id, b]));
 
@@ -1219,6 +1224,103 @@ async function saveBadges(learnerId, code, badgeIds){
       body: JSON.stringify(badgeIds.map(id => ({ learner_id: learnerId, code, badge_id: id })))
     });
   } catch(e){ /* 뱃지 저장 실패가 게임을 막지 않도록 조용히 무시 */ }
+}
+
+/* =========================================================================
+   📅 출석 도장 — 접속한 날(서로 다른 날짜)이 며칠인지 누적합니다.
+   · 기존 데이터(랭킹·배지)와 완전히 분리된 attendance 테이블만 씁니다.
+   · 하루에 여러 번 접속해도 그날은 1일로만 셉니다.
+   · 서버 연결이 안 되면 이 브라우저(localStorage)에만이라도 기록해,
+     게임과 도장이 멈추지 않게 합니다.
+   ========================================================================= */
+const ATTEND_MILESTONES = [
+  { days: 3,  badge: "attend3"  },
+  { days: 7,  badge: "attend7"  },
+  { days: 14, badge: "attend14" },
+  { days: 30, badge: "attend30" }
+];
+
+/* KST(한국시간) 기준 오늘 날짜 문자열(YYYY-MM-DD) */
+function kstTodayStr(){
+  const now = new Date();
+  // UTC+9 로 보정한 뒤 날짜만 취합니다.
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 10);
+}
+
+/* 서버가 막혔을 때를 대비한 로컬 백업(접속한 날짜 목록) */
+function localAttendDays(learnerId){
+  const key = "ATTEND_" + learnerId;
+  let set;
+  try { set = new Set(JSON.parse(localStorage.getItem(key) || "[]")); }
+  catch(e){ set = new Set(); }
+  set.add(kstTodayStr());
+  try { localStorage.setItem(key, JSON.stringify([...set])); } catch(e){}
+  return set.size;
+}
+
+/* 오늘 출석을 기록하고, 누적 접속일(정수)을 돌려줍니다.
+   서버 우선, 실패하면 로컬 백업으로 폴백합니다. */
+async function markAttendance(learnerId, code){
+  if (!learnerId || learnerId === "unknown") return 0;
+  if (SUPA.on){
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/mark_attendance`, {
+        method: "POST",
+        headers: SUPA.headers(),
+        body: JSON.stringify({ p_learner_id: learnerId, p_code: code })
+      });
+      if (res.ok){
+        const days = await res.json();      // 함수가 정수 하나를 반환합니다
+        const n = typeof days === "number" ? days : parseInt(days, 10);
+        if (!isNaN(n) && n > 0) return n;
+      }
+    } catch(e){ /* 서버 실패 시 아래 로컬 백업으로 */ }
+  }
+  return localAttendDays(learnerId);
+}
+
+/* 접속 시 호출: 출석 기록 → 누적일에 맞는 배지 저장 → 도장 팝업.
+   게임 시작 전 화면(state 없음)에서도 동작해야 하므로 grantBadge 대신
+   서버에 직접 저장(saveBadges)하고, 화면의 뱃지 서랍도 갱신합니다. */
+async function runAttendance(learnerId, code){
+  const days = await markAttendance(learnerId, code);
+  if (!days) return;
+
+  // 이번 누적일로 달성한 출석 배지들을 찾아 저장합니다(이미 있으면 서버가 무시).
+  const earnedNow = ATTEND_MILESTONES.filter(m => days >= m.days).map(m => m.badge);
+  if (earnedNow.length){
+    saveBadges(learnerId, code, earnedNow);
+    earnedNow.forEach(id => myBadgeSet.add(id));
+    // 시작 화면 뱃지 서랍이 열려 있으면 새로 딴 걸 반영
+    if (typeof renderBadgeGrid === "function"){
+      renderBadgeGrid("badge-grid-start", "badge-count-start", myBadgeSet, new Set());
+    }
+  }
+
+  // 방금 딱 달성한 마일스톤이 있으면 그 배지 팝업을, 아니면 출석 도장 팝업을 띄웁니다.
+  const justHit = ATTEND_MILESTONES.find(m => m.days === days);
+  if (justHit){
+    const b = BADGE_BY_ID[justHit.badge];
+    if (b) showStampToast(`${b.icon} ${b.name} 달성!`, `${days}일 개근 마법사!`);
+  } else {
+    showStampToast(`📅 오늘도 출석!`, `지금까지 ${days}일 왔어요`);
+  }
+}
+
+/* 출석 전용 도장 팝업 — 화면 어디서든(게임 시작 전 포함) 뜹니다.
+   기존 뱃지 토스트와 스타일을 공유하되, field가 없을 때는 body에 붙입니다. */
+function showStampToast(title, sub){
+  const host = document.getElementById("field") || document.body;
+  const el = document.createElement("div");
+  el.className = "badge-toast";
+  el.innerHTML =
+    `<div class="bt-icon">📅</div>
+     <div class="bt-text"><b>${escapeHtml(title)}</b><span>${escapeHtml(sub)}</span></div>`;
+  host.appendChild(el);
+  try { SFX.stageClear(); } catch(e){}
+  setTimeout(() => el.classList.add("out"), 2600);
+  setTimeout(() => el.remove(), 3200);
 }
 
 /* 누적 조건(견습 5판, 3번 실패 후 클리어)을 판단하려면 지난 기록이 필요합니다.
@@ -3034,6 +3136,10 @@ async function startGame(){
   }
 
   LEARNER_ID = await computeLearnerId(nickname, code);   // 다른 기기에서도 이어지도록 (닉네임은 해시로 저장)
+
+  /* 📅 출석 도장 — 오늘 접속을 기록하고 누적일에 맞는 배지·팝업을 띄웁니다.
+     기다리지 않고(비동기) 진행해 게임 시작이 느려지지 않게 합니다. */
+  runAttendance(LEARNER_ID, code);
 
   cancelAnimationFrame(rafId);
   if (state) clearMonsters();
