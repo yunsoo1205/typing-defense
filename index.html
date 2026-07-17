@@ -209,6 +209,17 @@ body.night-mode #field::after{
 .pchar .eye{ animation:char-blink 4.2s infinite; transform-box:fill-box; transform-origin:center; }
 @keyframes char-blink{ 0%,91%,100%{ transform:scaleY(1) } 94%{ transform:scaleY(.08) } }
 .pchar .wand-arm{ transform-box:fill-box; transform-origin:20% 80%; }
+/* ✨ 레어 아이템 별가루 반짝임 (왕관·무지개 마법봉·솜사탕 용) */
+.pchar .spark{
+  animation:spark-tw 1.5s ease-in-out infinite;
+  transform-box:fill-box; transform-origin:center;
+}
+.pchar .spark.s2{ animation-delay:.5s; }
+.pchar .spark.s3{ animation-delay:1s; }
+@keyframes spark-tw{
+  0%,100%{ opacity:.2; transform:scale(.6) rotate(0deg); }
+  50%{ opacity:1; transform:scale(1.35) rotate(20deg); }
+}
 #base.casting .wand-arm{ animation:wand-wave .3s ease; }
 @keyframes wand-wave{ 0%,100%{ transform:rotate(0) } 45%{ transform:rotate(-28deg) } 75%{ transform:rotate(8deg) } }
 #base.hurt .pchar .eye{ animation:none; transform:scaleY(.15); }
@@ -646,6 +657,26 @@ body.night-mode #field::after{
 .tile.on{ border-color:var(--berry); background:#FFF4F7; }
 .tile.locked{ opacity:.55; filter:grayscale(.6); cursor:not-allowed; }
 .tile.locked .lock{ position:absolute; top:4px; right:5px; font-size:13px; }
+/* ✨ 레어 칸: 금빛 테두리가 은은하게 일렁이고 레어 표시가 붙어요 */
+.tile.rare{
+  border-color:#F5C451;
+  background:linear-gradient(135deg, #FFF9E5, #FFEFF6, #F0F6FF);
+  animation:rare-glow 2s ease-in-out infinite;
+}
+@keyframes rare-glow{
+  0%,100%{ box-shadow:0 0 4px 1px rgba(245,196,81,.35); }
+  50%{ box-shadow:0 0 10px 3px rgba(245,196,81,.75); }
+}
+.tile .rare-tag{
+  position:absolute; top:3px; left:4px; font-family:var(--font-display);
+  font-size:8.5px; color:#B8860B; background:#FFF3C9; border-radius:999px; padding:1px 5px;
+}
+.tile.locked .rare-tag{ filter:none; }
+.gacha-result.rare svg{ filter:drop-shadow(0 0 10px rgba(255,216,77,.9)); }
+.gacha-result.rare .gr-name{
+  background:linear-gradient(90deg,#FF8FA8,#FFB347,#8FD6C4,#9B8CF0);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
 
 /* 🎁 뽑기 */
 .gacha-ticket{
@@ -1138,7 +1169,7 @@ body.night-mode #field::after{
         <div class="update-list">
           <p>🐥 <b>새 주인공, 병아리 마법사!</b> 대기·마법·아야 동작까지 살아 움직여요.</p>
           <p>📅 <b>출석 도장판</b> — 단계를 클리어하면 도장이 찍히고, <b>5일마다 새 캐릭터 친구</b>를 받아요! (고양이·강아지·토끼·래서판다·펭귄·부엉이)</p>
-          <p>🎁 <b>뽑기</b> — 뱃지 <b>5개마다 뽑기권 1장</b>! 모자·액세서리 6종을 모아요. 👑 왕관은 레어! <b>이미 뱃지를 5개 이상 모은 친구는 뽑기권이 벌써 준비되어 있어요!</b></p>
+          <p>🎁 <b>뽑기</b> — 뱃지 <b>5개마다 뽑기권 1장</b>! 모자·액세서리·마법봉 6종을 모아요. 👑 왕관과 🌈 무지개 마법봉은 <b>✨레어</b>! <b>이미 뱃지를 5개 이상 모은 친구는 뽑기권이 벌써 준비되어 있어요!</b></p>
           <p>👕 <b>옷장</b> — 오른쪽 메뉴에서 캐릭터와 아이템을 갈아입어요.</p>
           <p>🏅 <b>뱃지 30종</b> — '첫 뽑기!' 뱃지가 새로 생겼고, '돌다리도 두들겨라' 조건이 공평하게 바뀌었어요. <b>지금까지 모은 뱃지는 그대로예요!</b> 30개를 전부 모으면… 전설의 <b>🌈 무지개 용</b>이 기다려요!</p>
           <p>🏆 <b>주간 랭킹</b> — 월요일마다 새로 시작! 전체 랭킹 점수가 낮게 저장되던 오류도 고쳐서 원래 최고점으로 되돌렸어요.</p>
@@ -3548,6 +3579,7 @@ async function refreshStartBadges(){
   const ids = await loadBadges(lid);
   if (my !== startBadgeReq) return;        // 그새 이름이 또 바뀌었으면 무시
   myBadgeSet = new Set(ids.filter(id => !id.startsWith("itm_")));   // itm_은 뽑기 아이템 저장용
+  applyMasterUnlocks();                    // 🧪 마스터 모드면 뱃지 30개 유지
   updateInfiniteLock();
   renderBadgeGrid("badge-grid-start", "badge-count-start", myBadgeSet, new Set());
   cosmeticsForLearner(lid, ids);           // 👕 이 아이의 캐릭터·아이템으로 갈아끼우기
@@ -3574,20 +3606,44 @@ const CHARS = [
 const HATS = [
   { id:"hat_magic", name:"마법 고깔", gacha:false },        // 기본 소유
   { id:"hat_party", name:"파티 고깔", gacha:true },
-  { id:"hat_crown", name:"왕관",      gacha:true, rare:true },   // ✨ 레어! 잘 안 나와요
-  { id:"hat_straw", name:"밀짚모자",  gacha:true }
+  { id:"hat_straw", name:"밀짚모자",  gacha:true },
+  { id:"hat_crown", name:"왕관",      gacha:true, rare:true }    // ✨ 레어! 맨 마지막 칸
 ];
 const ACCS = [
   { id:"acc_glasses", name:"둥근 안경", gacha:true },
-  { id:"acc_scarf",   name:"목도리",    gacha:true },
   { id:"acc_bow",     name:"나비 리본", gacha:true }
 ];
-const GACHA_POOL = [...HATS, ...ACCS].filter(i => i.gacha);   // 6종
-const ITEM_BY_ID = Object.fromEntries([...HATS, ...ACCS].map(i => [i.id, i]));
+const WANDS = [
+  { id:"wand_rainbow", name:"무지개 마법봉", gacha:true, rare:true }   // ✨ 레어!
+];
+const GACHA_POOL = [...HATS, ...ACCS, ...WANDS].filter(i => i.gacha);   // 6종
+const ITEM_BY_ID = Object.fromEntries([...HATS, ...ACCS, ...WANDS].map(i => [i.id, i]));
+
+/* 🧪 마스터 모드 (관리자 테스트용) — 주소 뒤에 ?master=songmaster 를 붙이면
+   뱃지 30개·출석 30일이 채워진 상태로 시작해 뽑기권 6장 + 캐릭터 전부 해금.
+   서버에도, 이 브라우저에도 아무것도 저장되지 않는 순수 테스트 상태입니다. */
+let MASTER = false;
+try { MASTER = new URLSearchParams(location.search).get("master") === "songmaster"; } catch(e){}
+function applyMasterUnlocks(){
+  if (!MASTER) return;
+  BADGES.forEach(b => myBadgeSet.add(b.id));
+  attendDaysKnown = 30;
+}
 
 /* ---- 캐릭터 SVG 부품 (공통 좌표: 몸 (60,99), 눈 (46,86)(74,86), 볼 (36,95)(84,95)) ---- */
 const SVG_WAND = `<line x1="101" y1="84" x2="112" y2="60" stroke="#B8860B" stroke-width="4" stroke-linecap="round"/>`
   + `<path class="wand-star" d="M112,44 l2.7,6 6.3,.7 -4.7,4.3 1.3,6.2 -5.6,-3.2 -5.6,3.2 1.3,-6.2 -4.7,-4.3 6.3,-.7 Z" fill="#FF8FA8" stroke="#E9738E" stroke-width="1"/>`;
+/* 🌈 레어: 무지개 마법봉 — 무지개 별 + 광채 + 별가루가 반짝반짝 */
+const SVG_WAND_RAINBOW = `<defs><linearGradient id="wandGrad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#FF8FA8"/><stop offset=".35" stop-color="#FFD84D"/>
+    <stop offset=".65" stop-color="#8FD6C4"/><stop offset="1" stop-color="#9B8CF0"/></linearGradient></defs>`
+  + `<line x1="101" y1="84" x2="112" y2="60" stroke="#B8860B" stroke-width="4" stroke-linecap="round"/>`
+  + `<circle class="spark s2" cx="113" cy="52" r="13" fill="#FFD84D" opacity=".22"/>`
+  + `<path class="wand-star" d="M113,39 l3.4,7.5 8,.9 -5.9,5.4 1.6,7.8 -7.1,-4 -7.1,4 1.6,-7.8 -5.9,-5.4 8,-.9 Z" fill="url(#wandGrad)" stroke="#fff" stroke-width="1.4"/>`
+  + `<path class="spark" d="M99,46 l1.2,2.7 2.9,.3 -2.1,2 .5,2.9 -2.5,-1.5 -2.5,1.5 .5,-2.9 -2.1,-2 2.9,-.3 Z" fill="#FFD84D"/>`
+  + `<path class="spark s3" d="M125,62 l1,2.3 2.5,.3 -1.8,1.7 .4,2.5 -2.1,-1.2 -2.1,1.2 .4,-2.5 -1.8,-1.7 2.5,-.3 Z" fill="#FF8FA8"/>`
+  + `<circle class="spark s2" cx="124" cy="40" r="1.8" fill="#fff"/>`
+  + `<circle class="spark" cx="104" cy="66" r="1.5" fill="#8FD6C4"/>`;
 const svgBlob   = (c, extra) => `<ellipse cx="60" cy="99" rx="40" ry="39" fill="${c}"${extra || ""}/>`;
 const svgBelly  = c => `<ellipse cx="60" cy="115" rx="26" ry="20" fill="${c}"/>`;
 const svgEyes   = () =>
@@ -3616,14 +3672,20 @@ const CHAR_SVG = {
     + `<path d="M57,90 L63,90 L60,94 Z" fill="#FF8FA8"/>`
     + `<path d="M60,94 q-2,4 -6,2 M60,94 q2,4 6,2" stroke="#C98A5B" stroke-width="1.8" stroke-linecap="round" fill="none"/>`
     + svgLimbs("#FFCE8A"),
-  dog: () => `<path d="M28,58 Q14,60 15,78 Q16,92 27,92 Q34,88 33,71 Q32,60 28,58 Z" fill="#C98A5B"/>`
-    + `<path d="M92,58 Q106,60 105,78 Q104,92 93,92 Q86,88 87,71 Q88,60 92,58 Z" fill="#C98A5B"/>`
-    + svgBlob("#F2CFA0") + svgBelly("#FFF6E3") + svgPaws("#E0B27D")
-    + svgEyes() + svgCheeks(".7")
+  /* 🐶 비숑: 복슬복슬 하얀 강아지 */
+  dog: () => `<circle cx="26" cy="74" r="11" fill="#fff" stroke="#ECE4F0" stroke-width="2"/>`
+    + `<circle cx="94" cy="74" r="11" fill="#fff" stroke="#ECE4F0" stroke-width="2"/>`
+    + `<circle cx="40" cy="67" r="10" fill="#fff" stroke="#ECE4F0" stroke-width="2"/>`
+    + `<circle cx="60" cy="62" r="11" fill="#fff" stroke="#ECE4F0" stroke-width="2"/>`
+    + `<circle cx="80" cy="67" r="10" fill="#fff" stroke="#ECE4F0" stroke-width="2"/>`
+    + svgBlob("#FFFFFF", ' stroke="#ECE4F0" stroke-width="2"')
+    + `<circle cx="30" cy="122" r="9" fill="#fff"/><circle cx="90" cy="122" r="9" fill="#fff"/>`
+    + svgBelly("#FBF3EA") + svgPaws("#EFE6DA")
+    + svgEyes() + svgCheeks(".75")
     + `<ellipse cx="60" cy="91" rx="4.5" ry="3.5" fill="#5A4A63"/>`
-    + `<path d="M60,94 q-2,4 -6,2 M60,94 q2,4 6,2" stroke="#B98A5E" stroke-width="1.8" stroke-linecap="round" fill="none"/>`
+    + `<path d="M60,94 q-2,4 -6,2 M60,94 q2,4 6,2" stroke="#C9B8A8" stroke-width="1.8" stroke-linecap="round" fill="none"/>`
     + `<path d="M56,97 q4,6 8,0 l0,2 q-4,5 -8,0 Z" fill="#FF8FA8"/>`
-    + svgLimbs("#F2CFA0"),
+    + svgLimbs("#FFFFFF"),
   rabbit: () => `<ellipse cx="44" cy="40" rx="8.5" ry="25" fill="#FFF6F8" stroke="#F0D3DC" stroke-width="2" transform="rotate(-8 44 40)"/>`
     + `<ellipse cx="44" cy="44" rx="4.5" ry="17" fill="#FFC9D6" transform="rotate(-8 44 44)"/>`
     + `<ellipse cx="76" cy="40" rx="8.5" ry="25" fill="#FFF6F8" stroke="#F0D3DC" stroke-width="2" transform="rotate(8 76 40)"/>`
@@ -3672,9 +3734,10 @@ const CHAR_SVG = {
     + `<path d="M74,62 Q77,48 68,45 Q67,56 69,61 Z" fill="#FFF3C9"/>`
     + svgBlob("url(#cottonGrad)") + `<ellipse cx="60" cy="115" rx="26" ry="20" fill="#FFFDF5" opacity=".65"/>`
     + svgPaws("#CBBCF0")
-    + `<circle cx="35" cy="72" r="1.8" fill="#fff" opacity=".9"/><circle cx="86" cy="106" r="1.8" fill="#fff" opacity=".9"/>`
-    + `<circle cx="79" cy="68" r="1.4" fill="#fff" opacity=".8"/><circle cx="30" cy="112" r="1.4" fill="#fff" opacity=".8"/>`
-    + `<path d="M52,64 l1.5,3.5 3.7,.4 -2.8,2.5 .8,3.6 -3.2,-1.9 -3.2,1.9 .8,-3.6 -2.8,-2.5 3.7,-.4 Z" fill="#fff" opacity=".85"/>`
+    + `<circle class="spark" cx="35" cy="72" r="1.8" fill="#fff"/><circle class="spark s2" cx="86" cy="106" r="1.8" fill="#fff"/>`
+    + `<circle class="spark s3" cx="79" cy="68" r="1.4" fill="#fff"/><circle class="spark s2" cx="30" cy="112" r="1.4" fill="#fff"/>`
+    + `<path class="spark" d="M52,64 l1.5,3.5 3.7,.4 -2.8,2.5 .8,3.6 -3.2,-1.9 -3.2,1.9 .8,-3.6 -2.8,-2.5 3.7,-.4 Z" fill="#fff"/>`
+    + `<path class="spark s3" d="M82,120 l1.2,2.7 2.9,.3 -2.1,2 .5,2.9 -2.5,-1.5 -2.5,1.5 .5,-2.9 -2.1,-2 2.9,-.3 Z" fill="#fff"/>`
     + svgEyes() + svgCheeks(".6")
     + `<circle cx="56.5" cy="92" r="2" fill="#9B8CF0"/><circle cx="63.5" cy="92" r="2" fill="#9B8CF0"/>`
     + `<path d="M55,98 q5,3.5 10,0" stroke="#9B8CF0" stroke-width="1.8" fill="none" stroke-linecap="round"/>`
@@ -3690,29 +3753,31 @@ const ITEM_SVG = {
     + `<circle cx="60" cy="38" r="2.8" fill="#fff"/><circle cx="51" cy="52" r="2.8" fill="#fff"/><circle cx="69" cy="52" r="2.8" fill="#fff"/>`
     + `<circle cx="60" cy="18" r="5.5" fill="#FF8FA8"/>`,
   hat_crown: `<path d="M42,64 L42,44 L51,55 L60,38 L69,55 L78,44 L78,64 Q60,72 42,64 Z" fill="#FFD84D" stroke="#F5C451" stroke-width="2"/>`
-    + `<circle cx="60" cy="56" r="3" fill="#FF8FA8"/>`,
+    + `<circle cx="60" cy="56" r="3" fill="#FF8FA8"/>`
+    + `<path class="spark" d="M40,38 l1.3,2.9 3.1,.3 -2.3,2.1 .6,3.1 -2.7,-1.6 -2.7,1.6 .6,-3.1 -2.3,-2.1 3.1,-.3 Z" fill="#fff"/>`
+    + `<path class="spark s2" d="M80,34 l1.1,2.5 2.7,.3 -2,1.8 .5,2.7 -2.3,-1.4 -2.3,1.4 .5,-2.7 -2,-1.8 2.7,-.3 Z" fill="#FFF3C9"/>`
+    + `<circle class="spark s3" cx="60" cy="32" r="1.8" fill="#fff"/>`,
   hat_straw: `<ellipse cx="60" cy="60" rx="34" ry="10" fill="#F2DA9C"/>`
     + `<path d="M40,58 Q42,36 60,36 Q78,36 80,58 Q60,66 40,58 Z" fill="#F7E4B0"/>`
     + `<path d="M40,56 Q60,64 80,56 L80,60 Q60,68 40,60 Z" fill="#FF8FA8"/>`,
   acc_glasses: `<circle cx="46" cy="86" r="9.5" fill="none" stroke="#5A4A63" stroke-width="2.2"/>`
     + `<circle cx="74" cy="86" r="9.5" fill="none" stroke="#5A4A63" stroke-width="2.2"/>`
     + `<path d="M55.5,86 Q60,83 64.5,86" stroke="#5A4A63" stroke-width="2.2" fill="none"/>`,
-  acc_scarf: `<path d="M28,107 Q60,121 92,107 L90,117 Q60,129 30,117 Z" fill="#FF8FA8"/>`
-    + `<path d="M76,117 l4,16 8,-3 -5,-15 Z" fill="#FF8FA8"/><path d="M80,133 l8,-3 1,4 -8,3 Z" fill="#E9738E"/>`,
   acc_bow: `<path d="M60,110 L45,102 Q42,110 45,118 Z" fill="#FF8FA8"/>`
     + `<path d="M60,110 L75,102 Q78,110 75,118 Z" fill="#FF8FA8"/><circle cx="60" cy="110" r="4.5" fill="#E9738E"/>`
 };
 
 /* 캐릭터 + 장착 아이템을 SVG 문자열로 조립합니다 */
 function charSVG(equip){
-  const body = (CHAR_SVG[equip.char] || CHAR_SVG.chick)();
+  let body = (CHAR_SVG[equip.char] || CHAR_SVG.chick)();
+  if (equip.wand === "wand_rainbow") body = body.replace(SVG_WAND, SVG_WAND_RAINBOW);   // 🌈 레어 마법봉으로 교체
   const acc  = equip.acc && ITEM_SVG[equip.acc] ? ITEM_SVG[equip.acc] : "";
   const hat  = equip.hat && ITEM_SVG[equip.hat] ? ITEM_SVG[equip.hat] : "";
   return `<svg class="pchar" viewBox="0 0 134 150">${body}${acc}${hat}</svg>`;
 }
 
 /* ---- 소장품 상태 (학습자별) ---- */
-let COSMETIC = { char:"chick", hat:"hat_magic", acc:null };   // 지금 장착한 것
+let COSMETIC = { char:"chick", hat:"hat_magic", acc:null, wand:null };   // 지금 장착한 것
 let ownedItems = new Set();                                    // 뽑기로 얻은 아이템
 let attendDaysKnown = 0;                                       // 알려진 누적 출석일
 let COSY_LID = null;                                           // 소장품 기준 학습자
@@ -3723,9 +3788,10 @@ function loadLocalCosy(){
   try { JSON.parse(localStorage.getItem(cosyKey("items")) || "[]").forEach(i => ownedItems.add(i)); } catch(_){}
   attendDaysKnown = parseInt(localStorage.getItem(cosyKey("adays")) || "0", 10) || 0;
 }
-function saveEquip(){ try { localStorage.setItem(cosyKey("equip"), JSON.stringify(COSMETIC)); } catch(_){} }
-function saveItemsLocal(){ try { localStorage.setItem(cosyKey("items"), JSON.stringify([...ownedItems])); } catch(_){} }
+function saveEquip(){ if (MASTER) return; try { localStorage.setItem(cosyKey("equip"), JSON.stringify(COSMETIC)); } catch(_){} }
+function saveItemsLocal(){ if (MASTER) return; try { localStorage.setItem(cosyKey("items"), JSON.stringify([...ownedItems])); } catch(_){} }
 function cacheAttendDays(d){
+  if (MASTER) return;
   if (d > attendDaysKnown){
     attendDaysKnown = d;
     try { localStorage.setItem(cosyKey("adays"), String(d)); } catch(_){}
@@ -3746,13 +3812,15 @@ function gachaTickets(){
 /* 이름(학습자)이 바뀌면 그 아이의 소장품으로 갈아끼웁니다 */
 function cosmeticsForLearner(lid, allBadgeIds){
   COSY_LID = lid;
-  COSMETIC = { char:"chick", hat:"hat_magic", acc:null };
+  COSMETIC = { char:"chick", hat:"hat_magic", acc:null, wand:null };
   ownedItems = new Set((allBadgeIds || []).filter(id => id.startsWith("itm_")).map(id => id.slice(4)));
   attendDaysKnown = 0;
   loadLocalCosy();
+  applyMasterUnlocks();                       // 🧪 마스터 모드면 전부 해금 상태 유지
   if (!isCharUnlocked(COSMETIC.char)) COSMETIC.char = "chick";
   if (COSMETIC.hat && COSMETIC.hat !== "hat_magic" && !ownedItems.has(COSMETIC.hat)) COSMETIC.hat = "hat_magic";
   if (COSMETIC.acc && !ownedItems.has(COSMETIC.acc)) COSMETIC.acc = null;
+  if (COSMETIC.wand && !ownedItems.has(COSMETIC.wand)) COSMETIC.wand = null;
   renderWizard(); renderCloset(); renderGacha(); renderAttendDrawer(); updateGachaDot();
 }
 
@@ -3765,9 +3833,9 @@ function renderWizard(){
 }
 
 /* ---- 👕 옷장 ---- */
-function closetTile(kind, id, name, svg, on, locked, hint){
-  return `<div class="tile ${on ? "on" : ""} ${locked ? "locked" : ""}" data-kind="${kind}" data-id="${id}">
-    ${locked ? '<span class="lock">🔒</span>' : ""}${svg}
+function closetTile(kind, id, name, svg, on, locked, hint, rare){
+  return `<div class="tile ${on ? "on" : ""} ${locked ? "locked" : ""} ${rare ? "rare" : ""}" data-kind="${kind}" data-id="${id}">
+    ${locked ? '<span class="lock">🔒</span>' : ""}${rare ? '<span class="rare-tag">✨레어</span>' : ""}${svg}
     <div class="tn">${locked && hint ? hint : name}</div></div>`;
 }
 function renderCloset(){
@@ -3776,26 +3844,33 @@ function renderCloset(){
   const charTiles = CHARS.map(c => {
     const locked = !isCharUnlocked(c.id);
     const hint = c.special === "allbadges" ? "뱃지 30개 전부!" : `출석 ${c.unlock}일`;
-    return closetTile("char", c.id, c.special ? "🌈 " + c.name : c.name,
-      charSVG({ char:c.id, hat:null, acc:null }), COSMETIC.char === c.id, locked, hint);
+    return closetTile("char", c.id, c.name,
+      charSVG({ char:c.id, hat:null, acc:null }), COSMETIC.char === c.id, locked, hint, !!c.special);
   }).join("");
   const hatTiles = closetTile("hat", "none", "안 쓰기", charSVG({ char:COSMETIC.char, hat:null, acc:null }), !COSMETIC.hat, false)
     + HATS.map(h => {
       const locked = h.gacha && !ownedItems.has(h.id);
       return closetTile("hat", h.id, h.name, charSVG({ char:COSMETIC.char, hat:h.id, acc:null }),
-        COSMETIC.hat === h.id, locked, "뽑기에서!");
+        COSMETIC.hat === h.id, locked, "뽑기에서!", !!h.rare);
     }).join("");
   const accTiles = closetTile("acc", "none", "없음", charSVG({ char:COSMETIC.char, hat:null, acc:null }), !COSMETIC.acc, false)
     + ACCS.map(a => {
       const locked = !ownedItems.has(a.id);
       return closetTile("acc", a.id, a.name, charSVG({ char:COSMETIC.char, hat:null, acc:a.id }),
-        COSMETIC.acc === a.id, locked, "뽑기에서!");
+        COSMETIC.acc === a.id, locked, "뽑기에서!", !!a.rare);
+    }).join("");
+  const wandTiles = closetTile("wand", "none", "기본 지팡이", charSVG({ char:COSMETIC.char, hat:null, acc:null }), !COSMETIC.wand, false)
+    + WANDS.map(w => {
+      const locked = !ownedItems.has(w.id);
+      return closetTile("wand", w.id, w.name, charSVG({ char:COSMETIC.char, hat:null, acc:null, wand:w.id }),
+        COSMETIC.wand === w.id, locked, "뽑기에서!", !!w.rare);
     }).join("");
   body.innerHTML = `
     <div class="closet-preview">${charSVG(COSMETIC)}</div>
     <p class="closet-sub">🐾 캐릭터 (출석 5일마다 새 친구!)</p><div class="tile-grid">${charTiles}</div>
     <p class="closet-sub">🎩 모자</p><div class="tile-grid">${hatTiles}</div>
-    <p class="closet-sub">🎀 액세서리</p><div class="tile-grid">${accTiles}</div>`;
+    <p class="closet-sub">🎀 액세서리</p><div class="tile-grid">${accTiles}</div>
+    <p class="closet-sub">🪄 마법봉</p><div class="tile-grid">${wandTiles}</div>`;
 }
 $("closet-body").addEventListener("click", e => {
   const t = e.target.closest(".tile");
@@ -3804,6 +3879,7 @@ $("closet-body").addEventListener("click", e => {
   if (kind === "char") COSMETIC.char = id;
   if (kind === "hat")  COSMETIC.hat  = id === "none" ? null : id;
   if (kind === "acc")  COSMETIC.acc  = id === "none" ? null : id;
+  if (kind === "wand") COSMETIC.wand = id === "none" ? null : id;
   saveEquip(); renderWizard(); renderCloset();
 });
 
@@ -3847,22 +3923,23 @@ function rollGacha(){
     ownedItems.add(item.id);
     saveItemsLocal();
     const code = cleanCode($("roomcode").value);
-    saveBadges(COSY_LID || LEARNER_ID, code, ["itm_" + item.id]);
+    if (!MASTER) saveBadges(COSY_LID || LEARNER_ID, code, ["itm_" + item.id]);
     // 🎁 첫 뽑기 뱃지 (30번째 뱃지!)
     if (!myBadgeSet.has("firstgacha")){
       myBadgeSet.add("firstgacha");
-      saveBadges(COSY_LID || LEARNER_ID, code, ["firstgacha"]);
+      if (!MASTER) saveBadges(COSY_LID || LEARNER_ID, code, ["firstgacha"]);
       showBadgeToast(BADGE_BY_ID.firstgacha);
       renderBadgeGrid("badge-grid-start", "badge-count-start", myBadgeSet, new Set(["firstgacha"]));
     }
     // 바로 장착해서 보여줍니다
     if (item.id.startsWith("hat_")) COSMETIC.hat = item.id;
+    else if (item.id.startsWith("wand_")) COSMETIC.wand = item.id;
     else COSMETIC.acc = item.id;
     saveEquip(); renderWizard();
     renderGacha(); updateGachaDot();
     const stage = $("gacha-stage");
     if (stage) stage.innerHTML =
-      `<div class="gacha-result">${charSVG(COSMETIC)}
+      `<div class="gacha-result ${item.rare ? "rare" : ""}">${charSVG(COSMETIC)}
         <div class="gr-name">${item.rare ? "🌟 레어! " : "✨ "}${item.name} 획득!</div>
         <div style="font-size:11.5px; color:var(--ink-soft);">${item.rare ? "우와, 정말 귀한 아이템이에요!<br>" : ""}바로 입어봤어요 · 옷장에서 바꿀 수 있어요</div></div>`;
     SFX.stageClear();
@@ -3902,6 +3979,12 @@ function updateGachaDot(){
 
 /* ---- 서랍 열고 닫기 ---- */
 const DRAWERS = ["badge-drawer", "closet-drawer", "gacha-drawer", "attend-drawer"];
+/* 게임 필드는 절대 스크롤되면 안 됩니다 — 숨겨 둔 서랍이 화면 밖에 있어서,
+   브라우저가 포커스 이동 등으로 몰래 밀어버리면 화면이 어긋나 보여요. 항상 0으로 고정. */
+(() => {
+  const f = $("field");
+  if (f) f.addEventListener("scroll", () => { f.scrollLeft = 0; f.scrollTop = 0; });
+})();
 function openDrawer(id){
   const f = $("field");
   if (f){ f.scrollLeft = 0; f.scrollTop = 0; }   // 필드가 옆으로 밀려 있으면 원위치
@@ -4364,6 +4447,20 @@ $("update-close").addEventListener("click", () => {
   try { localStorage.setItem(UPDATE_SEEN_KEY, "1"); } catch(e){}
   $("update-screen").classList.add("hidden");
 });
+
+/* 🧪 마스터 모드 시작 처리 — 전부 해금 + 안내 배지 표시 */
+if (MASTER){
+  applyMasterUnlocks();
+  updateGachaDot(); renderCloset(); renderGacha(); renderAttendDrawer(); renderWizard();
+  renderBadgeGrid("badge-grid-start", "badge-count-start", myBadgeSet, new Set());
+  $("update-screen").classList.add("hidden");     // 테스트 때는 업데이트 팝업 생략
+  const mb = document.createElement("div");
+  mb.textContent = "🧪 마스터 테스트 모드 — 아무것도 저장되지 않아요";
+  mb.style.cssText = "position:absolute; top:10px; left:10px; z-index:40;"
+    + "font-family:var(--font-display); font-size:12.5px; background:#5A4A63; color:#fff;"
+    + "padding:6px 12px; border-radius:999px; opacity:.92;";
+  $("field").appendChild(mb);
+}
 
 /* 예전 방식(브라우저 전체 공유)으로 남은 무한 해금 값을 청소합니다.
    이 값 때문에 공용 컴퓨터에서 남의 해금이 유지되던 문제를 없앱니다. */
