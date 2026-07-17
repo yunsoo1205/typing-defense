@@ -4107,6 +4107,11 @@ let pwPendingCheck = null;   // 입력된 비밀번호가 맞는지 판정하는
    되돌릴 수 없는 해시만 있습니다) */
 const MASTER_NICK = "admin";
 const MASTER_PW_HASH = "bff80cba3967fec766d15b62281e4db552e81cc4dbf46883e6bdaca1015b93bd";
+/* 전각 문자(ａｄｍｉｎ)·공백·대문자로 살짝 바꿔서 관리자를 사칭하는 것까지 잡습니다 */
+function isMasterNick(nick){
+  const n = (nick || "").normalize ? nick.normalize("NFKC") : nick;
+  return n.replace(/\s/g, "").toLowerCase() === MASTER_NICK;
+}
 async function isMasterPw(pw){
   return (await sha256Hex("taja-master::" + pw)) === MASTER_PW_HASH;
 }
@@ -4122,8 +4127,8 @@ async function ensurePwOk(onOk){
   if (MASTER) return onOk();                       // 🧪 마스터 테스트 모드는 통과
   const nick = ($("nickname").value || "").trim();
   if (!nick) return onOk();                         // 별명 없이도 게임은 그대로 가능
-  /* 🧑‍🏫 admin = 관리자 전용 별명 (어느 코드에서든) */
-  if (nick.toLowerCase() === MASTER_NICK){
+  /* 🧑‍🏫 admin = 관리자 전용 별명 (어느 코드에서든, 전각·대문자 변형 포함) */
+  if (isMasterNick(nick)){
     if (AUTHED.has("::master")) return onOk();
     pwPendingOk = () => { AUTHED.add("::master"); onOk(); };
     pwPendingCheck = isMasterPw;
@@ -4168,7 +4173,7 @@ $("open-signup").addEventListener("click", async () => {
   const nick = ($("nickname").value || "").trim();
   const code = cleanCode($("roomcode").value);
   if (!nick){ alert("먼저 위의 ① 칸에 마법사 별명을 적어 주세요!"); return; }
-  if (nick.toLowerCase() === MASTER_NICK){ alert("'admin'은 관리자 전용 별명이라 쓸 수 없어요!"); return; }
+  if (isMasterNick(nick)){ alert("'admin'은 관리자 전용 별명이라 쓸 수 없어요!"); return; }
   if (containsBlockedWord(nick)){ $("nickname-warn").classList.remove("hidden"); return; }
   if (MASTER){ alert("🧪 마스터 모드에서는 비밀번호를 만들 수 없어요."); return; }
   if (!SUPA.on){ alert("인터넷 연결이 필요해요!"); return; }
