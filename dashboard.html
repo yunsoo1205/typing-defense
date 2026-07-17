@@ -264,13 +264,13 @@ tr:last-child td{ border-bottom:none; }
 
   <div class="card">
     <h2>가장 많이 틀리는 단계 <button id="load-difficulty">불러오기</button></h2>
-    <p class="help">최근 30일, 무한 모드 제외. 실패율이 높은 순서예요 — 난이도 밸런스 참고용.</p>
+    <p class="help">최근 30일, 무한 모드 제외. 단어를 입력할 때 <b>틀리게 친 비율</b>이 높은 단계 순서예요 — 난이도 밸런스 참고용.</p>
     <div class="body" id="difficulty-body"><span class="muted">불러오기를 눌러주세요.</span></div>
   </div>
 
   <div class="card">
     <h2>♾️ 무한 마법 최고 기록 <button id="load-infboard">불러오기</button></h2>
-    <p class="help">전체 학교 통틀어 무한 마법 점수 상위 15명이에요.</p>
+    <p class="help">전체 학교 통틀어 무한 마법 점수 상위 15명이에요. (개인정보 보호를 위해 닉네임 대신 암호화 코드로 표시)</p>
     <div class="body" id="infboard-body"><span class="muted">불러오기를 눌러주세요.</span></div>
   </div>
 
@@ -349,6 +349,27 @@ async function rpc(name, body){
 }
 function esc(s){
   return String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c]));
+}
+
+/* 🔒 개인정보 보호 — 대시보드에서는 닉네임 대신 암호화 코드를 보여줍니다.
+   같은 학교의 같은 닉네임이면 항상 같은 코드가 나오므로, 날짜가 지나도
+   같은 학생인지 추적할 수 있어요. (게임 화면의 랭킹은 그대로 닉네임 표시) */
+const _maskCache = new Map();
+async function maskName(name, scope){
+  const key = (scope || "") + "::" + (name || "");
+  if (_maskCache.has(key)) return _maskCache.get(key);
+  let hex;
+  try {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
+    hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  } catch(e){
+    let h = 0;
+    for (let i = 0; i < key.length; i++){ h = (h * 31 + key.charCodeAt(i)) >>> 0; }
+    hex = h.toString(16).padStart(8, "0");
+  }
+  const masked = "학생-" + hex.slice(0, 6);
+  _maskCache.set(key, masked);
+  return masked;
 }
 
 /* ---------- 입장 ---------- */
@@ -604,12 +625,13 @@ async function loadImprovers(){
   try {
     const rows = await rpc("get_dashboard_top_improvers", { p_days: Number(days), p_limit: 10 });
     if (!rows.length){ body.innerHTML = `<span class="muted">비교할 만큼 데이터가 쌓인 학생이 아직 없어요.</span>`; return; }
+    const maskedI = await Promise.all(rows.map(r => maskName(r.nickname, r.school || r.code)));
     body.innerHTML = `
       <table>
-        <tr><th>닉네임</th><th>학교</th><th>이전 평균 CPM</th><th>최근 평균 CPM</th><th>변화</th></tr>
-        ${rows.map(r => `
+        <tr><th>학생 코드</th><th>학교</th><th>이전 평균 CPM</th><th>최근 평균 CPM</th><th>변화</th></tr>
+        ${rows.map((r, ri) => `
           <tr>
-            <td>${esc(r.nickname)}</td>
+            <td><code style="font-size:12px; color:var(--grape);">${esc(maskedI[ri])}</code></td>
             <td>${esc(r.school || r.code)}</td>
             <td>${esc(r.cpm_early)}</td>
             <td>${esc(r.cpm_recent)}</td>
@@ -741,13 +763,14 @@ async function loadInfBoard(){
   try {
     const rows = await rpc("get_dashboard_infinite_leaderboard", { p_limit: 15 });
     if (!rows.length){ body.innerHTML = `<span class="muted">아직 무한 마법 기록이 없어요.</span>`; return; }
+    const masked = await Promise.all(rows.map(r => maskName(r.name, r.school || r.code)));
     body.innerHTML = `
       <table>
-        <tr><th>순위</th><th>닉네임</th><th>점수</th><th>학교</th></tr>
+        <tr><th>순위</th><th>학생 코드</th><th>점수</th><th>학교</th></tr>
         ${rows.map((r, i) => `
           <tr>
             <td>${i + 1}</td>
-            <td>${esc(r.name)}</td>
+            <td><code style="font-size:12px; color:var(--grape);">${esc(masked[i])}</code></td>
             <td>${esc(r.score)}</td>
             <td>${esc(r.school || r.code)}</td>
           </tr>

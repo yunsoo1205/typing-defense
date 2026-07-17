@@ -1654,9 +1654,21 @@ async function supaLoad(code){
   if (!res.ok) throw new Error("load failed");
   return await res.json();
 }
-/* 화면에 보이는 순위표는 '학습자 한 명당 최고점 1줄'만 씁니다. 서버 트리거가
-   더 높은 점수일 때만 덮어쓰므로, 낮은 점수로 실수로 갱신될 걱정이 없습니다. */
+/* 화면에 보이는 순위표는 '학습자 한 명당 최고점 1줄'만 씁니다.
+   ✅ 저장 전에 지금 기록을 먼저 확인해서, 새 점수가 더 높을 때만 덮어씁니다.
+   (예전엔 매 판 점수로 무조건 덮어써서, 나중에 낮은 점수로 최고 기록이
+    깎여 버리는 버그가 있었어요 — 주간 랭킹이 전체 랭킹보다 높아 보이던 원인) */
 async function supaUpsertHigh(code, learnerId, entry){
+  try {
+    const q = `${SUPABASE_URL}/rest/v1/user_high_scores?select=id,score`
+            + `&learner_id=eq.${encodeURIComponent(learnerId)}`
+            + `&code=eq.${encodeURIComponent(code)}&limit=1`;
+    const cur = await fetch(q, { headers: SUPA.headers() });
+    if (cur.ok){
+      const rows = await cur.json();
+      if (rows[0] && rows[0].score >= entry.score) return rows[0];  // 기존 기록이 더 높으면 그대로 둡니다
+    }
+  } catch(e){ /* 확인에 실패하면 아래에서 기존 방식대로 저장을 시도합니다 */ }
   /* 일부 DB에는 stage 컬럼에 '10 이하'(CHECK) 제약이 남아 있어, 우리 반 단계(11)나
      무한 마법 기록이 거부될 수 있어요. 그럴 때를 대비해 안전값(10)으로 한 번 더 시도합니다.
      Supabase에서 제약을 풀면 원래 단계 숫자가 그대로 저장됩니다. */
