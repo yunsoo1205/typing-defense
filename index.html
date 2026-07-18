@@ -898,6 +898,24 @@ body.lang-en .key .kor{ opacity:.25; }
 #lang-chip.hidden{ display:none; }
 #lang-hint.hidden{ display:none; }
 
+/* 🔤 한글/영어 전환 탭 — 시작 화면 한가운데에서 바로 보여요 */
+#lang-tabs{ display:flex; justify-content:center; margin:2px 0; }
+.lang-tab{
+  position:relative; font-family:var(--font-display); font-weight:400; font-size:14.5px;
+  color:var(--ink-soft); background:#fff; border:3px solid #E0D8EA;
+  padding:6px 18px; cursor:pointer; line-height:1.2;
+}
+.lang-tab:first-child{ border-radius:999px 0 0 999px; border-right-width:0; }
+.lang-tab:last-child{ border-radius:0 999px 999px 0; }
+.lang-tab.on{ background:var(--grape); border-color:var(--grape); color:#fff; }
+.lang-tab:not(.on):hover{ background:#F4F1FE; }
+.lang-tab .new-tag{
+  position:absolute; top:-9px; right:-6px; font-size:9.5px; letter-spacing:.04em;
+  background:var(--berry); color:#fff; border-radius:999px; padding:2px 7px;
+  box-shadow:0 2px 0 rgba(90,74,99,.2); animation:newtag-bounce 1.6s ease-in-out infinite;
+}
+@keyframes newtag-bounce{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-3px); } }
+
 /* 📏 낮은 화면(컴퓨터실 모니터·노트북)에서는 시작 화면을 살짝 압축해 스크롤이 안 생기게 합니다 */
 @media (max-height:820px){
   #start-hero svg{ height:52px; }
@@ -989,8 +1007,6 @@ body.lang-en .key .kor{ opacity:.25; }
                 border-radius:999px; opacity:.93;">🔤 ABC 영어 타자 모드</div>
 
     <div id="side-menu" class="hidden">
-      <button class="menu-btn" id="lang-toggle"
-              style="background:#6FA8DC; box-shadow:0 4px 0 #4E86BA;">🔤 영어 타자</button>
       <button class="menu-btn" id="open-badges">🏅 내 뱃지</button>
       <button class="menu-btn" id="open-closet">👕 옷장</button>
       <button class="menu-btn" id="open-gacha">🎁 뽑기<span class="menu-dot hidden" id="gacha-dot"></span></button>
@@ -1044,6 +1060,10 @@ body.lang-en .key .kor{ opacity:.25; }
               이 학교를 지킬 수 있는 건 오직 <b>글자 마법사</b>뿐! ✨<br>
               몬스터의 글자를 똑같이 <b>입력</b>하면 마법이 <b>펑!</b> 하고 터진답니다.
               용감한 마법사님, 학교를 구해 주세요! 🪄
+            </div>
+            <div id="lang-tabs">
+              <button class="lang-tab on" data-lang="ko" id="lang-tab-ko">🇰🇷 한글 타자</button>
+              <button class="lang-tab" data-lang="en" id="lang-toggle">🔤 ABC 영어 타자<span class="new-tag">NEW</span></button>
             </div>
             <div class="name-code-row">
               <div class="ncr-item">
@@ -1252,13 +1272,13 @@ body.lang-en .key .kor{ opacity:.25; }
         <div class="big-emoji">🎉</div>
         <h2>타자 수비대가 새로워졌어요!</h2>
         <div class="update-list">
-          <p>🐥 <b>새 주인공, 병아리 마법사!</b> 대기·마법·아야 동작까지 살아 움직여요.</p>
-          <p>📅 <b>출석 도장판</b> — 단계를 클리어하면 도장이 찍히고, <b>5일마다 새 캐릭터 친구</b>를 받아요! (고양이·강아지·토끼·래서판다·펭귄·부엉이)</p>
-          <p>🎁 <b>뽑기</b> — 뱃지 <b>5개마다 뽑기권 1장</b>! 모자·액세서리·마법봉 6종을 모아요. 👑 왕관과 🌈 무지개 마법봉은 <b>✨레어</b>! <b>이미 뱃지를 5개 이상 모은 친구는 뽑기권이 벌써 준비되어 있어요!</b></p>
-          <p>👕 <b>옷장</b> — 오른쪽 메뉴에서 캐릭터와 아이템을 갈아입어요.</p>
-          <p>🔐 <b>내 별명 지키기</b> — 비밀번호(영어·숫자 4~8자)를 만들면 나만 내 이름으로 게임할 수 있어요. <b>찾기 기능이 없으니 공책에 꼭 적어 두기!</b> (안 만들어도 게임은 그대로 할 수 있어요)</p>
-          <p>🏅 <b>뱃지 30종</b> — '첫 뽑기!' 뱃지가 새로 생겼고, '돌다리도 두들겨라' 조건이 공평하게 바뀌었어요. <b>지금까지 모은 뱃지는 그대로예요!</b> 30개를 전부 모으면… 전설의 <b>🌈 무지개 용</b>이 기다려요!</p>
-          <p>🏆 <b>주간 랭킹</b> — 월요일마다 새로 시작! 전체 랭킹 점수가 낮게 저장되던 오류도 고쳐서 원래 최고점으로 되돌렸어요.</p>
+          <p>🔤 <b>영어 타자 모드가 나왔어요!</b> 시작 화면의 <b>[🔤 ABC 영어 타자]</b> 탭을 눌러 보세요.
+             알파벳 자리 익히기부터 파닉스, 교과서 단어, 영어 문장까지 <b>영타 10단계</b>!
+             영타 랭킹은 한글 타자와 <b>따로</b> 겨뤄요. (뱃지·출석·뽑기는 같이 쌓여요)</p>
+          <p>🐥 <b>랭킹에 내 아바타가 보여요!</b> 옷장에서 꾸민 내 캐릭터 모습이 랭킹에 함께 나와요.
+             새로 기록하는 점수부터 반영돼요. 자랑할 시간!</p>
+          <p>⌨️ <b>한/영 키 도우미</b> — 모드와 다른 글자가 쳐지면 "한/영 키를 눌러요!" 풍선이 알려줘요.</p>
+          <p>💾 지금까지의 <b>점수·뱃지·아이템은 전부 그대로</b>예요. 안심하세요!</p>
         </div>
         <button class="btn" id="update-close">✅ 확인했어요!</button>
       </div>
@@ -4670,7 +4690,7 @@ function setLang(l){
   LANG = l;
   STAGES = (l === "en") ? STAGES_EN : STAGES_KO;
   document.body.classList.toggle("lang-en", l === "en");
-  $("lang-toggle").textContent = l === "en" ? "🇰🇷 한글 타자" : "🔤 영어 타자";
+  document.querySelectorAll(".lang-tab").forEach(b => b.classList.toggle("on", b.dataset.lang === l));
   $("lang-chip").classList.toggle("hidden", l !== "en");
   $("answer").placeholder = l === "en" ? "Type here and press Enter!" : "여기에 글자를 입력하고 Enter!";
   $("lang-hint").classList.add("hidden");
@@ -4678,7 +4698,8 @@ function setLang(l){
   refreshClassStage();          // 우리 반 단계 다시 계산 (영타 모드에선 제외)
   refreshStartRanks();          // 이 언어의 랭킹으로 갱신 (영타 랭킹은 따로!)
 }
-$("lang-toggle").addEventListener("click", () => setLang(LANG === "en" ? "ko" : "en"));
+document.querySelectorAll(".lang-tab").forEach(b =>
+  b.addEventListener("click", () => { if (b.dataset.lang !== LANG) setLang(b.dataset.lang); }));
 
 /* ⌨️ 한/영 키 안내 — 지금 모드와 다른 글자가 입력되면 알려줍니다 */
 input.addEventListener("input", () => {
@@ -4917,7 +4938,7 @@ getLearnerId().then(id => {
 });
 
 /* 🎉 업데이트 안내 — 처음 한 번만 보여주고, 확인을 누르면 기억합니다 */
-const UPDATE_SEEN_KEY = "update-seen-v47";
+const UPDATE_SEEN_KEY = "update-seen-v51";   // 키를 바꾸면 모두에게 새 공지가 한 번 보여요
 try {
   if (!localStorage.getItem(UPDATE_SEEN_KEY)) $("update-screen").classList.remove("hidden");
 } catch(e){}
