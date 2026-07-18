@@ -893,6 +893,11 @@ body.night-mode #field::after{
 @media (max-width:520px){
   .spellbook, #mode-picker{ grid-template-columns:1fr; }
 }
+/* 🔤 영어 모드: 자판의 한글 낱자 표시를 흐리게 (알파벳이 주인공!) */
+body.lang-en .key .kor{ opacity:.25; }
+#lang-chip.hidden{ display:none; }
+#lang-hint.hidden{ display:none; }
+
 /* 📏 낮은 화면(컴퓨터실 모니터·노트북)에서는 시작 화면을 살짝 압축해 스크롤이 안 생기게 합니다 */
 @media (max-height:820px){
   #start-hero svg{ height:52px; }
@@ -977,7 +982,15 @@ body.night-mode #field::after{
     <div id="base"><div id="wizard">🧙</div><div id="school">🏫</div></div>
 
     <!-- 🏅 오른쪽 메뉴 (뱃지·옷장·뽑기·출석) + 서랍들 -->
+    <!-- 🔤 언어 표시 칩 (영어 모드일 때만) -->
+    <div id="lang-chip" class="hidden"
+         style="position:absolute; top:10px; left:10px; z-index:40; font-family:var(--font-display);
+                font-size:12.5px; background:#3E7BB6; color:#fff; padding:6px 12px;
+                border-radius:999px; opacity:.93;">🔤 ABC 영어 타자 모드</div>
+
     <div id="side-menu" class="hidden">
+      <button class="menu-btn" id="lang-toggle"
+              style="background:#6FA8DC; box-shadow:0 4px 0 #4E86BA;">🔤 영어 타자</button>
       <button class="menu-btn" id="open-badges">🏅 내 뱃지</button>
       <button class="menu-btn" id="open-closet">👕 옷장</button>
       <button class="menu-btn" id="open-gacha">🎁 뽑기<span class="menu-dot hidden" id="gacha-dot"></span></button>
@@ -1283,7 +1296,12 @@ body.night-mode #field::after{
       <div id="kb-rows"></div>
       <div id="hands"></div>
     </div>
-    <div id="input-row">
+    <div id="input-row" style="position:relative;">
+      <div id="lang-hint" class="hidden"
+           style="position:absolute; left:50%; transform:translateX(-50%); top:-38px; z-index:30;
+                  font-family:var(--font-display); font-size:13.5px; white-space:nowrap;
+                  background:#FF8FA8; color:#fff; padding:7px 16px; border-radius:999px;
+                  box-shadow:0 3px 0 rgba(90,74,99,.18);">⌨️ 한/영 키를 눌러요!</div>
       <input id="answer" type="text" autocomplete="off" autocapitalize="off"
              spellcheck="false" placeholder="여기에 글자를 입력하고 Enter!" />
       <button id="enter-key">Enter</button>
@@ -1296,7 +1314,7 @@ body.night-mode #field::after{
 /* =========================================================================
    ★ 단계별 단어 데이터 — 이 배열만 고치면 문제 내용이 바뀝니다 ★
    ========================================================================= */
-const STAGES = [
+const STAGES_KO = [
   {
     num: 1, name: "모음 자리",
     desc: "오른손 자리 연습! 모음 하나씩 또박또박 눌러 보세요.",
@@ -1405,6 +1423,101 @@ const STAGES = [
     monsters: ["🐲","👾","🔥"], speed: 55, spawnEvery: 4.6
   }
 ];
+
+/* =========================================================================
+   🔤 영타 모드 단계 (1~10단계) — 자판 줄 익히기부터 짧은 문장까지.
+   랭킹은 한글 타자와 완전히 분리됩니다 (코드 뒤에 -A/-B/-C가 붙어요).
+   ========================================================================= */
+const STAGES_EN = [
+  {
+    num: 1, name: "첫째 줄 (Q~P)",
+    desc: "자판 첫째 줄! 알파벳 자리를 손가락으로 익혀요.",
+    words: ["q","w","e","r","t","y","u","i","o","p"],
+    monsters: ["🐛","🐌","🐞"], speed: 58, spawnEvery: 2.4
+  },
+  {
+    num: 2, name: "둘째 줄 (A~L)",
+    desc: "홈로우! 손가락이 항상 돌아오는 기준 줄이에요.",
+    words: ["a","s","d","f","g","h","j","k","l"],
+    monsters: ["🐜","🕷️","🦗"], speed: 62, spawnEvery: 2.3
+  },
+  {
+    num: 3, name: "셋째 줄 (Z~M)",
+    desc: "아랫줄까지 손가락을 쭉 뻗어 보세요.",
+    words: ["z","x","c","v","b","n","m"],
+    monsters: ["👾","🦠","🐙"], speed: 66, spawnEvery: 2.3
+  },
+  {
+    num: 4, name: "알파벳 종합",
+    desc: "세 줄을 섞어서 알파벳 전체를 복습해요.",
+    words: ["t","o","e","a","n","i","r","s","l","c","u","d","m",
+            "h","p","g","b","f","y","w","k","v","x","z","j","q"],
+    monsters: ["🦑","🐲","👹"], speed: 78, spawnEvery: 2.1
+  },
+  {
+    num: 5, name: "두 글자 조합",
+    desc: "영어 단어에 자주 나오는 두 글자 콤보예요 (sh, ch, th...).",
+    words: ["sh","ch","th","wh","ck","qu","bl","br","cl","cr",
+            "dr","fl","fr","gr","pl","pr","sl","sp","st","tr"],
+    monsters: ["👺","🤖","👻"], speed: 85, spawnEvery: 2.0
+  },
+  {
+    num: 6, name: "파닉스 단어",
+    desc: "3~4글자짜리 쉬운 파닉스 단어예요.",
+    words: ["cat","hat","map","sun","dog","pig","bus","cup","hen","box",
+            "fox","run","big","red","hot","wet","six","ten","yes","bed",
+            "pen","cap","bag","top","mom","dad","fan","jam","log","mud"],
+    monsters: ["😈","🦂","🐊"], speed: 95, spawnEvery: 1.9
+  },
+  {
+    num: 7, name: "3~4학년 단어",
+    desc: "교과서에 자주 나오는 기본 단어예요.",
+    words: ["apple","banana","book","cap","doll","egg","fish","girl","hat","juice",
+            "kite","lion","milk","nose","orange","pencil","queen","rabbit","tiger","umbrella",
+            "water","box","house","tree","ball","desk","chair","door","window","bag",
+            "ruler","clock","bike","train","rain","snow","moon","star","happy","sad"],
+    monsters: ["🧟","🦖","🐉"], speed: 90, spawnEvery: 2.1
+  },
+  {
+    num: 8, name: "5~6학년 단어",
+    desc: "조금 긴 단어에 도전! 또박또박 정확하게.",
+    words: ["weather","subject","science","music","sports","soccer","swimming","cooking",
+            "weekend","holiday","birthday","present","tomorrow","hospital","restaurant",
+            "museum","library","market","festival","vacation","homework","classroom",
+            "teacher","student","exercise","breakfast","lunch","dinner","delicious",
+            "expensive","difficult","important","dangerous","favorite","hobby","address",
+            "computer","internet","robot","history",
+            "animal","question","answer","family","friend","morning","afternoon",
+            "evening","country","travel","picture","future"],
+    monsters: ["👹","🦇","🕸️"], speed: 85, spawnEvery: 2.3
+  },
+  {
+    num: 9, name: "대문자 연습 (Shift)",
+    desc: "새끼손가락으로 Shift를 누른 채 첫 글자를 대문자로!",
+    words: ["Hello","Good","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday",
+            "January","February","March","April","May","June","July","August","September",
+            "October","November","December","Korea","Seoul","English","Math","Science",
+            "Mr","Mrs","Miss"],
+    monsters: ["🛸","👽","🤖"], speed: 80, spawnEvery: 2.6
+  },
+  {
+    num: 10, name: "짧은 문장",
+    desc: "마지막 단계! 스페이스로 띄어 쓰며 문장을 완성해요.",
+    words: ["Good morning","Good afternoon","Good evening","Good night","Hello teacher",
+            "Thank you","Nice day","I am fine","See you","My name",
+            "Happy birthday","Good job","Well done","Have fun","I like it",
+            "Here we go","Excuse me","I am sorry","Take care","Good luck",
+            "How are you","What is this","I am a student","This is my bag",
+            "Where are you","I like you","Can you help me","It is very cold",
+            "You did it","I love school"],
+    monsters: ["🐲","👾","🔥"], speed: 55, spawnEvery: 4.4
+  }
+];
+
+/* 🔤 현재 언어 — 항상 한국어로 시작하고, 시작 화면의 버튼으로 바꿉니다.
+   (공용 컴퓨터에서 다음 아이가 헷갈리지 않게 새로고침하면 한국어로 돌아와요) */
+let LANG = "ko";
+let STAGES = STAGES_KO;
 
 /* ------------------------- 게임 규칙 상수 ------------------------- */
 const KILLS_PER_STAGE = 10;   // 한 단계에서 잡아야 하는 몬스터 수 (아이템은 안 셈)
@@ -1579,7 +1692,8 @@ async function loadClassWords(code){
 function applyCustomStage(words, difficulty){
   const last = STAGES[STAGES.length - 1];
   if (last && last.custom) STAGES.pop();            // 예전 것 제거
-  if (words && words.length) STAGES.push(makeCustomStage(words, difficulty));
+  /* 우리 반 단계는 한글 단어라서 영타 모드에서는 붙이지 않아요 */
+  if (words && words.length && LANG !== "en") STAGES.push(makeCustomStage(words, difficulty));
   buildStageOptions();
 }
 
@@ -2104,12 +2218,17 @@ function cleanCode(v){
    ⚠️ code는 최대 8자, 접미사는 반드시 2자로 맞춰야 합니다 (Supabase의
    scores_code_check 제약이 code 컬럼 길이를 10자로 제한하기 때문이에요). */
 function rankKeyFor(code, mode){
+  /* 🔤 영타 랭킹은 한글 타자와 완전히 분리: -A(초급) / -B(고급) / -C(무한) */
+  if (LANG === "en"){
+    if (mode === "inf") return code + "-C";
+    return code + (mode > 1 ? "-B" : "-A");
+  }
   if (mode === "inf") return code + "-I";
   return code + (mode > 1 ? "-H" : "-E");
 }
 function modeLabel(mode){
-  if (mode === "inf") return "♾️ 무한";
-  return mode > 1 ? "🔥 고급" : "🐣 초급";
+  const base = mode === "inf" ? "♾️ 무한" : (mode > 1 ? "🔥 고급" : "🐣 초급");
+  return LANG === "en" ? "🔤영타 " + base : base;
 }
 
 /* =========================================================================
@@ -2465,6 +2584,11 @@ function textToKeys(text){
   for (const ch of text){
     for (const j of splitJamo(ch)){
       if (j === " "){ keys.push({ key:"space", shift:0, jamo:"스페이스" }); continue; }
+      /* 🔤 영어 알파벳: 그 키 그대로! 대문자는 Shift와 함께 */
+      if (/^[A-Za-z]$/.test(j)){
+        keys.push({ key: j.toLowerCase(), shift: j === j.toLowerCase() ? 0 : 1, jamo: j });
+        continue;
+      }
       const k = KEYMAP[j];
       keys.push(k ? { key:k[0], shift:k[1], jamo:j } : { key:null, shift:0, jamo:j, unknown:true });
     }
@@ -2554,7 +2678,13 @@ function composeKeysToStates(keys){
 const composeCache = new Map();
 function statesFor(word){
   let s = composeCache.get(word);
-  if (!s){ s = composeKeysToStates(textToKeys(word)); composeCache.set(word, s); }
+  if (!s){
+    /* 🔤 영어 단어는 조합이 없어서, 한 글자씩 늘어나는 상태 그대로예요 (c, ca, cat) */
+    s = /^[A-Za-z ]+$/.test(word)
+      ? Array.from(word, (_, i) => word.slice(0, i + 1))
+      : composeKeysToStates(textToKeys(word));
+    composeCache.set(word, s);
+  }
   return s;
 }
 
@@ -4533,6 +4663,30 @@ function showBadgeButton(on){
 $("open-badges").addEventListener("click", () => {
   refreshStartBadges();
   openDrawer("badge-drawer");
+});
+
+/* 🔤 한글 ↔ 영어 타자 모드 전환 (기본은 한국어 · 새로고침하면 한국어로 돌아와요) */
+function setLang(l){
+  LANG = l;
+  STAGES = (l === "en") ? STAGES_EN : STAGES_KO;
+  document.body.classList.toggle("lang-en", l === "en");
+  $("lang-toggle").textContent = l === "en" ? "🇰🇷 한글 타자" : "🔤 영어 타자";
+  $("lang-chip").classList.toggle("hidden", l !== "en");
+  $("answer").placeholder = l === "en" ? "Type here and press Enter!" : "여기에 글자를 입력하고 Enter!";
+  $("lang-hint").classList.add("hidden");
+  buildStageOptions();          // 단계 드롭다운을 이 언어의 단계로
+  refreshClassStage();          // 우리 반 단계 다시 계산 (영타 모드에선 제외)
+  refreshStartRanks();          // 이 언어의 랭킹으로 갱신 (영타 랭킹은 따로!)
+}
+$("lang-toggle").addEventListener("click", () => setLang(LANG === "en" ? "ko" : "en"));
+
+/* ⌨️ 한/영 키 안내 — 지금 모드와 다른 글자가 입력되면 알려줍니다 */
+input.addEventListener("input", () => {
+  const v = input.value;
+  const bad = LANG === "en" ? /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(v) : /[A-Za-z]/.test(v);
+  if (bad) $("lang-hint").textContent = LANG === "en"
+    ? "⌨️ 한/영 키를 눌러 영어로 바꿔요!" : "⌨️ 한/영 키를 눌러 한글로 바꿔요!";
+  $("lang-hint").classList.toggle("hidden", !bad);
 });
 $("mute-btn").addEventListener("click", () => {
   Sound.init();

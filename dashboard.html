@@ -283,6 +283,15 @@ tr:last-child td{ border-bottom:none; }
     <div class="body" id="infboard-body"><span class="muted">불러오기를 눌러주세요.</span></div>
   </div>
 
+  <div class="card">
+    <h2>🔤 영타 모드 현황 <button id="load-english">불러오기</button></h2>
+    <p class="help">
+      최근 30일 영어 타자 기록이에요. 단계별 정답률, 아이들이 자주 틀리는 영어 단어,
+      영타 무한 최고 기록을 한 번에 보여줍니다. (영타대시보드.sql을 실행해야 나와요)
+    </p>
+    <div class="body" id="english-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+  </div>
+
   </div><!-- /tab-panel: main -->
 
   <div class="tab-panel hidden" data-tab="typing">
@@ -353,7 +362,10 @@ const SCOPED_RPCS = new Set([
   "get_dashboard_today_typing_speed",
   "get_dashboard_today_typing_speed_by_mode",
   "get_dashboard_stage_difficulty",
-  "get_dashboard_infinite_leaderboard"
+  "get_dashboard_infinite_leaderboard",
+  "get_dashboard_english_stage",
+  "get_dashboard_english_words",
+  "get_dashboard_english_infinite"
 ]);
 function dashScope(){
   const k = document.getElementById("scope-korea")?.checked;
@@ -811,6 +823,62 @@ async function loadInfBoard(){
   }
 }
 
+/* ---------- 🔤 영타 모드 현황 ---------- */
+async function loadEnglish(){
+  const body = document.getElementById("english-body");
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const [stages, words, inf] = await Promise.all([
+      rpc("get_dashboard_english_stage", { p_days: 30 }),
+      rpc("get_dashboard_english_words", { p_days: 30, p_limit: 15 }),
+      rpc("get_dashboard_english_infinite", { p_limit: 10 })
+    ]);
+    if (!stages.length && !words.length && !inf.length){
+      body.innerHTML = `<span class="muted">최근 30일 영타 기록이 아직 없어요. 아이들이 영어 모드로 플레이하면 여기에 쌓입니다.</span>`;
+      return;
+    }
+    const totalTry  = stages.reduce((a, r) => a + Number(r.attempts), 0);
+    const totalFail = stages.reduce((a, r) => a + Number(r.fails), 0);
+    const acc = totalTry ? (100 - 100 * totalFail / totalTry).toFixed(1) : "–";
+    const stageTable = stages.length ? `
+      <p style="margin:10px 0 4px; font-weight:bold;">단계별 정답률</p>
+      <table>
+        <tr><th>단계</th><th>시도</th><th>실패</th><th>실패율</th></tr>
+        ${stages.map(r => `
+          <tr><td>${esc(r.stage === 11 ? "♾️ 무한" : r.stage)}</td><td>${esc(r.attempts)}</td>
+              <td>${esc(r.fails)}</td><td>${r.fail_rate != null ? esc(r.fail_rate) + "%" : "-"}</td></tr>`).join("")}
+      </table>` : "";
+    const wordTable = words.length ? `
+      <p style="margin:14px 0 4px; font-weight:bold;">자주 틀리는 영어 단어 TOP</p>
+      <table>
+        <tr><th>단어</th><th>시도</th><th>실패</th><th>실패율</th></tr>
+        ${words.map(r => `
+          <tr><td><code>${esc(r.word)}</code></td><td>${esc(r.attempts)}</td>
+              <td>${esc(r.fails)}</td><td>${r.fail_rate != null ? esc(r.fail_rate) + "%" : "-"}</td></tr>`).join("")}
+      </table>` : "";
+    let infTable = "";
+    if (inf.length){
+      const masked = await Promise.all(inf.map(r => maskName(r.name, r.school || r.code)));
+      infTable = `
+      <p style="margin:14px 0 4px; font-weight:bold;">♾️ 영타 무한 최고 기록</p>
+      <table>
+        <tr><th>순위</th><th>학생 코드</th><th>점수</th><th>학교</th></tr>
+        ${inf.map((r, i) => `
+          <tr><td>${i + 1}</td><td><code style="font-size:12px; color:var(--grape);">${esc(masked[i])}</code></td>
+              <td>${esc(r.score)}</td><td>${esc(r.school || r.code)}</td></tr>`).join("")}
+      </table>`;
+    }
+    body.innerHTML = `
+      <div class="summary-row">
+        <div class="stat"><div class="num">${esc(totalTry)}</div><div class="label">최근 30일 영어 단어 시도</div></div>
+        <div class="stat"><div class="num">${esc(acc)}%</div><div class="label">전체 정답률</div></div>
+      </div>
+      ${stageTable}${wordTable}${infTable}`;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 — 영타대시보드.sql을 아직 실행하지 않았을 수 있어요. (${esc(e.message).slice(0,120)})</span>`;
+  }
+}
+
 /* ---------- 오늘 평균 타수 (허수 제외) ---------- */
 async function loadTypingSpeed(){
   const wrap = document.getElementById("typing-stats");
@@ -897,6 +965,7 @@ function initDashboard(){
       const k = document.getElementById("scope-korea"), s = document.getElementById("scope-school");
       if (!k.checked && !s.checked){ e.target.checked = true; return; }
       loadToday(); loadTypingSpeed(); loadTypingSpeedByMode(); loadDifficulty(); loadInfBoard();
+      if (!document.getElementById("english-body").innerHTML.includes("불러오기를 눌러주세요")) loadEnglish();
     });
   });
 
@@ -935,6 +1004,7 @@ function initDashboard(){
   document.getElementById("load-dropoff").addEventListener("click", loadDropoff);
   document.getElementById("load-difficulty").addEventListener("click", loadDifficulty);
   document.getElementById("load-infboard").addEventListener("click", loadInfBoard);
+  document.getElementById("load-english").addEventListener("click", loadEnglish);
 
   setInterval(loadToday, 60000);
   setInterval(loadActivity, 30000);
