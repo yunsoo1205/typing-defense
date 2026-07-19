@@ -164,6 +164,8 @@ tr:last-child td{ border-bottom:none; }
       <div class="stat"><div class="num">–</div><div class="label">사용자 수</div></div>
       <div class="stat"><div class="num">–</div><div class="label">플레이 수</div></div>
       <div class="stat"><div class="num">–</div><div class="label">접속 학교 수</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">👀 열어본 횟수</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">👀 방문 브라우저 수</div></div>
     </div>
     <div class="body" id="week-heatmap" style="margin-top:10px;"><span class="muted">불러오는 중...</span></div>
   </div>
@@ -388,7 +390,8 @@ const SCOPED_RPCS = new Set([
   "get_dashboard_english_words",
   "get_dashboard_english_infinite",
   "get_dashboard_week_summary",
-  "get_dashboard_hourly_pattern_range"
+  "get_dashboard_hourly_pattern_range",
+  "get_dashboard_visits"
 ]);
 function dashScope(){
   const k = document.getElementById("scope-korea")?.checked;
@@ -530,15 +533,19 @@ async function loadWeekly(){
   const wrap = document.getElementById("week-stats");
   const hm = document.getElementById("week-heatmap");
   try {
-    const [sumRows, patRows] = await Promise.all([
+    const [sumRows, patRows, visitRows] = await Promise.all([
       rpc("get_dashboard_week_summary", args),
-      rpc("get_dashboard_hourly_pattern_range", args)
+      rpc("get_dashboard_hourly_pattern_range", args),
+      rpc("get_dashboard_visits", args).catch(() => null)   // 방문기록.sql 전이면 조용히 "-"
     ]);
     const r = sumRows[0] || {};
+    const v = (visitRows && visitRows[0]) || {};
     wrap.innerHTML = `
       <div class="stat"><div class="num">${esc(r.users ?? 0)}</div><div class="label">사용자 수</div></div>
       <div class="stat"><div class="num">${esc(r.plays ?? 0)}</div><div class="label">플레이 수</div></div>
-      <div class="stat"><div class="num">${esc(r.schools ?? 0)}</div><div class="label">접속 학교 수</div></div>`;
+      <div class="stat"><div class="num">${esc(r.schools ?? 0)}</div><div class="label">접속 학교 수</div></div>
+      <div class="stat"><div class="num">${visitRows ? esc(v.opens ?? 0) : "–"}</div><div class="label">👀 열어본 횟수</div></div>
+      <div class="stat"><div class="num">${visitRows ? esc(v.visitors ?? 0) : "–"}</div><div class="label">👀 방문 브라우저 수</div></div>`;
     hm.innerHTML = heatmapTable(patRows);
   } catch(e){
     wrap.innerHTML = `<span class="muted">불러오기 실패 — 통계추가.sql을 아직 실행하지 않았을 수 있어요. (${esc(e.message).slice(0,120)})</span>`;

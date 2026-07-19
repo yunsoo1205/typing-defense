@@ -4944,6 +4944,22 @@ if (CODE_LOCKED){
   const ca = document.querySelector("#start-screen .code-area");
   if (ca) ca.style.display = "none";
 }
+/* 👀 방문 기록 — '열기만 한 사람'도 셀 수 있게, 첫 화면이 열리면 작은 기록 한 줄을
+   남깁니다. (무작위 브라우저 번호 + 학급 코드 + 시각 — 개인정보 없음)
+   실패해도 게임에는 아무 영향이 없어요. 마스터 테스트 모드는 기록하지 않아요. */
+(function logVisit(){
+  try {
+    if (MASTER || !SUPA.on) return;
+    let vid = localStorage.getItem("taja-vid");
+    if (!vid){ vid = crypto.randomUUID(); localStorage.setItem("taja-vid", vid); }
+    fetch(`${SUPABASE_URL}/rest/v1/visits`, {
+      method: "POST",
+      headers: SUPA.headers({ "Prefer": "return=minimal" }),
+      body: JSON.stringify({ vid, code: DEFAULT_CODE })
+    }).catch(() => {});
+  } catch(e){}
+})();
+
 buildKeyboard();
 setMode(1.0);
 syncPeriodUI();          // 📅 주간/전체 토글·안내문구 초기화
