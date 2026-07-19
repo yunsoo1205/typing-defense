@@ -149,6 +149,27 @@ tr:last-child td{ border-bottom:none; }
 
   <div class="card">
     <h2>
+      📆 주간 사용자 현황
+      <span>
+        <select id="week-select"></select>
+        <button id="refresh-week">새로고침</button>
+      </span>
+    </h2>
+    <p class="help">
+      월요일~일요일 한 주 단위예요. 주가 바뀌어도 "이번 주"가 자동으로 새 주를 가리키니
+      이번 주 사용자 수를 언제나 볼 수 있어요. 아래 히트맵은 고른 주의 요일×시간대 접속(플레이) 분포입니다.
+      (통계추가.sql 실행 후 작동해요)
+    </p>
+    <div class="summary-row" id="week-stats">
+      <div class="stat"><div class="num">–</div><div class="label">사용자 수</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">플레이 수</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">접속 학교 수</div></div>
+    </div>
+    <div class="body" id="week-heatmap" style="margin-top:10px;"><span class="muted">불러오는 중...</span></div>
+  </div>
+
+  <div class="card">
+    <h2>
       최근 활동
       <span>
         <select id="hours-select">
@@ -365,7 +386,9 @@ const SCOPED_RPCS = new Set([
   "get_dashboard_infinite_leaderboard",
   "get_dashboard_english_stage",
   "get_dashboard_english_words",
-  "get_dashboard_english_infinite"
+  "get_dashboard_english_infinite",
+  "get_dashboard_week_summary",
+  "get_dashboard_hourly_pattern_range"
 ]);
 function dashScope(){
   const k = document.getElementById("scope-korea")?.checked;
@@ -446,6 +469,80 @@ async function loadToday(){
     `;
   } catch(e){
     wrap.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,120)})</span>`;
+  }
+}
+
+/* ---------- 📆 주간 사용자 현황 ---------- */
+function mondayOf(d){                       // 그 날짜가 속한 주의 월요일 00:00 (한국시간 기준)
+  const x = new Date(d); x.setHours(0, 0, 0, 0);
+  const day = x.getDay();
+  x.setDate(x.getDate() - (day === 0 ? 6 : day - 1));
+  return x;
+}
+function weekLabel(mon){                    // 그 주 목요일이 속한 달 기준 "N월 M주" (예: 7/13주 → 7월 3주)
+  const thu = new Date(mon); thu.setDate(thu.getDate() + 3);
+  const ord = Math.floor((thu.getDate() - 1) / 7) + 1;
+  const end = new Date(mon); end.setDate(end.getDate() + 6);
+  const f = d => `${d.getMonth() + 1}/${d.getDate()}`;
+  return `${thu.getMonth() + 1}월 ${ord}주 (${f(mon)}~${f(end)})`;
+}
+function buildWeekOptions(){
+  const sel = document.getElementById("week-select");
+  const thisMon = mondayOf(new Date());
+  let html = "";
+  for (let i = 0; i < 12; i++){             // 최근 12주까지 골라볼 수 있어요
+    const mon = new Date(thisMon); mon.setDate(mon.getDate() - 7 * i);
+    const label = (i === 0 ? "이번 주 · " : i === 1 ? "지난주 · " : "") + weekLabel(mon);
+    html += `<option value="${mon.toISOString()}"${i === 0 ? " selected" : ""}>${label}</option>`;
+  }
+  sel.innerHTML = html;
+}
+function heatmapTable(rows){
+  if (!rows || !rows.length) return `<span class="muted">이 주에는 접속 기록이 없어요.</span>`;
+  const DOW = ["일","월","화","수","목","금","토"];
+  const grid = Array.from({ length: 24 }, () => Array(7).fill(0));
+  let max = 1;
+  rows.forEach(r => {
+    const h = Number(r.hour), d = Number(r.dow);
+    if (h >= 0 && h < 24 && d >= 0 && d < 7){
+      grid[h][d] = Number(r.plays);
+      if (grid[h][d] > max) max = grid[h][d];
+    }
+  });
+  let html = `<table><tr><th></th>${DOW.map(d => `<th>${d}</th>`).join("")}</tr>`;
+  for (let h = 0; h < 24; h++){
+    html += `<tr><td class="muted">${h}시</td>`;
+    for (let d = 0; d < 7; d++){
+      const v = grid[h][d];
+      const alpha = v ? Math.max(0.12, v / max) : 0;
+      html += `<td style="background:rgba(155,140,240,${alpha}); text-align:center; color:${alpha > 0.55 ? '#fff' : 'var(--ink)'};">${v || ""}</td>`;
+    }
+    html += `</tr>`;
+  }
+  return html + `</table>`;
+}
+async function loadWeekly(){
+  const sel = document.getElementById("week-select");
+  if (!sel.options.length) buildWeekOptions();
+  const start = new Date(sel.value);
+  const end = new Date(start); end.setDate(end.getDate() + 7);
+  const args = { p_start: start.toISOString(), p_end: end.toISOString() };
+  const wrap = document.getElementById("week-stats");
+  const hm = document.getElementById("week-heatmap");
+  try {
+    const [sumRows, patRows] = await Promise.all([
+      rpc("get_dashboard_week_summary", args),
+      rpc("get_dashboard_hourly_pattern_range", args)
+    ]);
+    const r = sumRows[0] || {};
+    wrap.innerHTML = `
+      <div class="stat"><div class="num">${esc(r.users ?? 0)}</div><div class="label">사용자 수</div></div>
+      <div class="stat"><div class="num">${esc(r.plays ?? 0)}</div><div class="label">플레이 수</div></div>
+      <div class="stat"><div class="num">${esc(r.schools ?? 0)}</div><div class="label">접속 학교 수</div></div>`;
+    hm.innerHTML = heatmapTable(patRows);
+  } catch(e){
+    wrap.innerHTML = `<span class="muted">불러오기 실패 — 통계추가.sql을 아직 실행하지 않았을 수 있어요. (${esc(e.message).slice(0,120)})</span>`;
+    hm.innerHTML = "";
   }
 }
 
@@ -949,6 +1046,8 @@ function switchTab(tab){
 
 function initDashboard(){
   loadToday();
+  buildWeekOptions();
+  loadWeekly();
   loadActivity();
   loadStreak();
   loadTypingSpeed();
@@ -964,12 +1063,14 @@ function initDashboard(){
     document.getElementById(id).addEventListener("change", (e) => {
       const k = document.getElementById("scope-korea"), s = document.getElementById("scope-school");
       if (!k.checked && !s.checked){ e.target.checked = true; return; }
-      loadToday(); loadTypingSpeed(); loadTypingSpeedByMode(); loadDifficulty(); loadInfBoard();
+      loadToday(); loadWeekly(); loadTypingSpeed(); loadTypingSpeedByMode(); loadDifficulty(); loadInfBoard();
       if (!document.getElementById("english-body").innerHTML.includes("불러오기를 눌러주세요")) loadEnglish();
     });
   });
 
   document.getElementById("refresh-today").addEventListener("click", loadToday);
+  document.getElementById("refresh-week").addEventListener("click", loadWeekly);
+  document.getElementById("week-select").addEventListener("change", loadWeekly);
   document.getElementById("refresh-typing").addEventListener("click", loadTypingSpeed);
   document.getElementById("refresh-typing-mode").addEventListener("click", loadTypingSpeedByMode);
   document.getElementById("refresh-cumulative").addEventListener("click", loadCumulative);
