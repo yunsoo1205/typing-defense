@@ -616,7 +616,7 @@ async function loadGritCurve(lid){
     box.innerHTML = `
       <p style="margin:4px 0 6px; font-weight:bold;">📈 ${esc(maskLid(lid))} — 날짜별 평균 CPM (막대가 길수록 빨라진 거예요)</p>
       <table>
-        <tr><th>날짜</th><th>판수</th><th style="width:45%;">평균 CPM</th><th>최고</th><th>KPM</th><th>견습</th></tr>
+        <tr><th>날짜</th><th>판수</th><th style="width:32%;">평균 CPM</th><th>최고</th><th>KPM</th><th>시도한 모드·단계</th></tr>
         ${rows.map(r => {
           const v = Number(r.avg_cpm) || 0;
           const w = Math.round(100 * v / maxCpm);
@@ -628,11 +628,12 @@ async function loadGritCurve(lid){
                   <span>${v ? esc(v) : "-"}</span></div></td>
             <td>${r.max_cpm != null ? esc(r.max_cpm) : "-"}</td>
             <td>${r.avg_kpm != null ? esc(r.avg_kpm) : "-"}</td>
-            <td class="muted">${esc(r.practice_plays)}판</td>
+            <td style="font-size:12px;">${esc(r.modes || "-")}${Number(r.practice_plays) ? ` <span class="muted">(견습 ${esc(r.practice_plays)}판)</span>` : ""}</td>
           </tr>`;
         }).join("")}
       </table>
-      <p class="muted" style="margin-top:6px;">평균 CPM은 견습 모드와 5초 미만 판을 뺀 값이라, 점수 거품 없는 실제 타자 속도예요.</p>`;
+      <p class="muted" style="margin-top:6px;">평균 CPM은 견습 모드와 5초 미만 판을 뺀 값이라, 점수 거품 없는 실제 타자 속도예요.
+        CPM이 낮아진 날은 <b>더 어려운 모드·단계에 도전</b>한 경우가 많아요 (오른쪽 칸 참고).</p>`;
   } catch(e){
     box.innerHTML = `<span class="muted">곡선을 불러오지 못했어요. (${esc(e.message).slice(0,120)})</span>`;
   }
@@ -1029,13 +1030,21 @@ async function loadEnglish(){
     const totalTry  = stages.reduce((a, r) => a + Number(r.attempts), 0);
     const totalFail = stages.reduce((a, r) => a + Number(r.fails), 0);
     const acc = totalTry ? (100 - 100 * totalFail / totalTry).toFixed(1) : "–";
+    const EN_NAMES = { 1:"첫째 줄 Q~P", 2:"둘째 줄 A~L", 3:"셋째 줄 Z~M", 4:"알파벳 종합",
+                       5:"두 글자 조합", 6:"파닉스 단어", 7:"3~4학년 단어", 8:"5~6학년 단어",
+                       9:"대문자(Shift)", 10:"짧은 문장", 11:"무한" };
+    const stagesSorted = stages.slice().sort((a, b) => a.stage - b.stage);
+    const stageMax = Math.max(1, ...stagesSorted.map(r => Number(r.fail_rate) || 0));
     const stageTable = stages.length ? `
-      <p style="margin:10px 0 4px; font-weight:bold;">단계별 정답률</p>
+      <p style="margin:10px 0 4px; font-weight:bold;">단계별 오류율</p>
       <table>
-        <tr><th>단계</th><th>시도</th><th>실패</th><th>실패율</th></tr>
-        ${stages.map(r => `
-          <tr><td>${esc(r.stage === 11 ? "♾️ 무한" : r.stage)}</td><td>${esc(r.attempts)}</td>
-              <td>${esc(r.fails)}</td><td>${r.fail_rate != null ? esc(r.fail_rate) + "%" : "-"}</td></tr>`).join("")}
+        <tr><th>단계</th><th style="width:42%;">오류율</th><th>시도</th><th>실패</th></tr>
+        ${stagesSorted.map(r => `
+          <tr><td>${esc(r.stage)}. ${esc(EN_NAMES[r.stage] || "")}</td>
+              <td><div style="display:flex; align-items:center; gap:6px;">
+                    <div style="height:12px; width:${Math.round(100 * (Number(r.fail_rate) || 0) / stageMax)}%; min-width:2px; background:var(--berry); border-radius:6px;"></div>
+                    <span>${r.fail_rate != null ? esc(r.fail_rate) + "%" : "-"}</span></div></td>
+              <td>${esc(r.attempts)}</td><td>${esc(r.fails)}</td></tr>`).join("")}
       </table>` : "";
     const wordTable = words.length ? `
       <p style="margin:14px 0 4px; font-weight:bold;">자주 틀리는 영어 단어 TOP</p>
