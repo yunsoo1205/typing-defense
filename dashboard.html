@@ -193,6 +193,27 @@ tr:last-child td{ border-bottom:none; }
   </div>
 
   <div class="card">
+    <h2>
+      📈 꾸준한 학생 성장 곡선
+      <span>
+        <select id="grit-days-select">
+          <option value="3" selected>3일 이상 연속</option>
+          <option value="5">5일 이상 연속</option>
+          <option value="7">7일 이상 연속</option>
+        </select>
+        <button id="load-grit">불러오기</button>
+      </span>
+    </h2>
+    <p class="help">
+      최근 30일 안에 하루도 빠짐없이 연속으로 접속한 학생들이에요. (개인정보 보호를 위해
+      별명 대신 암호화 코드로 표시) [곡선 보기]를 누르면 그 학생의 날짜별 평균 CPM —
+      점수 거품 없는 진짜 타자 실력 — 이 어떻게 늘고 있는지 보여줍니다. (성장곡선.sql 실행 후 작동)
+    </p>
+    <div class="body" id="grit-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+    <div class="body" id="grit-curve" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card">
     <h2>📅 출석 도장 랭킹 <button id="load-attendance">불러오기</button></h2>
     <p class="help">학교별로 얼마나 꾸준히 오나 보는 지표예요. '총 접속일'은 학생들의 접속일을 모두 더한 값(연인원)이고, '최다 접속 학생'은 그 학교에서 가장 자주 온 학생의 암호화 코드예요. (개인정보 보호를 위해 실명 대신 코드로 표시)</p>
     <div class="body" id="attendance-body"><span class="muted">버튼을 눌러 불러오세요.</span></div>
@@ -391,7 +412,8 @@ const SCOPED_RPCS = new Set([
   "get_dashboard_english_infinite",
   "get_dashboard_week_summary",
   "get_dashboard_hourly_pattern_range",
-  "get_dashboard_visits"
+  "get_dashboard_visits",
+  "get_dashboard_streak_learners"
 ]);
 function dashScope(){
   const k = document.getElementById("scope-korea")?.checked;
@@ -550,6 +572,69 @@ async function loadWeekly(){
   } catch(e){
     wrap.innerHTML = `<span class="muted">불러오기 실패 — 통계추가.sql을 아직 실행하지 않았을 수 있어요. (${esc(e.message).slice(0,120)})</span>`;
     hm.innerHTML = "";
+  }
+}
+
+/* ---------- 📈 꾸준한 학생 성장 곡선 ---------- */
+function maskLid(lid){                       // 학습자 코드 → "학생-abc123" (이미 암호화된 해시라 안전)
+  const h = String(lid || "").split("_")[1] || String(lid || "");
+  return "학생-" + h.slice(0, 6);
+}
+async function loadGrit(){
+  const body = document.getElementById("grit-body");
+  const minDays = Number(document.getElementById("grit-days-select").value);
+  document.getElementById("grit-curve").innerHTML = "";
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_streak_learners", { p_min_days: minDays });
+    if (!rows.length){ body.innerHTML = `<span class="muted">최근 30일에 ${minDays}일 이상 연속 접속한 학생이 아직 없어요.</span>`; return; }
+    body.innerHTML = `
+      <table>
+        <tr><th>학생 코드</th><th>학교</th><th>연속 접속</th><th>마지막 접속</th><th></th></tr>
+        ${rows.map(r => `
+          <tr>
+            <td><code style="font-size:12px; color:var(--grape);">${esc(maskLid(r.learner_id))}</code></td>
+            <td>${esc(r.school || r.code)}</td>
+            <td><span class="pill">${esc(r.streak_days)}일 연속</span></td>
+            <td>${esc(r.last_day)}</td>
+            <td><button class="grit-view" data-lid="${esc(r.learner_id)}">📈 곡선 보기</button></td>
+          </tr>`).join("")}
+      </table>`;
+    body.querySelectorAll(".grit-view").forEach(b =>
+      b.addEventListener("click", () => loadGritCurve(b.dataset.lid)));
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 — 성장곡선.sql을 아직 실행하지 않았을 수 있어요. (${esc(e.message).slice(0,120)})</span>`;
+  }
+}
+async function loadGritCurve(lid){
+  const box = document.getElementById("grit-curve");
+  box.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_learner_curve", { p_learner_id: lid, p_days: 30 });
+    if (!rows.length){ box.innerHTML = `<span class="muted">이 학생의 최근 30일 기록이 없어요.</span>`; return; }
+    const maxCpm = Math.max(1, ...rows.map(r => Number(r.avg_cpm) || 0));
+    box.innerHTML = `
+      <p style="margin:4px 0 6px; font-weight:bold;">📈 ${esc(maskLid(lid))} — 날짜별 평균 CPM (막대가 길수록 빨라진 거예요)</p>
+      <table>
+        <tr><th>날짜</th><th>판수</th><th style="width:45%;">평균 CPM</th><th>최고</th><th>KPM</th><th>견습</th></tr>
+        ${rows.map(r => {
+          const v = Number(r.avg_cpm) || 0;
+          const w = Math.round(100 * v / maxCpm);
+          return `<tr>
+            <td>${esc(r.day)}</td>
+            <td>${esc(r.plays)}</td>
+            <td><div style="display:flex; align-items:center; gap:6px;">
+                  <div style="height:12px; width:${w}%; min-width:2px; background:var(--grape); border-radius:6px;"></div>
+                  <span>${v ? esc(v) : "-"}</span></div></td>
+            <td>${r.max_cpm != null ? esc(r.max_cpm) : "-"}</td>
+            <td>${r.avg_kpm != null ? esc(r.avg_kpm) : "-"}</td>
+            <td class="muted">${esc(r.practice_plays)}판</td>
+          </tr>`;
+        }).join("")}
+      </table>
+      <p class="muted" style="margin-top:6px;">평균 CPM은 견습 모드와 5초 미만 판을 뺀 값이라, 점수 거품 없는 실제 타자 속도예요.</p>`;
+  } catch(e){
+    box.innerHTML = `<span class="muted">곡선을 불러오지 못했어요. (${esc(e.message).slice(0,120)})</span>`;
   }
 }
 
@@ -1113,6 +1198,10 @@ function initDashboard(){
   document.getElementById("load-difficulty").addEventListener("click", loadDifficulty);
   document.getElementById("load-infboard").addEventListener("click", loadInfBoard);
   document.getElementById("load-english").addEventListener("click", loadEnglish);
+  document.getElementById("load-grit").addEventListener("click", loadGrit);
+  document.getElementById("grit-days-select").addEventListener("change", () => {
+    if (!document.getElementById("grit-body").innerHTML.includes("불러오기를 눌러주세요")) loadGrit();
+  });
 
   setInterval(loadToday, 60000);
   setInterval(loadActivity, 30000);
