@@ -51,6 +51,7 @@ section{ padding:22px; }
   background:#fff; color:var(--ink); outline:none;
 }
 .field input:focus{ border-color:var(--grape); }
+.field input::placeholder{ color:#9AA3AD; opacity:1; }
 #code{ text-transform:uppercase; letter-spacing:.08em; }
 
 .dup-warning{
@@ -203,9 +204,10 @@ details input{
       <p class="help">
         같은 코드를 쓰는 아이들끼리 랭킹이 공유됩니다. 영문·숫자·한글 8자까지.<br>
         너무 짧고 뻔한 코드(<code>ABC</code>, <code>1234</code>)는 남이 우연히 들어올 수 있으니
-        <b>학교 약자 + 무작위 글자</b>를 섞으세요. (초급·고급 랭킹은 자동으로 나뉩니다)
+        <b>학교 약자 + 무작위 글자</b>를 섞으세요. (초급·고급 랭킹은 자동으로 나뉩니다)<br>
+        코드를 비워 두고 확인을 누르면, 회색으로 보이는 <b>무작위 예시 코드</b>가 우리 반 코드로 자동 사용돼요.
       </p>
-      <input id="code" maxlength="8" placeholder="예: DL6B2X" value="DL6B2X" />
+      <input id="code" maxlength="8" placeholder="예시: 생성 중…" autocomplete="off" />
       <button class="btn alt" id="check-btn" style="width:100%; margin-top:8px;">🔍 이 코드, 겹치는지 확인하기</button>
 
       <div class="dup-status hidden" id="dup-ok">
@@ -692,6 +694,63 @@ function cleanCode(v){
   return (v || "").toUpperCase().replace(/[^A-Z0-9가-힣]/g, "").slice(0, 8);
 }
 
+/* ── 무작위 예시 코드 ─────────────────────────────
+   선생님이 코드를 안 정하고 그냥 진행하면, 회색으로 보이던
+   예시 코드가 그대로 우리 반 코드가 됩니다.
+   - 헷갈리는 글자(O/0, I/1/L)는 뺀 6자리라 우연히 겹칠 확률이 매우 낮고,
+   - 실제로 쓰이는 순간 서버에서 한 번 더 겹침을 확인해
+     이미 쓰인 코드면 자동으로 새 코드를 만듭니다. */
+const EXAMPLE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function genExampleCode(){
+  let s = "";
+  const a = new Uint32Array(6);
+  crypto.getRandomValues(a);
+  for (let i = 0; i < 6; i++) s += EXAMPLE_CHARS[a[i] % EXAMPLE_CHARS.length];
+  return s;
+}
+
+let exampleCode = genExampleCode();
+
+function showExample(){
+  $("code").placeholder = `예시: ${exampleCode}`;
+  // 코드가 비어 있을 때는 미리보기에도 예시 코드를 보여줍니다.
+  if (!cleanCode($("code").value)){
+    $("pv-code").textContent = `학급 코드 ${exampleCode} (예시)`;
+  }
+}
+showExample();
+
+/* 예시 코드는 몇 초마다 계속 바뀝니다 (선생님마다 다른 코드를 보게) */
+setInterval(() => {
+  if (cleanCode($("code").value)) return;   // 직접 입력 중이면 그대로 둡니다
+  exampleCode = genExampleCode();
+  showExample();
+}, 6000);
+
+/* 이 코드가 이미 다른 학교에서 쓰였는지 서버에 물어봅니다.
+   true=쓰임, false=안 쓰임, null=확인 실패 */
+async function isCodeTaken(code){
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/code_schools?code=eq.${encodeURIComponent(code)}&select=code`,
+      { headers: { apikey: SUPABASE_KEY } }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    return rows.length > 0;
+  } catch(e){ return null; }
+}
+
+/* 아무도 안 쓰는 예시 코드를 찾아 돌려줍니다 (최대 5번 시도) */
+async function pickFreshExampleCode(){
+  for (let i = 0; i < 5; i++){
+    const taken = await isCodeTaken(exampleCode);
+    if (taken === false || taken === null) return exampleCode; // 확인 실패 시엔 현재 코드로 진행
+    exampleCode = genExampleCode();
+  }
+  return exampleCode;
+}
+
 /* 이미 다른 학교 이름으로 쓰인 코드인지 확인합니다. (필수 확인 절차)
    확인하기 전에는 링크 복사·열기 버튼이 잠겨 있고, 코드나 학교 이름을
    다시 바꾸면 확인이 풀려 다시 눌러야 합니다. */
@@ -713,12 +772,25 @@ function hideAllDupBoxes(){
 }
 
 async function checkDuplicateCode(){
-  const code   = cleanCode($("code").value) || DEFAULT_CODE;
-  const school = $("school").value.trim() || DEFAULT_SCHOOL;
-  if (isReservedCode(code)){ hideAllDupBoxes(); setChecked(false); return; }
   hideAllDupBoxes();
   $("check-btn").disabled = true;
   $("check-btn").textContent = "확인하는 중…";
+
+  /* 코드를 직접 안 정했으면, 지금 회색으로 보이는 예시 코드를
+     겹치지 않는지 확인한 뒤 우리 반 코드로 채워 넣습니다. */
+  let code = cleanCode($("code").value);
+  if (!code){
+    code = await pickFreshExampleCode();
+    $("code").value = code;
+    build();                                  // 미리보기·링크에 반영
+  }
+  const school = $("school").value.trim() || DEFAULT_SCHOOL;
+  if (isReservedCode(code)){
+    hideAllDupBoxes(); setChecked(false);
+    $("check-btn").disabled = false;
+    $("check-btn").textContent = "🔍 이 코드, 겹치는지 확인하기";
+    return;
+  }
 
   try {
     const res = await fetch(
@@ -779,7 +851,7 @@ function build(){
 
   // 미리보기
   $("pv-title").textContent = `${school || DEFAULT_SCHOOL} 타자 수비대`;
-  $("pv-code").textContent  = code ? `학급 코드 ${code}` : `기본 코드 ${DEFAULT_CODE}`;
+  $("pv-code").textContent  = code ? `학급 코드 ${code}` : `학급 코드 ${exampleCode} (예시)`;
 
   // 링크 조립 (입력한 것만 붙입니다)
   const url = new URL($("base").value.trim() || "index.html", location.href);
