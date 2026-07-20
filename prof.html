@@ -100,6 +100,19 @@ tr:last-child td{ border-bottom:none; }
   </div>
 
   <div class="card">
+    <h2>🌞 오늘, 그리고 날마다 자라는 이용 곡선</h2>
+    <p class="help">
+      오늘 접속한 고유 학습자 수와, 서비스 개시 이후 <b>날짜별 이용 추이</b>예요.
+      보라색 누적 플레이 곡선이 위로 갈수록 서비스가 꾸준히 성장하고 있다는 뜻입니다.
+    </p>
+    <div class="summary-row" id="today-stats" style="margin-bottom:12px;">
+      <div class="stat"><div class="num">–</div><div class="label">오늘 참여한 학생</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">오늘 플레이 판 수</div></div>
+    </div>
+    <div class="curve-box" id="daily-chart">불러오는 중...</div>
+  </div>
+
+  <div class="card">
     <h2>📈 주간 이용 추이</h2>
     <p class="help">주(월~일)별 고유 학습자 수예요. 서비스 확산 속도를 보여줍니다.</p>
     <div id="trend">불러오는 중...</div>
@@ -184,6 +197,85 @@ async function loadTotals(){
       <div class="stat"><div class="num">${comma(r.total_students)}</div><div class="label">학습자 수</div></div>
       <div class="stat"><div class="num">${comma(r.total_plays)}</div><div class="label">누적 플레이 판 수</div></div>`;
   } catch(e){ el.innerHTML = `<span class="muted">불러오지 못했어요.</span>`; }
+}
+
+/* ---- 오늘 참여 학생 + 일별 증가 곡선 ----
+   기존 get_dashboard_week_summary RPC를 하루 단위로 호출해
+   날짜별 고유 학습자 수와 누적 플레이 곡선을 그립니다. (추가 SQL 불필요) */
+async function loadDaily(){
+  const statsEl = document.getElementById("today-stats");
+  const chartEl = document.getElementById("daily-chart");
+  try {
+    const SERVICE_START = new Date(2026, 6, 1);            // 2026.7.1 서비스 개시
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const MAX_DAYS = 30;                                   // 서버 부담을 줄이려 최근 30일까지만
+    let start = new Date(today); start.setDate(start.getDate() - (MAX_DAYS - 1));
+    if (start < SERVICE_START) start = new Date(SERVICE_START);
+
+    const days = [];
+    for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)){
+      days.push(new Date(d));
+    }
+    const rows = await Promise.all(days.map(d => {
+      const end = new Date(d); end.setDate(end.getDate() + 1);
+      return rpc("get_dashboard_week_summary", { p_start: d.toISOString(), p_end: end.toISOString() })
+        .then(r => r[0] || {});
+    }));
+
+    // 오늘 숫자
+    const t = rows[rows.length - 1] || {};
+    statsEl.innerHTML = `
+      <div class="stat"><div class="num">${comma(t.users)}</div><div class="label">오늘 참여한 학생</div></div>
+      <div class="stat"><div class="num">${comma(t.plays)}</div><div class="label">오늘 플레이 판 수</div></div>`;
+
+    // 곡선 데이터: 일별 학습자 + 누적 플레이
+    const users = rows.map(r => Number(r.users) || 0);
+    let sum = 0;
+    const cum = rows.map(r => (sum += Number(r.plays) || 0));
+    const maxU = Math.max(1, ...users);
+    const maxC = Math.max(1, ...cum);
+
+    // SVG 좌표 계산
+    const W = 640, H = 220, PL = 34, PR = 10, PT = 14, PB = 30;
+    const iw = W - PL - PR, ih = H - PT - PB;
+    const x = i => PL + (days.length === 1 ? iw / 2 : iw * i / (days.length - 1));
+    const yU = v => PT + ih - ih * v / maxU;
+    const yC = v => PT + ih - ih * v / maxC;
+    const path = (arr, y) => arr.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+
+    // 날짜 라벨 (5~6개만)
+    const step = Math.max(1, Math.ceil(days.length / 6));
+    let labels = "";
+    for (let i = 0; i < days.length; i += step){
+      labels += `<text x="${x(i).toFixed(1)}" y="${H - 8}" font-size="10" fill="#8C7E95" text-anchor="middle">${days[i].getMonth() + 1}/${days[i].getDate()}</text>`;
+    }
+    if ((days.length - 1) % step !== 0){
+      labels += `<text x="${x(days.length - 1).toFixed(1)}" y="${H - 8}" font-size="10" fill="#8C7E95" text-anchor="middle">오늘</text>`;
+    }
+
+    // 일별 학습자 점
+    const dots = users.map((v, i) =>
+      `<circle cx="${x(i).toFixed(1)}" cy="${yU(v).toFixed(1)}" r="${i === users.length - 1 ? 4 : 2.5}" fill="#6FD3B8"${i === users.length - 1 ? ' stroke="#fff" stroke-width="1.5"' : ""}/>`).join("");
+
+    chartEl.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block;">
+        <line x1="${PL}" y1="${PT + ih}" x2="${W - PR}" y2="${PT + ih}" stroke="#EDE7F0" stroke-width="1.5"/>
+        <path d="${path(cum, yC)}" fill="none" stroke="#9B8CF0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="${path(users, yU)}" fill="none" stroke="#6FD3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${dots}
+        ${labels}
+        <text x="${PL}" y="${PT - 2}" font-size="10" fill="#8C7E95">최대 ${comma(maxU)}명/일 · 누적 ${comma(maxC)}판</text>
+      </svg>
+      <p class="muted" style="margin-top:6px;">
+        <span style="display:inline-block; width:18px; height:3px; background:#6FD3B8; border-radius:2px; vertical-align:middle;"></span> 일별 고유 학습자
+        &nbsp;&nbsp;
+        <span style="display:inline-block; width:18px; height:3px; background:#9B8CF0; border-radius:2px; vertical-align:middle;"></span> 누적 플레이 판 수
+        <span style="float:right;">${days[0].getMonth() + 1}/${days[0].getDate()} ~ 오늘</span>
+      </p>`;
+  } catch(e){
+    statsEl.querySelectorAll(".num").forEach(n => n.textContent = "–");
+    chartEl.innerHTML = `<span class="muted">불러오지 못했어요. (통계추가.sql 필요)</span>`;
+  }
 }
 
 /* ---- 주간 이용 추이 (최근 6주) ---- */
@@ -325,7 +417,7 @@ function enter(){
     sessionStorage.setItem("prof-auth", "1");
     document.getElementById("gate").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
-    loadTotals(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish();
+    loadTotals(); loadDaily(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish();
   } else {
     document.getElementById("pw-err").textContent = "비밀번호가 달라요.";
   }
@@ -335,7 +427,7 @@ document.getElementById("pw-input").addEventListener("keydown", e => { if (e.key
 if (sessionStorage.getItem("prof-auth") === "1"){
   document.getElementById("gate").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
-  loadTotals(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish();
+  loadTotals(); loadDaily(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish();
 }
 </script>
 </body>
