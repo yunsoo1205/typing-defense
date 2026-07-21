@@ -2118,12 +2118,18 @@ async function computeLearnerId(nickname, classCode){
    줄 수만 늘어납니다) */
 async function flushWordLog(rows){
   if (!SUPA.on || !rows || rows.length === 0) return;
+  const send = (data) => fetch(`${SUPABASE_URL}/rest/v1/word_events`, {
+    method: "POST",
+    headers: SUPA.headers({ "Prefer": "return=minimal" }),   // 응답 본문을 안 받아 트래픽을 아낍니다
+    body: JSON.stringify(data)
+  });
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/word_events`, {
-      method: "POST",
-      headers: SUPA.headers({ "Prefer": "return=minimal" }),   // 응답 본문을 안 받아 트래픽을 아낍니다
-      body: JSON.stringify(rows)
-    });
+    const res = await send(rows);
+    /* ⚔️ 복수전(stage 12)이 예전 DB 제약에 막히면 11로 낮춰 다시 보냅니다.
+       (복수전.sql의 제약 완화를 실행했다면 이 폴백은 동작하지 않아요) */
+    if (!res.ok && rows.some(r => r.stage > 11)){
+      await send(rows.map(r => ({ ...r, stage: Math.min(11, r.stage) })));
+    }
   } catch(e){ /* 통계 실패가 게임을 막으면 안 되므로 조용히 무시합니다 */ }
 }
 
@@ -2133,12 +2139,17 @@ async function flushWordLog(rows){
    ========================================================================= */
 async function logPlay(entry){
   if (!SUPA.on) return;
+  const send = (data) => fetch(`${SUPABASE_URL}/rest/v1/plays`, {
+    method: "POST",
+    headers: SUPA.headers(),
+    body: JSON.stringify(data)
+  });
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/plays`, {
-      method: "POST",
-      headers: SUPA.headers(),
-      body: JSON.stringify(entry)
-    });
+    const res = await send(entry);
+    /* ⚔️ 복수전(stage 12)이 예전 DB 제약에 막히면 11로 낮춰 다시 보냅니다 */
+    if (!res.ok && entry.stage > 11){
+      await send({ ...entry, stage: 11 });
+    }
   } catch(e){ /* 통계 실패가 게임을 막으면 안 되므로 조용히 무시합니다 */ }
 }
 
@@ -3280,7 +3291,7 @@ function logWordAttempt(expectedWord, typedFinal, correct, errFinger){
     school:           SCHOOL,
     code:             state.code,
     mode:             state.infinite ? "infinite" : (state.practice ? "practice" : (state.baseSpeed > 1 ? "advanced" : "basic")),
-    stage:            state.infinite ? 11 : Math.min(11, STAGES[state.stageIndex].num),   // DB는 stage 1~11만 허용 (복수전 12→11)
+    stage:            state.infinite ? 11 : STAGES[state.stageIndex].num,   // ⚔️ 복수전은 12로 기록 (제약에 막히면 flushWordLog가 11로 폴백)
     expected_word:    expectedWord.slice(0, 30),                            // DB 제한: 30자
     typed_final:      typedFinal.slice(0, 40),        // 마구 입력한 오답은 길 수 있어요 (DB 제한: 40자)
     correct,
@@ -3662,7 +3673,7 @@ async function endGame(cleared){
     school:       SCHOOL,
     code:         state.code,
     mode:         state.infinite ? "infinite" : (state.practice ? "practice" : (state.baseSpeed > 1 ? "advanced" : "basic")),
-    stage:        state.infinite ? 11 : Math.min(11, STAGES[state.stageIndex].num),   // DB는 stage 1~11만 허용 (복수전 12→11)
+    stage:        state.infinite ? 11 : STAGES[state.stageIndex].num,   // ⚔️ 복수전은 12로 기록 (제약에 막히면 logPlay가 11로 폴백)
     cleared:      cleared === true,
     duration_s:   Math.min(7200, Math.round((performance.now() - state.startedAt) / 1000)),
     chars_typed:  state.charsTyped,

@@ -149,6 +149,27 @@ tr:last-child td{ border-bottom:none; }
     <div id="english">불러오는 중...</div>
   </div>
 
+  <div class="card">
+    <h2>🔻 학생들이 많이 틀린 단어 (최근 30일)</h2>
+    <p class="help">전체 학습자 기준, 오답 횟수가 많은 단어 순이에요. 어떤 단어·자판 조합이 공통 병목인지 보여줍니다. (시도 5회 미만 단어는 제외)</p>
+    <div id="wrong-words">불러오는 중...</div>
+  </div>
+
+  <div class="card">
+    <h2>⚔️ 복수전 (12단계) 현황 (최근 30일)</h2>
+    <p class="help">
+      복수전은 학습자별로 <b>최근 10판에서 틀린 단어</b>가 10개 이상 모이면 열리는 개인 맞춤 복습 단계예요.
+      같은 단어를 2번 연속 맞히면 그 단어는 은퇴합니다. 자발적 오답 복습이 일어나는지를 보여줍니다.
+    </p>
+    <div class="summary-row" id="revenge-stats">
+      <div class="stat"><div class="num">–</div><div class="label">참여 학습자</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">도전 판 수</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">클리어 판 수</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">클리어율</div></div>
+    </div>
+    <p class="muted" id="revenge-note" style="margin-top:8px;"></p>
+  </div>
+
   <p class="foot">
     ⚙️ 데이터 출처: 게임 내 익명 플레이 로그 (Supabase) · 실시간 집계<br>
     🔒 수집 정보는 별명·게임 기록뿐이며, 이 리포트에는 별명조차 표시하지 않고 일방향 암호화 코드만 사용합니다.<br>
@@ -410,6 +431,42 @@ async function loadEnglish(){
   } catch(e){ el.innerHTML = `<span class="muted">불러오지 못했어요. (영타대시보드.sql 필요)</span>`; }
 }
 
+/* ---- 많이 틀린 단어 ---- */
+async function loadWrongWords(){
+  const el = document.getElementById("wrong-words");
+  try {
+    const rows = await rpc("get_dashboard_top_wrong_words", { p_days: 30 });
+    if (!rows.length){ el.innerHTML = `<span class="muted">데이터가 아직 없어요.</span>`; return; }
+    const max = Math.max(1, ...rows.map(r => Number(r.fails) || 0));
+    el.innerHTML = `<table>
+      <tr><th>단어</th><th style="width:45%;">오답 수</th><th>시도</th><th>오류율</th></tr>
+      ${rows.map(r => `<tr>
+        <td><b>${esc(r.word)}</b></td>
+        <td><span class="bar" style="background:var(--berry); width:${Math.round(80 * (Number(r.fails) || 0) / max)}%;"></span> ${comma(r.fails)}</td>
+        <td>${comma(r.attempts)}</td>
+        <td>${esc(r.fail_rate)}%</td></tr>`).join("")}
+    </table>`;
+  } catch(e){ el.innerHTML = `<span class="muted">불러오지 못했어요. (복수전.sql의 RPC 필요)</span>`; }
+}
+
+/* ---- 복수전 현황 ---- */
+async function loadRevenge(){
+  const el = document.getElementById("revenge-stats");
+  const note = document.getElementById("revenge-note");
+  try {
+    const r = (await rpc("get_dashboard_revenge_stats", { p_days: 30 }))[0] || {};
+    const plays = Number(r.plays) || 0;
+    const clears = Number(r.clears) || 0;
+    const rate = plays ? (100 * clears / plays).toFixed(0) + "%" : "–";
+    el.innerHTML = `
+      <div class="stat"><div class="num">${comma(r.participants)}</div><div class="label">참여 학습자</div></div>
+      <div class="stat"><div class="num">${comma(plays)}</div><div class="label">도전 판 수</div></div>
+      <div class="stat"><div class="num">${comma(clears)}</div><div class="label">클리어 판 수</div></div>
+      <div class="stat"><div class="num">${rate}</div><div class="label">클리어율</div></div>`;
+    if (!plays) note.textContent = "아직 복수전 기록이 없어요. (기능 출시 직후이거나, 조건을 채운 학습자가 없을 수 있어요)";
+  } catch(e){ note.textContent = "불러오지 못했어요. (복수전.sql의 RPC 필요)"; }
+}
+
 /* ---- 입장 ---- */
 function enter(){
   const v = document.getElementById("pw-input").value;
@@ -417,7 +474,7 @@ function enter(){
     sessionStorage.setItem("prof-auth", "1");
     document.getElementById("gate").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
-    loadTotals(); loadDaily(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish();
+    loadTotals(); loadDaily(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish(); loadWrongWords(); loadRevenge();
   } else {
     document.getElementById("pw-err").textContent = "비밀번호가 달라요.";
   }
@@ -427,7 +484,7 @@ document.getElementById("pw-input").addEventListener("keydown", e => { if (e.key
 if (sessionStorage.getItem("prof-auth") === "1"){
   document.getElementById("gate").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
-  loadTotals(); loadDaily(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish();
+  loadTotals(); loadDaily(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish(); loadWrongWords(); loadRevenge();
 }
 </script>
 </body>
