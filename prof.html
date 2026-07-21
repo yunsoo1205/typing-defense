@@ -170,6 +170,36 @@ tr:last-child td{ border-bottom:none; }
     <p class="muted" id="revenge-note" style="margin-top:8px;"></p>
   </div>
 
+  <div class="card">
+    <h2>🌱 신규 & 재방문
+      <select id="ret-min-days" style="font-size:14px; margin-left:8px;">
+        <option value="2" selected>2일 이상</option>
+        <option value="3">3일 이상</option>
+        <option value="5">5일 이상</option>
+        <option value="7">7일 이상</option>
+      </select>
+    </h2>
+    <p class="help">
+      새로 유입되는 규모와 다시 돌아오는 규모를 함께 봅니다.
+      위 줄은 <b>오늘 기준</b>(오늘 처음 기록이 생긴 신규 + 오늘 접속),
+      아래 줄은 <b>전체 기간 기준</b>(누적 + 서로 다른 날짜로 N일 이상 접속)이에요. 한국 시간 기준입니다.
+    </p>
+    <p class="help" style="margin-bottom:4px;"><b>☀️ 오늘 기준</b></p>
+    <div class="summary-row" id="retention-today" style="margin-bottom:12px;">
+      <div class="stat"><div class="num">–</div><div class="label">오늘 신규 학교</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">오늘 신규 학생</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">오늘 접속 학교</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">오늘 접속 학생</div></div>
+    </div>
+    <p class="help" style="margin-bottom:4px;"><b>📚 전체 기간 기준</b></p>
+    <div class="summary-row" id="retention-total">
+      <div class="stat"><div class="num">–</div><div class="label">누적 학교</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">누적 학생</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">2일+ 접속 학교</div></div>
+      <div class="stat"><div class="num">–</div><div class="label">2일+ 접속 학생</div></div>
+    </div>
+  </div>
+
   <p class="foot">
     ⚙️ 데이터 출처: 게임 내 익명 플레이 로그 (Supabase) · 실시간 집계<br>
     🔒 수집 정보는 별명·게임 기록뿐이며, 이 리포트에는 별명조차 표시하지 않고 일방향 암호화 코드만 사용합니다.<br>
@@ -467,6 +497,30 @@ async function loadRevenge(){
   } catch(e){ note.textContent = "불러오지 못했어요. (복수전.sql의 RPC 필요)"; }
 }
 
+/* ---- 신규 & 재방문 ---- */
+async function loadRetention(){
+  const elT = document.getElementById("retention-today");
+  const elA = document.getElementById("retention-total");
+  const minDays = Number(document.getElementById("ret-min-days").value) || 2;
+  try {
+    const r = (await rpc("get_dashboard_new_and_returning", { p_min_days: minDays }))[0] || {};
+    elT.innerHTML = `
+      <div class="stat"><div class="num">${comma(r.today_new_schools)}</div><div class="label">오늘 신규 학교</div></div>
+      <div class="stat"><div class="num">${comma(r.today_new_learners)}</div><div class="label">오늘 신규 학생</div></div>
+      <div class="stat"><div class="num">${comma(r.today_schools)}</div><div class="label">오늘 접속 학교</div></div>
+      <div class="stat"><div class="num">${comma(r.today_learners)}</div><div class="label">오늘 접속 학생</div></div>`;
+    elA.innerHTML = `
+      <div class="stat"><div class="num">${comma(r.total_schools)}</div><div class="label">누적 학교</div></div>
+      <div class="stat"><div class="num">${comma(r.total_learners)}</div><div class="label">누적 학생</div></div>
+      <div class="stat"><div class="num">${comma(r.active_schools)}</div><div class="label">${minDays}일+ 접속 학교</div></div>
+      <div class="stat"><div class="num">${comma(r.active_learners)}</div><div class="label">${minDays}일+ 접속 학생</div></div>`;
+  } catch(e){
+    elT.innerHTML = `<span class="muted">불러오지 못했어요. (신규재방문.sql 실행 필요)</span>`;
+    elA.innerHTML = "";
+  }
+}
+document.getElementById("ret-min-days").addEventListener("change", loadRetention);
+
 /* ---- 입장 ---- */
 function enter(){
   const v = document.getElementById("pw-input").value;
@@ -474,7 +528,7 @@ function enter(){
     sessionStorage.setItem("prof-auth", "1");
     document.getElementById("gate").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
-    loadTotals(); loadDaily(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish(); loadWrongWords(); loadRevenge();
+    loadTotals(); loadDaily(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish(); loadWrongWords(); loadRevenge(); loadRetention();
   } else {
     document.getElementById("pw-err").textContent = "비밀번호가 달라요.";
   }
@@ -484,7 +538,7 @@ document.getElementById("pw-input").addEventListener("keydown", e => { if (e.key
 if (sessionStorage.getItem("prof-auth") === "1"){
   document.getElementById("gate").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
-  loadTotals(); loadDaily(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish(); loadWrongWords(); loadRevenge();
+  loadTotals(); loadDaily(); loadTrend(); loadHeatmap(); loadCurves(); loadDifficulty(); loadEnglish(); loadWrongWords(); loadRevenge(); loadRetention();
 }
 </script>
 </body>
