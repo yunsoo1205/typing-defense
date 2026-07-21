@@ -1676,15 +1676,80 @@ function makeCustomStage(words, difficulty){
 }
 
 /* =========================================================================
+   ⚔️ 복수전 — 최근 10판에서 틀렸던 단어들로 만들어지는 12단계.
+   틀린 단어(아직 2번 연속 정답을 못 낸 것)가 10개 이상 모이면 열립니다.
+   학급 코드 전용(KOREA 제외) · 점수 배율 없음 · 2번 연속 맞히면 그 단어는 은퇴.
+   서버 쪽 집계는 복수전.sql 의 get_revenge_words RPC가 담당합니다.
+   ========================================================================= */
+const REVENGE_STAGE_NUM  = 12;
+const REVENGE_MIN_WORDS  = 10;   // 이만큼 모여야 단계가 열려요
+const REVENGE_RETIRE_AT  = 2;    // 한 판 안에서 2번 연속 정답이면 그 단어는 은퇴
+
+function makeRevengeStage(words){
+  /* 속도는 우리 반 단계와 같은 방식으로 단어 길이에 맞춰 자동 결정합니다 */
+  const avg = words.reduce((s, w) => s + w.length, 0) / words.length;
+  const preset = avg > 6 ? CUSTOM_DIFFICULTY_PRESETS.easy
+               : avg > 3 ? CUSTOM_DIFFICULTY_PRESETS.normal
+               :           CUSTOM_DIFFICULTY_PRESETS.hard;
+  return {
+    num: REVENGE_STAGE_NUM, name: "복수전", revenge: true,
+    desc: "최근에 틀렸던 단어들이 복수하러 왔어요! 2번 연속 맞히면 그 단어는 물러가요.",
+    words,
+    monsters: ["😤","👿","⚔️"],
+    speed: preset.speed, spawnEvery: preset.spawnEvery
+  };
+}
+
+/* 최근 10판에서 틀렸고 아직 2연속 정답을 못 낸 단어들을 서버에서 가져옵니다 */
+async function loadRevengeWords(learnerId, code){
+  if (!SUPA.on || !learnerId || learnerId === "unknown") return null;
+  if (!code || code === "KOREA") return null;          // 학급 코드 전용
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_revenge_words`, {
+      method: "POST",
+      headers: SUPA.headers(),
+      body: JSON.stringify({ p_learner_id: learnerId, p_code: code })
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    const words = rows.map(r => r.word || r.expected_word).filter(Boolean).slice(0, 40);
+    return words.length ? words : null;
+  } catch(e){ return null; }
+}
+
+/* 복수전을 STAGES 맨 뒤에 붙이거나 떼어냅니다 (단어 10개 미만이면 안 보여요) */
+function applyRevengeStage(words){
+  STAGES = STAGES.filter(s => !s.revenge);
+  if (words && words.length >= REVENGE_MIN_WORDS && LANG !== "en"){
+    STAGES.push(makeRevengeStage(words));
+  }
+  buildStageOptions();
+}
+
+/* 시작 화면에서 이름·코드가 정해지면 복수전이 열리는지 확인합니다 */
+async function refreshRevengeStage(){
+  try {
+    const code = cleanCode($("roomcode").value);
+    const nickname = $("nickname").value.trim();
+    if (!code || code === "KOREA" || !nickname || LANG === "en"){ applyRevengeStage(null); return; }
+    const lid = await computeLearnerId(nickname, code);
+    applyRevengeStage(await loadRevengeWords(lid, code));
+  } catch(e){ applyRevengeStage(null); }
+}
+
+/* =========================================================================
    ♾️ 무한 마법 — 모든 단계의 단어·문장·우리 반 단어를 한데 모아 끝없이 냅니다.
    게임 시작 순간의 STAGES(우리 반 단계 포함)를 기준으로 단어 풀을 만듭니다.
    ========================================================================= */
 function makeInfiniteStage(){
   const seen = new Set();
   const words = [];
-  STAGES.forEach(s => s.words.forEach(w => {
-    if (!seen.has(w)){ seen.add(w); words.push(w); }
-  }));
+  STAGES.forEach(s => {
+    if (s.revenge) return;               // ⚔️ 복수전은 개인별 단어라 무한 풀에서 제외
+    s.words.forEach(w => {
+      if (!seen.has(w)){ seen.add(w); words.push(w); }
+    });
+  });
   return {
     num: "∞", name: "무한 마법", infinite: true,
     desc: "모든 단어가 끝없이 몰려와요! 하트가 다할 때까지 버텨요.",
@@ -1723,10 +1788,13 @@ async function loadClassWords(code){
 
 /* 우리 반 단계를 STAGES 맨 뒤에 붙이거나 떼어냅니다 */
 function applyCustomStage(words, difficulty){
-  const last = STAGES[STAGES.length - 1];
-  if (last && last.custom) STAGES.pop();            // 예전 것 제거
+  STAGES = STAGES.filter(s => !s.custom);           // 예전 것 제거
   /* 우리 반 단계는 한글 단어라서 영타 모드에서는 붙이지 않아요 */
-  if (words && words.length && LANG !== "en") STAGES.push(makeCustomStage(words, difficulty));
+  if (words && words.length && LANG !== "en"){
+    const st = makeCustomStage(words, difficulty);
+    const at = STAGES.findIndex(s => s.revenge);    // ⚔️ 복수전은 항상 맨 뒤
+    if (at >= 0) STAGES.splice(at, 0, st); else STAGES.push(st);
+  }
   buildStageOptions();
 }
 
@@ -1738,7 +1806,9 @@ function buildStageOptions(){
   STAGES.forEach(s => {
     const o = document.createElement("option");
     o.value = s.num;
-    o.textContent = s.custom ? `🏫 ${s.num}단계 · 우리 반 단계` : `${s.num}단계 · ${s.name}`;
+    o.textContent = s.custom  ? `🏫 ${s.num}단계 · 우리 반 단계`
+                  : s.revenge ? `⚔️ ${s.num}단계 · 복수전`
+                  : `${s.num}단계 · ${s.name}`;
     sel.appendChild(o);
   });
   if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
@@ -2991,6 +3061,8 @@ function newGame(nickname, code, baseSpeed, infinite){
     meteorUses: 0,                  // 이번 판에서 별똥별을 쓴 횟수
     keystrokes: 0,                  // 이번 판 총 타수 (자모 기준)
     stageStats: null,               // 단계별 집계 (startStage에서 초기화)
+    revengeStreak: {},              // ⚔️ 복수전: 단어별 연속 정답 수 (판 안에서만)
+    revengeRetired: new Set(),      // ⚔️ 복수전: 2연속 정답으로 은퇴한 단어들
     running: false,
     spawnTimer: 0.6
   };
@@ -3050,7 +3122,12 @@ function drawStatus(now){
    ========================================================================= */
 function drawWord(){
   if (state.bag.length === 0){
-    state.bag = [...curStage().words];
+    const stage = curStage();
+    /* ⚔️ 복수전: 2연속 정답으로 은퇴한 단어는 더 이상 안 나옵니다 */
+    const pool = stage.revenge
+      ? stage.words.filter(w => !state.revengeRetired.has(w))
+      : stage.words;
+    state.bag = pool.length ? [...pool] : [...stage.words];
     for (let i = state.bag.length - 1; i > 0; i--){
       const j = Math.floor(Math.random() * (i + 1));
       [state.bag[i], state.bag[j]] = [state.bag[j], state.bag[i]];
@@ -3140,7 +3217,10 @@ function moveMonsters(dt){
     if (m.x <= BASE_X){
       m.el.remove();
       state.monsters.splice(i, 1);
-      if (!m.itemType) loseLife();          // 아이템은 놓쳐도 하트가 깎이지 않아요
+      if (!m.itemType){
+        if (stage.revenge) state.revengeStreak[m.word] = 0;   // ⚔️ 연속 정답 끊김
+        loseLife();                         // 아이템은 놓쳐도 하트가 깎이지 않아요
+      }
     }
   }
 }
@@ -3170,6 +3250,7 @@ function submitAnswer(){
     state.totalWrong += 1;               // (무한) 정확도용
     let nearest = null;
     for (const m of state.monsters) if (!nearest || m.x < nearest.x) nearest = m;
+    if (nearest && curStage().revenge) state.revengeStreak[nearest.word] = 0;   // ⚔️ 연속 정답 끊김
     if (nearest) logWordAttempt(nearest.word, typed, false, errorFinger(nearest.word, typed));
   }
 }
@@ -3199,7 +3280,7 @@ function logWordAttempt(expectedWord, typedFinal, correct, errFinger){
     school:           SCHOOL,
     code:             state.code,
     mode:             state.infinite ? "infinite" : (state.practice ? "practice" : (state.baseSpeed > 1 ? "advanced" : "basic")),
-    stage:            state.infinite ? 11 : STAGES[state.stageIndex].num,   // DB는 stage 1~11만 허용
+    stage:            state.infinite ? 11 : Math.min(11, STAGES[state.stageIndex].num),   // DB는 stage 1~11만 허용 (복수전 12→11)
     expected_word:    expectedWord.slice(0, 30),                            // DB 제한: 30자
     typed_final:      typedFinal.slice(0, 40),        // 마구 입력한 오답은 길 수 있어요 (DB 제한: 40자)
     correct,
@@ -3271,6 +3352,17 @@ function castSpell(m){
   }
 
   logWordAttempt(m.word, m.word, true);
+
+  /* ⚔️ 복수전: 같은 단어를 연속 REVENGE_RETIRE_AT번 맞히면 그 단어는 은퇴합니다 */
+  if (stage.revenge){
+    const streak = (state.revengeStreak[m.word] || 0) + 1;
+    state.revengeStreak[m.word] = streak;
+    if (streak >= REVENGE_RETIRE_AT && !state.revengeRetired.has(m.word)){
+      state.revengeRetired.add(m.word);
+      state.bag = state.bag.filter(w => w !== m.word);   // 대기 중이던 것도 제거
+      tags.push("⚔️ 정복!");
+    }
+  }
 
   removeMonster(m, "💥");
   showPopup(m, `+${gained}`, tags.join(" "));
@@ -3506,6 +3598,8 @@ function startStage(index, speedMult){
   state.spawnTimer = 0.4;
   state.freezeUntil = state.feverUntil = state.pauseUntil = 0;
   state.runs[index] += 1;
+  state.revengeStreak = {};                // ⚔️ 복수전 은퇴 장부 초기화
+  state.revengeRetired = new Set();
   resetStageStats();                       // 🏅 뱃지 판정용 집계 초기화
   drawHud();
   drawStatus(performance.now());
@@ -3568,7 +3662,7 @@ async function endGame(cleared){
     school:       SCHOOL,
     code:         state.code,
     mode:         state.infinite ? "infinite" : (state.practice ? "practice" : (state.baseSpeed > 1 ? "advanced" : "basic")),
-    stage:        state.infinite ? 11 : STAGES[state.stageIndex].num,   // DB는 stage 1~11만 허용
+    stage:        state.infinite ? 11 : Math.min(11, STAGES[state.stageIndex].num),   // DB는 stage 1~11만 허용 (복수전 12→11)
     cleared:      cleared === true,
     duration_s:   Math.min(7200, Math.round((performance.now() - state.startedAt) / 1000)),
     chars_typed:  state.charsTyped,
@@ -3653,7 +3747,7 @@ async function endGame(cleared){
     name: state.nickname,
     score: state.score,
     avatar: equipString(),                           // 🐥 랭킹에 보일 내 아바타
-    stage: STAGES[state.stageIndex].num
+    stage: Math.min(11, STAGES[state.stageIndex].num)   // DB stage 제약 대응 (복수전 12→11)
   };
   const top  = await addRank(state.rankCode, entry, LEARNER_ID);
   const rank = top.findIndex(r => r.id === entry.id);
@@ -3733,8 +3827,8 @@ function checkStageBadges(){
 
   /* --- 성실 (견습에서도 받을 수 있어요) --- */
   if (stageNum >= 1)  grantBadge("enter");
-  if (stageNum >= 5 && !stageObj.custom)  grantBadge("half");
-  if (stageNum >= 10 && !stageObj.custom) grantBadge("captain");
+  if (stageNum >= 5 && !stageObj.custom && !stageObj.revenge)  grantBadge("half");
+  if (stageNum >= 10 && !stageObj.custom && !stageObj.revenge) grantBadge("captain");
   if (stageObj.custom) grantBadge("classhero");     // 🏫 우리 반 단계 전용
 
   // 이 단계에서 예전에 3번 넘게 실패했다면
@@ -4502,6 +4596,15 @@ function loop(now){
 
   const stage = curStage();
 
+  /* ⚔️ 복수전: 모든 단어가 은퇴했으면 남은 몬스터만 정리하고 조기 클리어합니다 */
+  if (stage.revenge && state.running){
+    const allRetired = stage.words.every(w => state.revengeRetired.has(w));
+    if (allRetired){
+      if (state.monsters.length === 0){ stageCleared(); return; }
+      state.spawnTimer = Math.max(state.spawnTimer, 999);   // 새로 안 내보냅니다
+    }
+  }
+
   /* 🐣 견습 모드: 단어가 2개 보이면 새 몬스터를 멈춰 세웁니다.
      하나를 완성해서 없애면 곧바로 다음 단어가 평소처럼 나와요. */
   const full = state.practice && state.monsters.length >= PRACTICE_MAX_ON_SCREEN;
@@ -4547,6 +4650,9 @@ async function startGame(){
   }
 
   LEARNER_ID = await computeLearnerId(nickname, code);   // 다른 기기에서도 이어지도록 (닉네임은 해시로 저장)
+
+  /* ⚔️ 이 마법사의 복수전이 열리는지 확인해 12단계를 붙이거나 떼어냅니다 */
+  applyRevengeStage(await loadRevengeWords(LEARNER_ID, code));
 
   cancelAnimationFrame(rafId);
   if (state) clearMonsters();
@@ -4761,6 +4867,10 @@ async function refreshClassStage(){
 }
 $("roomcode").addEventListener("change", refreshClassStage);
 $("roomcode").addEventListener("blur", refreshClassStage);
+
+/* ⚔️ 이름·코드가 정해지면 복수전(12단계)이 열렸는지도 확인합니다 */
+$("nickname").addEventListener("blur", refreshRevengeStage);
+$("roomcode").addEventListener("blur", refreshRevengeStage);
 $("roomcode").addEventListener("change", () => lookupSchoolByCode($("roomcode").value));
 $("roomcode").addEventListener("blur",   () => lookupSchoolByCode($("roomcode").value));
 
