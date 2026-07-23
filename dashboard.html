@@ -396,6 +396,7 @@ tr:last-child td{ border-bottom:none; }
   <div class="card">
     <h2>지금까지 누적 현황 <button id="refresh-cumulative">새로고침</button></h2>
     <p class="help">서비스를 시작한 이후 지금까지 전체 누적 수치예요.</p>
+    <div id="launch-clock" style="margin:6px 0 14px;"></div>
     <div class="summary-row" id="cumulative-stats">
       <div class="stat"><div class="num">–</div><div class="label">누적 학교 수</div></div>
       <div class="stat"><div class="num">–</div><div class="label">누적 학생 수</div></div>
@@ -416,6 +417,38 @@ tr:last-child td{ border-bottom:none; }
    점이에요.)
    ========================================================================= */
 const DASH_PASSWORD = "타자수비대2026";
+
+/* ===== 출시 후 경과 시계 =====
+   LAUNCH_KST: 게임 출시(계측 시작) 순간. 대시보드는 실제 첫 기록 시각을 우선 쓰고,
+   그 값이 없을 때만 아래 상수를 씁니다. 정확한 시각으로 바꿔 두세요. */
+const LAUNCH_KST = "2026-07-14T09:00:00+09:00";
+let __launchTimer = null;
+function startLaunchClock(launchDate, elId){
+  const el = document.getElementById(elId || "launch-clock");
+  if(!el || !launchDate || isNaN(launchDate)) return;
+  if(__launchTimer) clearInterval(__launchTimer);
+  const optL = {timeZone:"Asia/Seoul",year:"numeric",month:"long",day:"numeric",weekday:"short",hour:"numeric",minute:"2-digit"};
+  const optN = {timeZone:"Asia/Seoul",year:"numeric",month:"long",day:"numeric",weekday:"short",hour:"numeric",minute:"2-digit",second:"2-digit"};
+  function tick(){
+    const now = new Date();
+    let ms = now - launchDate; if(ms < 0) ms = 0;
+    const tot = Math.floor(ms/60000);
+    const d = Math.floor(tot/1440), h = Math.floor((tot%1440)/60), m = tot%60;
+    el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;">
+      <div style="flex:1;min-width:150px;background:#faf9ff;border:1px solid #ece9f8;border-radius:14px;padding:13px 16px;">
+        <div style="font-size:12px;color:#8C7E95;margin-bottom:5px;">🚀 처음 시작한 순간</div>
+        <div style="font-size:15px;font-weight:700;color:#3a3550;">${launchDate.toLocaleString("ko-KR",optL)}</div></div>
+      <div style="flex:1;min-width:150px;background:#faf9ff;border:1px solid #ece9f8;border-radius:14px;padding:13px 16px;">
+        <div style="font-size:12px;color:#8C7E95;margin-bottom:5px;">🕐 지금</div>
+        <div style="font-size:15px;font-weight:700;color:#3a3550;">${now.toLocaleString("ko-KR",optN)}</div></div>
+      <div style="flex:1.25;min-width:180px;background:linear-gradient(135deg,#6c5ce7,#8a7ff0);border-radius:14px;padding:13px 16px;color:#fff;">
+        <div style="font-size:12px;opacity:.92;margin-bottom:5px;">⏱️ 출시 후 경과</div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.3px;">${d}일 ${h}시간 ${m}분</div></div>
+    </div>`;
+  }
+  tick();
+  __launchTimer = setInterval(tick, 1000);
+}
 
 const SUPABASE_URL = "https://dbcydfbduservhiwiwgj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ojqIzp7fD06E50JraS4i-g_uLU8p8pS";
@@ -1183,9 +1216,13 @@ async function loadCumulative(){
       <div class="stat"><div class="num">${esc(r.total_students ?? 0)}</div><div class="label">누적 학생 수</div></div>
       <div class="stat"><div class="num">${esc(r.total_plays ?? 0)}</div><div class="label">누적 총 플레이 수</div></div>
     `;
-    since.textContent = r.first_play_kst
-      ? `첫 기록: ${String(r.first_play_kst).replace("T"," ").slice(0,16)} (한국시간)`
-      : "";
+    let launchDate = new Date(LAUNCH_KST);
+    if (r.first_play_kst){
+      const dd = new Date(String(r.first_play_kst).replace(" ","T").slice(0,19) + "+09:00");
+      if(!isNaN(dd)) launchDate = dd;
+    }
+    startLaunchClock(launchDate, "launch-clock");
+    since.textContent = "· 시각은 한국 시간(KST) 기준이에요.";
   } catch(e){
     wrap.innerHTML = `<span class="muted">불러오기 실패 (${esc(e.message).slice(0,120)})</span>`;
   }
@@ -1198,6 +1235,7 @@ function switchTab(tab){
 }
 
 function initDashboard(){
+  startLaunchClock(new Date(LAUNCH_KST), "launch-clock");
   loadToday();
   loadRetention();
   buildWeekOptions();
