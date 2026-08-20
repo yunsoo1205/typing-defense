@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>타자 수비대 · 선생님용 학급 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sky:#CFEBFF; --sky-deep:#A9DAFB; --butter:#FFF3C9; --cream:#FFFDF5;
+  --berry:#FF8FA8; --grape:#9B8CF0; --mint:#6FD3B8;
+  --ink:#5A4A63; --ink-soft:#8C7E95;
+  --font-display:'Jua','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --font-body:'Gowun Dodum','Apple SD Gothic Neo',sans-serif;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{
+  min-height:100dvh; padding:24px 16px 60px;
+  font-family:var(--font-body); color:var(--ink);
+  background:linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 55%, #C9EFC0 100%);
+  background-attachment:fixed;
+}
+main{ width:min(1000px,100%); margin:0 auto; }
+header{
+  background:var(--butter); border:4px solid #fff; border-radius:26px;
+  padding:22px 26px; text-align:center; margin-bottom:20px;
+  box-shadow:0 6px 0 rgba(90,74,99,.12), 0 12px 28px rgba(90,74,99,.16);
+}
+header h1{ font-family:var(--font-display); font-size:28px; font-weight:400; }
+header p{ font-size:14px; color:var(--ink-soft); margin-top:6px; }
+
+.card{
+  background:var(--cream); border:4px solid #fff; border-radius:22px;
+  padding:20px 22px; margin-bottom:18px;
+  box-shadow:0 6px 0 rgba(90,74,99,.10), 0 10px 22px rgba(90,74,99,.14);
+}
+.card h2{
+  font-family:var(--font-display); font-size:20px; font-weight:400;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin-bottom:6px;
+}
+.card .help{ font-size:13px; color:var(--ink-soft); margin-bottom:16px; line-height:1.6; }
+
+/* 탭 버튼 (기간 필터) */
+.tab-bar{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; justify-content:center; }
+.tab-btn{
+  font-family:var(--font-display); font-size:15px; padding:10px 22px;
+  border-radius:999px; border:3px solid #fff; background:#fff; color:var(--ink-soft);
+  box-shadow:0 3px 0 rgba(90,74,99,.10); cursor:pointer; transition:all 0.2s;
+}
+.tab-btn:hover{ transform:translateY(-2px); }
+.tab-btn.active{ background:var(--grape); border-color:var(--grape); color:#fff; }
+
+/* 요약 통계 */
+.summary-row{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px; }
+.stat{
+  flex:1; min-width:140px; background:#fff; border-radius:16px; padding:18px 16px;
+  text-align:center; border:2px solid #EDE7F0;
+}
+.stat .num{ font-family:var(--font-display); font-size:28px; color:var(--grape); }
+.stat .label{ font-size:13px; color:var(--ink-soft); margin-top:4px; font-weight:bold; }
+
+/* 학생 데이터 테이블 */
+.table-wrap{ overflow-x:auto; background:#fff; border-radius:16px; border:2px solid #EDE7F0; }
+table{ width:100%; border-collapse:collapse; font-size:14px; min-width:700px; }
+th, td{ text-align:center; padding:12px 10px; border-bottom:1px solid #EDE7F0; }
+th{ background:#F7F3FB; color:var(--ink); font-weight:bold; cursor:pointer; }
+th:hover{ background:#EFEAF3; }
+tr:last-child td{ border-bottom:none; }
+tr:hover{ background:#FAFAFA; }
+.text-left{ text-align:left; }
+
+/* 뱃지 디자인 */
+.badge-pill{
+  display:inline-block; font-size:12px; padding:4px 10px; margin:2px;
+  border-radius:999px; background:var(--butter); color:var(--ink);
+  border:1px solid #F5C451; white-space:nowrap;
+}
+.pill-gray{ background:#F0EAF4; color:var(--ink-soft); border:none; padding:4px 10px; border-radius:999px; font-size:12px; }
+
+/* 버튼류 */
+.btn-action{
+  font-family:var(--font-body); font-size:13px; cursor:pointer;
+  border:none; background:var(--mint); color:#fff; font-weight:bold;
+  padding:8px 16px; border-radius:999px; box-shadow:0 3px 0 #56BFA3;
+}
+.btn-action:active{ transform:translateY(3px); box-shadow:0 1px 0 #56BFA3; }
+
+/* 입장 게이트 */
+#gate{
+  position:fixed; inset:0; background:linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 55%, #C9EFC0 100%);
+  display:flex; align-items:center; justify-content:center; z-index:99; padding:20px;
+}
+#gate .box{
+  background:var(--cream); border:4px solid #fff; border-radius:26px; padding:36px;
+  text-align:center; width:min(380px,100%);
+  box-shadow:0 6px 0 rgba(90,74,99,.12), 0 12px 28px rgba(90,74,99,.16);
+}
+#gate .box .emoji{ font-size:42px; margin-bottom:12px; }
+#gate input{
+  width:100%; font-family:var(--font-display); font-size:18px; margin-top:16px;
+  padding:14px 16px; border:3px solid #E6DDEC; border-radius:999px; outline:none; text-align:center; text-transform:uppercase;
+}
+#gate input:focus{ border-color:var(--grape); }
+#gate button{
+  margin-top:16px; width:100%; padding:14px; background:var(--grape); color:#fff; border:none;
+  font-family:var(--font-display); font-size:18px; border-radius:999px; cursor:pointer; box-shadow:0 4px 0 #7C6BD8;
+}
+#gate button:active{ transform:translateY(4px); box-shadow:0 0 0 transparent; }
+#gate .err{ color:var(--berry); font-size:13px; margin-top:12px; min-height:16px; font-weight:bold; }
+.hidden{ display:none !important; }
+</style>
+</head>
+<body>
+
+<!-- 학급 코드 입력 게이트 -->
+<div id="gate">
+  <div class="box">
+    <div class="emoji">🏫</div>
+    <div style="font-family:var(--font-display); font-size:22px; margin-bottom:6px;">선생님 대시보드</div>
+    <div style="font-size:13px; color:var(--ink-soft); line-height:1.5;">학급 코드를 입력하면<br>우리 반 학생들의 기록을 볼 수 있어요.</div>
+    <input type="text" id="code-input" placeholder="학급 코드 입력" autocomplete="off" />
+    <button id="code-submit">우리 반 기록 보기</button>
+    <div class="err" id="code-err"></div>
+  </div>
+</div>
+
+<!-- 메인 대시보드 -->
+<main id="app" class="hidden">
+  <header>
+    <h1>👩‍🏫 <span id="display-code"></span> 학급 리포트</h1>
+    <p>선생님을 위한 우리 반 학생들의 타자 수비대 수행 현황입니다.</p>
+  </header>
+
+  <!-- 기간 필터 탭 -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-period="week">이번 주</button>
+    <button class="tab-btn" data-period="month">이번 달</button>
+    <button class="tab-btn" data-period="total">전체 (누적)</button>
+  </div>
+
+  <!-- 요약 카드 -->
+  <div class="card">
+    <h2>📊 학급 전체 요약</h2>
+    <p class="help">선택한 기간 동안 우리 반 학생들이 달성한 요약 정보입니다.</p>
+    <div class="summary-row" id="summary-stats">
+      <div class="stat"><div class="num" id="stat-students">0명</div><div class="label">접속한 학생 수</div></div>
+      <div class="stat"><div class="num" id="stat-plays">0판</div><div class="label">총 플레이 횟수</div></div>
+      <div class="stat"><div class="num" id="stat-cpm">0타</div><div class="label">학급 평균 타수(CPM)</div></div>
+    </div>
+  </div>
+
+  <!-- 학생별 상세 리스트 카드 -->
+  <div class="card">
+    <h2>
+      👨‍🎓 학생별 상세 기록
+      <button class="btn-action" id="btn-export">📥 엑셀(CSV) 다운로드</button>
+    </h2>
+    <p class="help">
+      💡 <b>유용한 팁:</b> 표의 제목(닉네임, 출석일 등)을 클릭하면 오름차순/내림차순으로 정렬됩니다. 
+      수행평가 기록 시 '엑셀 다운로드' 버튼을 활용해 보세요.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-sort="name">닉네임 ↕</th>
+            <th data-sort="attendance">출석일 ↕</th>
+            <th data-sort="plays">플레이 횟수 ↕</th>
+            <th data-sort="maxStage">최고 단계 ↕</th>
+            <th data-sort="avgCpm">평균 타수 ↕</th>
+            <th data-sort="lastDate">최근 접속일 ↕</th>
+            <th class="text-left">획득 뱃지 (총 누적)</th>
+          </tr>
+        </thead>
+        <tbody id="student-tbody">
+          <!-- 학생 데이터가 여기에 렌더링됩니다 -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+/* =========================================================================
+   1. 데이터베이스 및 뱃지 기본 설정
+   ========================================================================= */
+const SUPABASE_URL = "https://dbcydfbduservhiwiwgj.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ojqIzp7fD06E50JraS4i-g_uLU8p8pS";
+
+function getHeaders(){
+  return { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY, "Content-Type": "application/json" };
+}
+
+// index.html 에 있는 뱃지 원본 데이터를 그대로 가져옵니다. (코드 -> 이름 변환 매핑용)
+const BADGES = [
+  { id:"enter",    icon:"🎒", name:"마법 학교 입학",  desc:"1단계를 클리어했어요" },
+  { id:"sweat",    icon:"💦", name:"견습생의 땀방울", desc:"견습 마법사로 5판을 연습했어요" },
+  { id:"grind10",  icon:"🫗", name:"땀방울 마스터",   desc:"견습 마법사로 10판을 연습했어요" },
+  { id:"half",     icon:"🌗", name:"절반의 기적",    desc:"5단계(받침 단어)를 클리어했어요" },
+  { id:"captain",  icon:"👑", name:"타자 수비대장",  desc:"10단계까지 모두 클리어했어요" },
+  { id:"advten",   icon:"🔓", name:"고급 정복자",     desc:"고급 마법사로 10단계를 클리어했어요 (무한 마법 해금!)" },
+  { id:"grit",     icon:"🩹", name:"칠전팔기",       desc:"3번 넘게 실패한 단계를 끝내 클리어했어요" },
+  { id:"sniper",   icon:"🎯", name:"백발백중 명사수", desc:"한 단계를 오답 한 번 없이 통과했어요" },
+  { id:"notape",   icon:"🚫", name:"수정테이프 압수", desc:"지우기(Backspace) 없이 한 단계를 통과했어요" },
+  { id:"careful",  icon:"🐢", name:"돌다리도 두들겨라", desc:"단어를 30개 넘게 잡으면서 정확도 95%를 지켰어요" },
+  { id:"shield",   icon:"🛡️", name:"철벽 방어",      desc:"하트를 하나도 잃지 않고 단계를 통과했어요" },
+  { id:"perfect",  icon:"💯", name:"완벽주의자",     desc:"오답도 지우기도 하나 없이 한 단계를 통과했어요" },
+  { id:"lightning",icon:"⚡", name:"번개 마법사",    desc:"1분에 300타 넘게 쳤어요" },
+  { id:"burning",  icon:"🔥", name:"불타는 키보드",  desc:"고급(2배속) 모드로 한 단계를 통과했어요" },
+  { id:"timelord", icon:"⏳", name:"시간 여행자",    desc:"몬스터가 절반도 오기 전에 전부 처치했어요" },
+  { id:"score10k", icon:"🪙", name:"일만 점 마법사",  desc:"한 게임에서 10,000점을 넘겼어요" },
+  { id:"score20k", icon:"🥈", name:"이만 점 마법사",  desc:"한 게임에서 20,000점을 넘겼어요" },
+  { id:"score30k", icon:"🥇", name:"삼만 점 마법사",  desc:"한 게임에서 30,000점을 넘겼어요" },
+  { id:"score40k", icon:"💎", name:"사만 점 대마법사", desc:"한 게임에서 40,000점을 넘겼어요" },
+  { id:"score50k", icon:"🏆", name:"오만 점 전설",    desc:"한 게임에서 50,000점을 넘겼어요" },
+  { id:"lucky77",  icon:"🍀", name:"행운의 77",     desc:"최종 점수가 77로 끝났어요" },
+  { id:"meteor",   icon:"☄️", name:"메테오 샤워",    desc:"한 판에서 별똥별을 3번 소환했어요" },
+  { id:"classhero",icon:"🏫", name:"우리 반 챔피언",  desc:"선생님이 만든 '우리 반 단계'를 클리어했어요" },
+  { id:"inf50",    icon:"♾️", name:"끝없는 도전자",   desc:"무한 마법에서 단어를 50개 입력했어요" },
+  { id:"inf100",   icon:"🌌", name:"영원의 마법사",   desc:"무한 마법에서 단어를 100개 입력했어요" },
+  { id:"firstgacha", icon:"🎁", name:"첫 뽑기!",      desc:"뽑기를 처음 해 봤어요" },
+  { id:"attend3",  icon:"📅", name:"출석 3일",       desc:"타자 수비대에 3일 접속했어요" },
+  { id:"attend7",  icon:"🗓️", name:"출석 7일",       desc:"타자 수비대에 7일 접속했어요" },
+  { id:"attend14", icon:"⭐", name:"출석 14일",      desc:"타자 수비대에 14일 접속했어요" },
+  { id:"attend30", icon:"🏅", name:"출석 30일",      desc:"타자 수비대에 30일 접속했어요" }
+];
+const BADGE_MAP = Object.fromEntries(BADGES.map(b => [b.id, b]));
+
+let classCode = "";
+let currentPeriod = "week"; // week, month, total
+let rawStudents = []; // Supabase에서 가져온 원본 데이터
+
+/* =========================================================================
+   2. 데이터 가져오기 및 가공 (Client-side Data Aggregation)
+   ========================================================================= */
+async function fetchClassData() {
+  try {
+    const btn = document.getElementById("code-submit");
+    btn.textContent = "데이터 불러오는 중...";
+    btn.disabled = true;
+
+    // 1. 해당 코드의 학생 목록 가져오기 (이름 매핑용)
+    const hsRes = await fetch(`${SUPABASE_URL}/rest/v1/user_high_scores?code=eq.${encodeURIComponent(classCode)}&select=learner_id,name,stage`, { headers: getHeaders() });
+    if (!hsRes.ok) throw new Error("학생 데이터를 불러오지 못했습니다.");
+    const highScores = await hsRes.json();
+
+    if(highScores.length === 0) {
+      document.getElementById("code-err").textContent = "해당 학급 코드의 기록이 없습니다.";
+      btn.textContent = "우리 반 기록 보기";
+      btn.disabled = false;
+      return;
+    }
+
+    // 2. 해당 코드의 전체 플레이 로그 가져오기 (출석일, 타수, 플레이 횟수 계산용)
+    const playsRes = await fetch(`${SUPABASE_URL}/rest/v1/plays?code=eq.${encodeURIComponent(classCode)}&select=learner_id,cpm,created_at,stage`, { headers: getHeaders() });
+    const plays = await playsRes.json();
+
+    // 3. 해당 코드의 뱃지 데이터 가져오기
+    const badgesRes = await fetch(`${SUPABASE_URL}/rest/v1/badges?code=eq.${encodeURIComponent(classCode)}&select=learner_id,badge_id`, { headers: getHeaders() });
+    const badges = await badgesRes.json();
+
+    // 4. 데이터 조립 (학생 기준)
+    const studentMap = {};
+    
+    // 학생 기본 틀 세팅
+    highScores.forEach(hs => {
+      if(!studentMap[hs.learner_id]) {
+        studentMap[hs.learner_id] = {
+          learner_id: hs.learner_id,
+          name: hs.name,
+          maxStageAllTime: hs.stage || 0,
+          plays: [],
+          badges: []
+        };
+      } else {
+        // 최고 단계 갱신 방어
+        if(hs.stage > studentMap[hs.learner_id].maxStageAllTime) {
+          studentMap[hs.learner_id].maxStageAllTime = hs.stage;
+        }
+      }
+    });
+
+    // 플레이 로그 할당
+    plays.forEach(p => {
+      if(studentMap[p.learner_id]) {
+        studentMap[p.learner_id].plays.push(p);
+      }
+    });
+
+    // 뱃지 데이터 할당 (뽑기 아이템, 비밀번호 등 itm_, pw_ 제외)
+    badges.forEach(b => {
+      if(studentMap[b.learner_id] && !b.badge_id.startsWith("itm_") && !b.badge_id.startsWith("pw_")) {
+        studentMap[b.learner_id].badges.push(b.badge_id);
+      }
+    });
+
+    rawStudents = Object.values(studentMap);
+    
+    // 화면 전환
+    document.getElementById("gate").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    document.getElementById("display-code").textContent = classCode;
+    
+    renderDashboard();
+
+  } catch(error) {
+    document.getElementById("code-err").textContent = "오류 발생: " + error.message;
+    document.getElementById("code-submit").textContent = "우리 반 기록 보기";
+    document.getElementById("code-submit").disabled = false;
+  }
+}
+
+/* =========================================================================
+   3. 기간 필터링 및 화면 렌더링
+   ========================================================================= */
+function filterPlaysByPeriod(plays) {
+  if (currentPeriod === "total") return plays;
+  
+  const now = new Date();
+  return plays.filter(p => {
+    // 한국 시간 변환 편의를 위해 Date 객체 생성
+    const d = new Date(p.created_at);
+    
+    if (currentPeriod === "week") {
+      const startOfWeek = new Date(now);
+      const day = now.getDay() === 0 ? 6 : now.getDay() - 1; // 월요일 기준
+      startOfWeek.setDate(now.getDate() - day);
+      startOfWeek.setHours(0,0,0,0);
+      return d >= startOfWeek;
+    }
+    
+    if (currentPeriod === "month") {
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }
+    
+    return true;
+  });
+}
+
+function renderDashboard() {
+  let totalPlaysInPeriod = 0;
+  let totalCpmSum = 0;
+  let cpmCount = 0;
+  let activeStudents = 0;
+
+  const tableData = [];
+
+  rawStudents.forEach(std => {
+    // 1. 기간에 맞는 플레이 로그 필터링
+    const filteredPlays = filterPlaysByPeriod(std.plays);
+    
+    if(filteredPlays.length > 0) {
+      activeStudents++;
+      totalPlaysInPeriod += filteredPlays.length;
+
+      // 출석일 계산 (한국시간 KST 기준 고유한 날짜 수)
+      const uniqueDays = new Set();
+      let lastDate = new Date(0);
+      let studentCpmSum = 0;
+      let studentCpmCount = 0;
+      let maxStageInPeriod = 0;
+
+      filteredPlays.forEach(p => {
+        const d = new Date(p.created_at);
+        const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+        uniqueDays.add(kst.toISOString().split('T')[0]);
+        
+        if(d > lastDate) lastDate = d;
+        if(p.cpm > 0) {
+          studentCpmSum += p.cpm;
+          studentCpmCount++;
+          totalCpmSum += p.cpm;
+          cpmCount++;
+        }
+        if(p.stage && p.stage > maxStageInPeriod) {
+          maxStageInPeriod = p.stage;
+        }
+      });
+
+      // 포맷팅
+      const avgCpm = studentCpmCount > 0 ? Math.round(studentCpmSum / studentCpmCount) : 0;
+      
+      // 최근 접속일 텍스트화 (YYYY-MM-DD HH:MM)
+      const kstLast = new Date(lastDate.getTime() + 9 * 60 * 60 * 1000);
+      const lastDateStr = kstLast.toISOString().replace("T", " ").slice(0, 16);
+
+      tableData.push({
+        name: std.name,
+        attendance: uniqueDays.size,
+        plays: filteredPlays.length,
+        maxStage: maxStageInPeriod,
+        avgCpm: avgCpm,
+        lastDate: lastDateStr,
+        lastDateRaw: lastDate.getTime(), // 정렬용
+        badges: std.badges // 뱃지는 전체 기간 누적을 보여주는 것이 좋음
+      });
+    }
+  });
+
+  // 상단 요약 렌더링
+  document.getElementById("stat-students").textContent = `${activeStudents}명`;
+  document.getElementById("stat-plays").textContent = `${totalPlaysInPeriod}판`;
+  document.getElementById("stat-cpm").textContent = `${cpmCount > 0 ? Math.round(totalCpmSum / cpmCount) : 0}타`;
+
+  renderTable(tableData);
+}
+
+let currentSort = { column: 'lastDate', asc: false };
+
+function renderTable(data) {
+  // 정렬 적용
+  data.sort((a, b) => {
+    let valA = a[currentSort.column];
+    let valB = b[currentSort.column];
+    
+    // 날짜 정렬용 예외처리
+    if(currentSort.column === 'lastDate') { valA = a.lastDateRaw; valB = b.lastDateRaw; }
+    // 이름 정렬
+    if(typeof valA === 'string' && typeof valB === 'string') {
+      return currentSort.asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    }
+    // 숫자 정렬
+    return currentSort.asc ? valA - valB : valB - valA;
+  });
+
+  const tbody = document.getElementById("student-tbody");
+  
+  if(data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:30px; color:#8C7E95;">선택한 기간 동안 기록이 없습니다.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(row => {
+    // 뱃지를 코드가 아닌 '아이콘 + 이름' 형태로 예쁘게 변환합니다.
+    let badgesHtml = row.badges.map(id => {
+      const b = BADGE_MAP[id];
+      return b ? `<span class="badge-pill" title="${b.desc}">${b.icon} ${b.name}</span>` : "";
+    }).join("");
+    
+    if(!badgesHtml) badgesHtml = `<span class="pill-gray">아직 뱃지가 없습니다</span>`;
+
+    return `
+      <tr>
+        <td><b>${escapeHtml(row.name)}</b></td>
+        <td><b style="color:var(--grape);">${row.attendance}일</b></td>
+        <td>${row.plays}판</td>
+        <td>${row.maxStage > 0 ? row.maxStage + '단계' : '-'}</td>
+        <td>${row.avgCpm > 0 ? row.avgCpm + '타' : '-'}</td>
+        <td style="color:var(--ink-soft); font-size:13px;">${row.lastDate}</td>
+        <td class="text-left">${badgesHtml}</td>
+      </tr>
+    `;
+  }).join("");
+  
+  // 엑셀 다운로드를 위해 현재 보여지는 데이터 저장
+  window.currentTableData = data;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+/* =========================================================================
+   4. 이벤트 리스너 설정
+   ========================================================================= */
+// 로그인 
+document.getElementById("code-submit").addEventListener("click", () => {
+  const input = document.getElementById("code-input").value.trim().toUpperCase();
+  if(!input) {
+    document.getElementById("code-err").textContent = "학급 코드를 입력해주세요.";
+    return;
+  }
+  classCode = input;
+  document.getElementById("code-err").textContent = "";
+  fetchClassData();
+});
+
+document.getElementById("code-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("code-submit").click();
+});
+
+// 탭 전환 (기간 필터)
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    e.target.classList.add("active");
+    currentPeriod = e.target.dataset.period;
+    renderDashboard();
+  });
+});
+
+// 테이블 헤더 정렬
+document.querySelectorAll("th[data-sort]").forEach(th => {
+  th.addEventListener("click", (e) => {
+    const column = e.target.dataset.sort;
+    if(currentSort.column === column) {
+      currentSort.asc = !currentSort.asc; // 방향 토글
+    } else {
+      currentSort.column = column;
+      currentSort.asc = false; // 기본 내림차순
+    }
+    renderDashboard();
+  });
+});
+
+// 엑셀(CSV) 다운로드 기능 (유용한 팁)
+document.getElementById("btn-export").addEventListener("click", () => {
+  if(!window.currentTableData || window.currentTableData.length === 0) {
+    alert("다운로드할 데이터가 없습니다.");
+    return;
+  }
+  
+  // CSV 헤더
+  let csvContent = "닉네임,출석일,플레이횟수,최고단계,평균타수,최근접속일,획득뱃지(이름)\n";
+  
+  window.currentTableData.forEach(row => {
+    // 뱃지 이름을 콤마로 연결 (CSV 형식이 깨지지 않도록 쌍따옴표 처리)
+    const badgeNames = row.badges.map(id => BADGE_MAP[id] ? BADGE_MAP[id].name : id).join(", ");
+    
+    const rowArray = [
+      row.name,
+      row.attendance,
+      row.plays,
+      row.maxStage,
+      row.avgCpm,
+      row.lastDate,
+      `"${badgeNames}"` 
+    ];
+    csvContent += rowArray.join(",") + "\n";
+  });
+
+  // UTF-8 BOM 추가 (한글 깨짐 방지)
+  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  const blob = new Blob([bom, csvContent], { type: "text/csv;charset=utf-8;" });
+  
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `타자수비대_학급리포트_${classCode}_${currentPeriod}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+});
+</script>
+</body>
+</html>
