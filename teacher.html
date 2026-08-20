@@ -243,7 +243,10 @@ async function fetchClassData() {
     btn.disabled = true;
 
     // 1. 해당 코드의 학생 목록 가져오기 (이름 매핑용)
-    const hsRes = await fetch(`${SUPABASE_URL}/rest/v1/user_high_scores?code=eq.${encodeURIComponent(classCode)}&select=learner_id,name,stage`, { headers: getHeaders() });
+    // ⚠️ user_high_scores 테이블의 code 컬럼에는 난이도 접미사가 붙어서 저장됩니다
+    //    (예: WHKS-E/-H/-I, 영타는 -A/-B/-C). 순수 학급코드로 eq 매칭하면 항상 0건이
+    //    나오므로, "학급코드-*" 패턴에 매칭되는 like 검색으로 가져옵니다.
+    const hsRes = await fetch(`${SUPABASE_URL}/rest/v1/user_high_scores?code=like.${encodeURIComponent(classCode + "-*")}&select=learner_id,name,stage`, { headers: getHeaders() });
     if (!hsRes.ok) throw new Error("학생 데이터를 불러오지 못했습니다.");
     const highScores = await hsRes.json();
 
