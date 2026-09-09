@@ -1658,6 +1658,25 @@ const CUSTOM_DIFFICULTY_PRESETS = {
   normal: { speed: 75, spawnEvery: 3.0 },
   hard:   { speed: 92, spawnEvery: 2.1 }
 };
+/* 🇰🇷 대한민국 공용 서버(KOREA) 전용 11단계.
+   학급 링크의 '우리 반 단계'와 달리 선생님 설정 없이 항상 열립니다. */
+const KOREA_STAGE_WORDS = [
+  "대한민국", "한글", "태극기", "무궁화", "우리나라", "세종대왕", "훈민정음", "아리랑",
+  "한복", "한옥", "태권도", "서울", "한강", "제주도", "경복궁", "학교",
+  "친구", "배움", "도전", "용기", "성장", "응원", "함께", "약속",
+  "책읽기", "운동장", "선생님", "즐거운 하루", "꿈을 향해", "끝까지 도전"
+];
+function makeKoreaSpecialStage(){
+  const preset = CUSTOM_DIFFICULTY_PRESETS.normal;
+  return {
+    num: CUSTOM_STAGE_NUM, name: "대한민국 특별 단계", custom: true, koreaSpecial: true,
+    desc: "전국의 친구들과 함께 도전하는 대한민국 타자 수비대 특별 단계예요!",
+    words: KOREA_STAGE_WORDS,
+    monsters: ["🇰🇷","⭐","✨"],
+    speed: preset.speed, spawnEvery: preset.spawnEvery
+  };
+}
+
 function makeCustomStage(words, difficulty){
   let preset = CUSTOM_DIFFICULTY_PRESETS[difficulty];
   if (!preset){
@@ -1786,14 +1805,18 @@ async function loadClassWords(code){
   } catch(e){ return null; }
 }
 
-/* 우리 반 단계를 STAGES 맨 뒤에 붙이거나 떼어냅니다 */
-function applyCustomStage(words, difficulty){
-  STAGES = STAGES.filter(s => !s.custom);           // 예전 것 제거
-  /* 우리 반 단계는 한글 단어라서 영타 모드에서는 붙이지 않아요 */
-  if (words && words.length && LANG !== "en"){
-    const st = makeCustomStage(words, difficulty);
-    const at = STAGES.findIndex(s => s.revenge);    // ⚔️ 복수전은 항상 맨 뒤
-    if (at >= 0) STAGES.splice(at, 0, st); else STAGES.push(st);
+/* 우리 반 단계 또는 대한민국 특별 단계를 STAGES 맨 뒤에 붙이거나 떼어냅니다 */
+function applyCustomStage(words, difficulty, koreaSpecial){
+  STAGES = STAGES.filter(s => !s.custom);           // 예전 custom 단계 제거
+  /* 11단계는 한글 전용이라 영타 모드에서는 붙이지 않아요. */
+  if (LANG !== "en"){
+    let st = null;
+    if (koreaSpecial) st = makeKoreaSpecialStage();
+    else if (words && words.length) st = makeCustomStage(words, difficulty);
+    if (st){
+      const at = STAGES.findIndex(s => s.revenge);  // ⚔️ 복수전은 항상 맨 뒤
+      if (at >= 0) STAGES.splice(at, 0, st); else STAGES.push(st);
+    }
   }
   buildStageOptions();
 }
@@ -1806,8 +1829,9 @@ function buildStageOptions(){
   STAGES.forEach(s => {
     const o = document.createElement("option");
     o.value = s.num;
-    o.textContent = s.custom  ? `🏫 ${s.num}단계 · 우리 반 단계`
-                  : s.revenge ? `⚔️ ${s.num}단계 · 복수전`
+    o.textContent = s.koreaSpecial ? `🇰🇷 ${s.num}단계 · 대한민국 특별 단계`
+                  : s.custom       ? `🏫 ${s.num}단계 · 우리 반 단계`
+                  : s.revenge      ? `⚔️ ${s.num}단계 · 복수전`
                   : `${s.num}단계 · ${s.name}`;
     sel.appendChild(o);
   });
@@ -1860,6 +1884,19 @@ const BADGES = [
   { id:"attend30", icon:"🏅", name:"출석 30일",      desc:"타자 수비대에 30일 접속했어요" }
 ];
 const BADGE_BY_ID = Object.fromEntries(BADGES.map(b => [b.id, b]));
+
+/* KOREA에서는 같은 classhero 뱃지를 '대한민국 챔피언'으로 보여 줍니다.
+   저장 ID는 그대로라 기존 학급 뱃지 데이터 구조를 바꾸지 않습니다. */
+function badgeForDisplay(b, code){
+  const normalizedCode = String(code || "").toUpperCase();
+  if (b && b.id === "classhero" && normalizedCode === KOREA_CODE){
+    return Object.assign({}, b, {
+      icon:"🇰🇷", name:"대한민국 챔피언",
+      desc:"대한민국 특별 단계를 클리어했어요"
+    });
+  }
+  return b;
+}
 
 /* 이 학습자가 지금까지 딴 뱃지 목록 */
 async function loadBadges(learnerId){
@@ -3814,7 +3851,7 @@ function grantBadge(id){
   if (!b) return;
   state.earnedBadges.add(id);
   state.newBadges.push(id);
-  showBadgeToast(b);
+  showBadgeToast(badgeForDisplay(b, state.code));
 }
 
 function showBadgeToast(b){
@@ -3840,7 +3877,7 @@ function checkStageBadges(){
   if (stageNum >= 1)  grantBadge("enter");
   if (stageNum >= 5 && !stageObj.custom && !stageObj.revenge)  grantBadge("half");
   if (stageNum >= 10 && !stageObj.custom && !stageObj.revenge) grantBadge("captain");
-  if (stageObj.custom) grantBadge("classhero");     // 🏫 우리 반 단계 전용
+  if (stageObj.custom) grantBadge("classhero");     // 🏫 우리 반 단계 / 🇰🇷 대한민국 특별 단계
 
   // 이 단계에서 예전에 3번 넘게 실패했다면
   const pastFails = state.progress.failsByStage[stageNum] || 0;
@@ -3874,9 +3911,12 @@ function checkStageBadges(){
 function renderBadgeGrid(gridId, countId, earned, fresh){
   fresh = fresh || new Set();
   if (countId && $(countId)) $(countId).textContent = `${earned.size} / ${BADGES.length}`;
-  $(gridId).innerHTML = BADGES.map(b => {
-    const has = earned.has(b.id);
-    const cls = "badge" + (has ? " on" : "") + (fresh.has(b.id) ? " fresh" : "");
+  const roomCodeEl = $("roomcode");
+  const codeForBadges = cleanCode((roomCodeEl && roomCodeEl.value) || (state && state.code));
+  $(gridId).innerHTML = BADGES.map(rawBadge => {
+    const b = badgeForDisplay(rawBadge, codeForBadges);
+    const has = earned.has(rawBadge.id);
+    const cls = "badge" + (has ? " on" : "") + (fresh.has(rawBadge.id) ? " fresh" : "");
     const tip = has ? b.desc : "아직 못 딴 뱃지예요 — " + b.desc;
     return `<div class="${cls}" title="${escapeHtml(tip)}">
               <div class="bi">${b.icon}</div>
@@ -4873,8 +4913,13 @@ $("roomcode").addEventListener("blur", refreshStartBadges);
 /* 학급 코드가 바뀌면 그 반의 '우리 반 단계' 단어도 다시 불러옵니다 */
 async function refreshClassStage(){
   const code = cleanCode($("roomcode").value);
+  /* 대표 주소의 KOREA 공용 서버에는 항상 대한민국 특별 11단계를 붙입니다. */
+  if (code === KOREA_CODE){
+    applyCustomStage(null, null, true);
+    return;
+  }
   const data = await loadClassWords(code);
-  applyCustomStage(data && data.words, data && data.difficulty);
+  applyCustomStage(data && data.words, data && data.difficulty, false);
 }
 $("roomcode").addEventListener("change", refreshClassStage);
 $("roomcode").addEventListener("blur", refreshClassStage);
