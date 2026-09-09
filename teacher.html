@@ -170,19 +170,19 @@ tr:hover{ background:#FAFAFA; }
 
   <!-- 기간 필터 탭 -->
   <div class="tab-bar">
-    <button class="tab-btn active" data-period="week">이번 주</button>
-    <button class="tab-btn" data-period="month">이번 달</button>
-    <button class="tab-btn" data-period="total">전체 (누적)</button>
+    <button class="tab-btn active" data-period="week">주간</button>
+    <button class="tab-btn" data-period="month">월간</button>
+    <button class="tab-btn" data-period="total">전체</button>
   </div>
 
-  <!-- 지난 주까지 다시 볼 수 있는 주간 랭킹 -->
-  <div class="card" id="weekly-rank-card">
-    <h2>🏆 주간 랭킹 기록</h2>
-    <p class="help">월요일~일요일 기준입니다. 왼쪽 화살표를 눌러 지난주와 이전 주의 1위를 다시 확인할 수 있어요.</p>
-    <div class="rank-week-nav">
-      <button class="week-nav-btn" id="rank-prev" type="button" title="이전 주">‹</button>
-      <div class="week-label" id="rank-week-label">이번 주</div>
-      <button class="week-nav-btn" id="rank-next" type="button" title="다음 주" disabled>›</button>
+  <!-- 선택한 기간의 랭킹 -->
+  <div class="card" id="period-rank-card">
+    <h2 id="rank-card-title">🏆 주간 랭킹 기록</h2>
+    <p class="help" id="rank-card-help">월요일~일요일 기준입니다. 화살표를 눌러 지난주와 이전 주 기록을 확인할 수 있어요.</p>
+    <div class="rank-week-nav" id="rank-period-nav">
+      <button class="week-nav-btn" id="rank-prev" type="button" title="이전 기간">‹</button>
+      <div class="week-label" id="rank-period-label">이번 주</div>
+      <button class="week-nav-btn" id="rank-next" type="button" title="다음 기간" disabled>›</button>
     </div>
     <div class="rank-grid">
       <div class="rank-mode-card">
@@ -292,38 +292,94 @@ let classCode = "";
 let currentPeriod = "week"; // week, month, total
 let rawStudents = []; // Supabase에서 가져온 원본 데이터
 
+/* 선택한 기간 위치: 0=현재 기간, -1=이전 기간 */
+let weekOffset = 0;
+let monthOffset = 0;
 
-/* 주간 랭킹 기록에서 몇 주 전을 보고 있는지: 0=이번 주, -1=지난주 */
-let rankWeekOffset = 0;
-
-function getRankWeekBounds(offset){
+function startOfCurrentWeek(offset=0){
   const now = new Date();
   const start = new Date(now);
   const day = now.getDay() === 0 ? 6 : now.getDay() - 1; // 월요일=0
   start.setDate(now.getDate() - day + offset * 7);
   start.setHours(0,0,0,0);
+  return start;
+}
+
+function getWeekBounds(offset=0){
+  const start = startOfCurrentWeek(offset);
   const end = new Date(start);
   end.setDate(start.getDate() + 7);
   return { start, end };
 }
 
+function getMonthBounds(offset=0){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  start.setHours(0,0,0,0);
+  const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+  return { start, end };
+}
+
+function getSelectedBounds(){
+  if(currentPeriod === "week") return getWeekBounds(weekOffset);
+  if(currentPeriod === "month") return getMonthBounds(monthOffset);
+  return { start:null, end:null };
+}
+
 function md(d){ return `${d.getMonth()+1}/${d.getDate()}`; }
 
-/* 주의 마지막 날(일요일)이 속한 달을 기준으로 '9월 1주'처럼 표시합니다. */
-function monthWeekLabel(start, end){
+function weekLabel(start, end){
   const sunday = new Date(end.getTime() - 24*60*60*1000);
-  const first = new Date(sunday.getFullYear(), sunday.getMonth(), 1);
-  const firstMondayIndex = (first.getDay() + 6) % 7;
-  const weekNo = Math.ceil((sunday.getDate() + firstMondayIndex) / 7);
-  const prefix = rankWeekOffset === 0 ? "이번 주 · " : (rankWeekOffset === -1 ? "지난주 · " : "");
-  return `${prefix}${sunday.getMonth()+1}월 ${weekNo}주 (${md(start)}~${md(sunday)})`;
+  const prefix = weekOffset === 0 ? "이번 주 · " : (weekOffset === -1 ? "지난주 · " : "");
+  return `${prefix}${start.getFullYear()}년 ${md(start)}~${md(sunday)}`;
+}
+
+function monthLabel(start){
+  return `${start.getFullYear()}년 ${start.getMonth()+1}월`;
+}
+
+function updatePeriodUI(){
+  const prev = document.getElementById("rank-prev");
+  const next = document.getElementById("rank-next");
+  const label = document.getElementById("rank-period-label");
+  const title = document.getElementById("rank-card-title");
+  const help = document.getElementById("rank-card-help");
+  const nav = document.getElementById("rank-period-nav");
+
+  if(currentPeriod === "week"){
+    const {start,end} = getWeekBounds(weekOffset);
+    title.textContent = "🏆 주간 랭킹 기록";
+    help.textContent = "월요일~일요일 기준입니다. 화살표를 눌러 지난주와 이전 주 기록을 확인할 수 있어요.";
+    label.textContent = weekLabel(start,end);
+    nav.style.justifyContent = "center";
+    prev.classList.remove("hidden");
+    next.classList.remove("hidden");
+    next.disabled = weekOffset >= 0;
+  } else if(currentPeriod === "month"){
+    const {start} = getMonthBounds(monthOffset);
+    title.textContent = "🏆 월간 랭킹 기록";
+    help.textContent = "한 달 단위 기록입니다. 화살표를 눌러 이전 달의 랭킹을 다시 확인할 수 있어요.";
+    label.textContent = monthLabel(start);
+    prev.classList.remove("hidden");
+    next.classList.remove("hidden");
+    next.disabled = monthOffset >= 0;
+  } else {
+    title.textContent = "🏆 전체 랭킹 기록";
+    help.textContent = "처음부터 지금까지 쌓인 전체 기록에서 학생별 최고 점수를 보여줍니다.";
+    label.textContent = "전체 기간";
+    prev.classList.add("hidden");
+    next.classList.add("hidden");
+  }
 }
 
 function renderTeacherRankList(targetId, rows){
   const box = document.getElementById(targetId);
   if(!box) return;
   if(!rows || rows.length === 0){
-    box.innerHTML = `<div class="teacher-rank-empty">이 주에는 랭킹 기록이 없습니다.</div>`;
+    const txt = currentPeriod === "week" ? "이 주에는 랭킹 기록이 없습니다."
+              : currentPeriod === "month" ? "이 달에는 랭킹 기록이 없습니다."
+              : "아직 랭킹 기록이 없습니다.";
+    box.innerHTML = `<div class="teacher-rank-empty">${txt}</div>`;
     return;
   }
   const medals = ["🥇","🥈","🥉"];
@@ -335,16 +391,20 @@ function renderTeacherRankList(targetId, rows){
     </div>`).join("");
 }
 
-async function fetchRankModeForWeek(suffix, start, end){
+async function fetchRankMode(suffix){
   const rankCode = `${classCode}-${suffix}`;
-  const q = `${SUPABASE_URL}/rest/v1/scores`
-          + `?select=name,score,stage,created_at`
-          + `&code=eq.${encodeURIComponent(rankCode)}`
-          + `&created_at=gte.${encodeURIComponent(start.toISOString())}`
-          + `&created_at=lt.${encodeURIComponent(end.toISOString())}`
-          + `&order=score.desc&limit=1000`;
+  const {start,end} = getSelectedBounds();
+  let q = `${SUPABASE_URL}/rest/v1/scores`
+        + `?select=name,score,stage,created_at`
+        + `&code=eq.${encodeURIComponent(rankCode)}`;
+  if(start && end){
+    q += `&created_at=gte.${encodeURIComponent(start.toISOString())}`
+       + `&created_at=lt.${encodeURIComponent(end.toISOString())}`;
+  }
+  q += `&order=score.desc&limit=2000`;
+
   const res = await fetch(q, { headers: getHeaders() });
-  if(!res.ok) throw new Error(`주간 랭킹을 불러오지 못했습니다. (${suffix})`);
+  if(!res.ok) throw new Error(`랭킹을 불러오지 못했습니다. (${suffix})`);
   const rows = await res.json();
   const best = new Map();
   rows.forEach(r => {
@@ -357,19 +417,15 @@ async function fetchRankModeForWeek(suffix, start, end){
     .slice(0,10);
 }
 
-async function refreshWeeklyRanks(){
+async function refreshPeriodRanks(){
   if(!classCode) return;
-  const { start, end } = getRankWeekBounds(rankWeekOffset);
-  document.getElementById("rank-week-label").textContent = monthWeekLabel(start, end);
-  document.getElementById("rank-next").disabled = rankWeekOffset >= 0;
+  updatePeriodUI();
   ["E","H","I"].forEach(suffix => {
     const box = document.getElementById(`rank-list-${suffix}`);
     if(box) box.innerHTML = `<div class="rank-loading">불러오는 중…</div>`;
   });
   const results = await Promise.allSettled([
-    fetchRankModeForWeek("E", start, end),
-    fetchRankModeForWeek("H", start, end),
-    fetchRankModeForWeek("I", start, end)
+    fetchRankMode("E"), fetchRankMode("H"), fetchRankMode("I")
   ]);
   ["E","H","I"].forEach((suffix, i) => {
     if(results[i].status === "fulfilled") renderTeacherRankList(`rank-list-${suffix}`, results[i].value);
@@ -453,10 +509,11 @@ async function fetchClassData() {
     document.getElementById("gate").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
     document.getElementById("display-code").textContent = classCode;
-    rankWeekOffset = 0;
+    weekOffset = 0;
+    monthOffset = 0;
     
     renderDashboard();
-    refreshWeeklyRanks();
+    refreshPeriodRanks();
 
   } catch(error) {
     document.getElementById("code-err").textContent = "오류 발생: " + error.message;
@@ -470,25 +527,10 @@ async function fetchClassData() {
    ========================================================================= */
 function filterPlaysByPeriod(plays) {
   if (currentPeriod === "total") return plays;
-  
-  const now = new Date();
+  const { start, end } = getSelectedBounds();
   return plays.filter(p => {
-    // 한국 시간 변환 편의를 위해 Date 객체 생성
     const d = new Date(p.created_at);
-    
-    if (currentPeriod === "week") {
-      const startOfWeek = new Date(now);
-      const day = now.getDay() === 0 ? 6 : now.getDay() - 1; // 월요일 기준
-      startOfWeek.setDate(now.getDate() - day);
-      startOfWeek.setHours(0,0,0,0);
-      return d >= startOfWeek;
-    }
-    
-    if (currentPeriod === "month") {
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-    }
-    
-    return true;
+    return d >= start && d < end;
   });
 }
 
@@ -634,25 +676,29 @@ document.getElementById("code-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") document.getElementById("code-submit").click();
 });
 
-// 주간 랭킹 이전/다음 주 이동
- document.getElementById("rank-prev").addEventListener("click", () => {
-  rankWeekOffset -= 1;
-  refreshWeeklyRanks();
+// 선택 기간 이전/다음 이동
+document.getElementById("rank-prev").addEventListener("click", () => {
+  if(currentPeriod === "week") weekOffset -= 1;
+  else if(currentPeriod === "month") monthOffset -= 1;
+  renderDashboard();
+  refreshPeriodRanks();
 });
 document.getElementById("rank-next").addEventListener("click", () => {
-  if(rankWeekOffset < 0){
-    rankWeekOffset += 1;
-    refreshWeeklyRanks();
-  }
+  if(currentPeriod === "week" && weekOffset < 0) weekOffset += 1;
+  else if(currentPeriod === "month" && monthOffset < 0) monthOffset += 1;
+  else return;
+  renderDashboard();
+  refreshPeriodRanks();
 });
 
-// 탭 전환 (기간 필터)
+// 주간 / 월간 / 전체 전환 — 랭킹·요약·학생 상세가 같은 기간을 사용합니다.
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", (e) => {
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-    e.target.classList.add("active");
-    currentPeriod = e.target.dataset.period;
+    e.currentTarget.classList.add("active");
+    currentPeriod = e.currentTarget.dataset.period;
     renderDashboard();
+    refreshPeriodRanks();
   });
 });
 
@@ -703,7 +749,8 @@ document.getElementById("btn-export").addEventListener("click", () => {
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
   link.setAttribute("href", url);
-  link.setAttribute("download", `타자수비대_학급리포트_${classCode}_${currentPeriod}.csv`);
+  const periodFileLabel = currentPeriod === "week" ? `주간_${weekOffset}` : currentPeriod === "month" ? `월간_${monthOffset}` : "전체";
+  link.setAttribute("download", `타자수비대_학급리포트_${classCode}_${periodFileLabel}.csv`);
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
