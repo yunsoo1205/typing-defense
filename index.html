@@ -1310,7 +1310,9 @@ body.lang-en .key .kor{ opacity:.25; }
           <p>🪽 <b>판 수 보상 — 날개가 생겼어요!</b> 한글·영어 합쳐서 <b>단계를 깨고 끝낸 판 20판마다</b> 새 날개를 하나씩 받아요. (게임오버는 안 세요!)
              천사 → 나비 → 요정 → 악마 → <b>200판 🌈 오로라 날개</b>까지 10종! 옷장 <b>[🪽 날개]</b>에서 지금 몇 판인지 볼 수 있어요.</p>
           <p>🎁 <b>뽑기에 새 아이템 6개!</b> 🌸 꽃 화관 · 🐰 토끼귀 머리띠 · 💗 하트 목걸이 · 🍓 딸기 참 · 🔔 방울 초커,
-             그리고 ✨레어 <b>🇰🇷 태극 마법봉</b>! 뽑기 아이템이 12개가 됐어요. (뱃지 5개마다 뽑기권 1장)</p>
+             그리고 ✨레어 <b>🇰🇷 태극 마법봉</b>! 뽑기 아이템이 12개가 됐어요.</p>
+          <p>🎟️ <b>뽑기권을 더 받는 방법!</b> 🏆 <b>주간 랭킹 TOP3</b>에 들면 다음 주 월요일에 1장,
+             🔤 <b>영어 10단계</b>를 처음 깨면 2장! (뱃지 5개마다 1장은 그대로)</p>
           <p>🔤 영어 타자 · 🎁 뽑기 · 🏆 주간 랭킹 · 🔐 비밀번호도 그대로 있어요.</p>
           <p>💾 지금까지의 <b>점수·뱃지·아이템은 전부 그대로</b>예요. 안심하세요!</p>
         </div>
@@ -3651,6 +3653,14 @@ function stageCleared(){
     state.newBadges.forEach(id => { if (BADGE_BY_ID[id]) myBadgeSet.add(id); });
   }
 
+  /* 🔤 영어 10단계를 처음 깨면 뽑기권 2장! (badges 표에 evt_en10 한 줄로 기억) */
+  if (LANG === "en" && stage.num >= 10 && !stage.custom && !en10Owned && !MASTER){
+    en10Owned = true;
+    saveBadges(LEARNER_ID, state.code, ["evt_en10"]);
+    updateGachaDot(); renderGacha();
+    setTimeout(() => showBadgeToast({ icon:"🔤", title:"영어 마스터!", name:"영어 10단계 클리어! 뽑기권 2장 → 🎁 뽑기" }), 1500);
+  }
+
   /* 📅 출석 도장 — 한 단계를 클리어했으니 오늘 출석으로 인정합니다.
      (견습·일반 모드 모두 해당. 오늘 처음이면 안내 모달이 뜹니다) */
   runAttendance(LEARNER_ID, state.code);
@@ -4083,6 +4093,7 @@ async function refreshStartBadges(){
   updateInfiniteLock();
   renderBadgeGrid("badge-grid-start", "badge-count-start", myBadgeSet, new Set());
   cosmeticsForLearner(lid, ids);           // 👕 이 아이의 캐릭터·아이템으로 갈아끼우기
+  noticeNewWeeklyTickets();                // 🏆 지난주 TOP3 뽑기권이 새로 들어왔으면 알려줘요
   loadWins(lid, code).then(n => {          // 🪽 지금까지 클리어한 판 수 (20판마다 날개)
     if (my === startBadgeReq && n) cachePlays(n, false);
   });
@@ -4139,6 +4150,12 @@ const WANDS = [
 const GACHA_POOL = [...HATS, ...ACCS, ...WANDS].filter(i => i.gacha);   // 6종
 const ITEM_BY_ID = Object.fromEntries([...HATS, ...ACCS, ...WANDS].map(i => [i.id, i]));
 let totalPlaysKnown = 0;                                       // 지금까지 '클리어한' 판 수 (서버 기록 + 이번 접속)
+/* 🎟️ 보너스 뽑기권
+   · 🏆 주간 랭킹 TOP3: 매주 월요일 서버(주간TOP3_뽑기권.sql)가 badges 표에 "tkt_..." 한 줄씩 넣어 줘요 → 1줄 = 1장
+   · 🔤 영어 10단계 클리어: 처음 한 번 "evt_en10" 한 줄 → 2장 */
+let bonusTicketIds = [];                                       // 이 학습자의 tkt_ 줄들
+let en10Owned = false;
+function bonusTickets(){ return bonusTicketIds.length + (en10Owned ? 2 : 0); }
 
 /* 🎂 타자 수비대 100일 기념 이벤트 (10/22 ~ 10/28, 일주일)
    · 기간 안에 게임을 한 판 끝내면(글자를 1개라도 쳤으면) 🐹 몽실 햄찌 + 🎂 100일 케이크 모자를 영원히 소장!
@@ -4176,6 +4193,7 @@ function applyMasterUnlocks(){
   BADGES.forEach(b => myBadgeSet.add(b.id));
   attendDaysKnown = 60;
   totalPlaysKnown = 200;
+  en10Owned = true;
   evt100Owned = true;
 }
 
@@ -4544,8 +4562,22 @@ function isCharUnlocked(id){
 }
 /* 🎟️ 뽑기권 = 뱃지 5개당 1장 − 이미 뽑은 수 */
 function gachaTickets(){
-  const n = Math.floor(myBadgeSet.size / 5) - ownedItems.size;
+  const n = Math.floor(myBadgeSet.size / 5) + bonusTickets() - ownedItems.size;
   return Math.max(0, Math.min(n, GACHA_POOL.length - ownedItems.size));
+}
+
+/* 🏆 주간 TOP3 뽑기권이 새로 들어왔는지 (이 브라우저가 마지막으로 본 개수와 비교) */
+function noticeNewWeeklyTickets(){
+  if (MASTER) return;
+  try {
+    const key = cosyKey("tktseen");
+    const seen = parseInt(localStorage.getItem(key) || "0", 10) || 0;
+    const now = bonusTicketIds.length;
+    if (now > seen){
+      setTimeout(() => showBadgeToast({ icon:"🏆", title:"주간 랭킹 TOP3!", name:`지난주 TOP3 축하해요! 뽑기권 ${now - seen}장 → 🎁 뽑기` }), 700);
+    }
+    localStorage.setItem(key, String(now));
+  } catch(e){}
 }
 
 /* 이름(학습자)이 바뀌면 그 아이의 소장품으로 갈아끼웁니다 */
@@ -4555,6 +4587,8 @@ function cosmeticsForLearner(lid, allBadgeIds){
   totalPlaysKnown = 0;
   ownedItems = new Set((allBadgeIds || []).filter(id => id.startsWith("itm_")).map(id => id.slice(4)));
   evt100Owned = (allBadgeIds || []).includes(EVT100_ID);
+  en10Owned = (allBadgeIds || []).includes("evt_en10");
+  bonusTicketIds = (allBadgeIds || []).filter(id => id.startsWith("tkt_"));
   attendDaysKnown = 0;
   loadLocalCosy();
   applyMasterUnlocks();                       // 🧪 마스터 모드면 전부 해금 상태 유지
@@ -4668,13 +4702,15 @@ function renderGacha(){
        ${ownedItems.has(i.id) ? "✅ " + i.name : (i.rare ? "🌟 레어 ???" : "❓ ???")}</span>`).join("");
   body.innerHTML = `
     <div class="gacha-ticket">🎟️ 내 뽑기권: <b style="color:var(--berry)">${t}</b>장</div>
+    <p style="font-size:11px; color:var(--ink-soft); text-align:center; margin:-4px 0 6px;">
+      뱃지 ${Math.floor(myBadgeSet.size / 5)}장 · 🏆 주간 TOP3 ${bonusTicketIds.length}장 · 🔤 영어 마스터 ${en10Owned ? 2 : 0}장 · 이미 뽑은 ${ownedItems.size}개</p>
     <div class="gacha-capsule" id="gacha-capsule">🎁</div>
     <div id="gacha-stage"></div>
     <button class="gacha-btn" id="gacha-roll" ${t > 0 && left.length ? "" : "disabled"}>🎲 뽑기!</button>
     <p class="gacha-note">${
       left.length === 0 ? "뽑기 아이템을 전부 모았어요! 🎉 대단해요!"
       : t > 0 ? `무엇이 나올까요? 남은 아이템 ${left.length}개 · 중복은 안 나와요!`
-      : `뱃지 <b>5개</b>를 모을 때마다 뽑기권 1장!<br>지금 뱃지 ${myBadgeSet.size}개 → <b>${nextAt}개</b>가 되면 +1장 🎟️`
+      : `뱃지 <b>5개</b>마다 1장 · 🏆 <b>주간 랭킹 TOP3</b>면 1장 · 🔤 <b>영어 10단계</b> 클리어 2장!<br>지금 뱃지 ${myBadgeSet.size}개 → <b>${nextAt}개</b>가 되면 +1장 🎟️`
     }</p>
     <p class="closet-sub" style="text-align:center;">📦 수집 현황</p>
     <div style="text-align:center; line-height:2;">${ownedRow}</div>`;
