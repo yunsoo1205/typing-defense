@@ -4844,7 +4844,7 @@ let pwPendingCheck = null;   // 입력된 비밀번호가 맞는지 판정하는
    관리자 비밀번호를 아는 사람만 쓸 수 있어요. (비밀번호 원문은 코드에 없고
    되돌릴 수 없는 해시만 있습니다) */
 const MASTER_NICK = "admin";
-const MASTER_PW_HASH = "bff80cba3967fec766d15b62281e4db552e81cc4dbf46883e6bdaca1015b93bd";
+const MASTER_PW_HASH = "355c192f6288f60fdb75c78cf0dc52dfcd2ae903a6a8dcb0cd221b56cbb04ec5";
 /* 전각 문자(ａｄｍｉｎ)·공백·대문자로 살짝 바꿔서 관리자를 사칭하는 것까지 잡습니다 */
 function isMasterNick(nick){
   const n = (nick || "").normalize ? nick.normalize("NFKC") : nick;
