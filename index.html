@@ -617,6 +617,29 @@ body.night-mode #field::after{
 .mode-btn.locked{ opacity:.55; filter:grayscale(.4); cursor:not-allowed; }
 .mode-btn.locked .lock-note{ display:block; color:var(--berry); font-size:11px; margin-top:2px; }
 .mode-btn .lock-note{ display:none; }
+/* ⏱️ 1분 실력 측정 버튼 (모드 선택 아래, 가로로 길게) */
+.ms-pick{
+  grid-column:1 / -1; display:flex; align-items:center; gap:8px; text-align:left; cursor:pointer;
+  background:linear-gradient(90deg,#EAF6FF,#F3EEFF); border:3px solid #9FD3F2; border-radius:14px; padding:5px 14px;
+  color:var(--ink-soft); font-family:var(--font-body); font-size:12px; line-height:1.3; transition:transform .12s;
+}
+.ms-pick:hover{ transform:scale(1.02); }
+.ms-pick .ico{ font-size:20px; }
+.ms-pick .txt{ flex:1; }
+.ms-pick b{ font-family:var(--font-display); font-weight:400; font-size:15px; color:#3F98C8; margin-right:4px; }
+.ms-pick .ms-sub{ color:var(--ink-soft); }
+.ms-pick .lock-note{ display:none; }
+.ms-pick.locked{ background:#F6F3F8; border-color:#E6DDEC; cursor:not-allowed; }
+.ms-pick.locked b{ color:var(--ink-soft); }
+.ms-pick.locked:hover{ transform:none; }
+.ms-pick.locked .lock-note{ display:block; color:var(--berry); font-size:11px; white-space:nowrap; }
+/* 화면 높이가 낮은 노트북에서는 난이도 버튼을 살짝 납작하게 — 측정 버튼이 들어가도 '마법 시작!'이 안 가려지게 */
+@media (max-height:860px){
+  #mode-picker{ gap:6px; }
+  .mode-btn{ padding:6px 14px; line-height:1.32; }
+  .mode-btn .ico{ font-size:23px; }
+  .ms-pick{ padding:3px 12px; }
+}
 
 /* 🏅 오른쪽 메뉴(뱃지·옷장·뽑기·출석) + 서랍들 */
 #side-menu{
@@ -636,8 +659,6 @@ body.night-mode #field::after{
 #open-gacha{ background:var(--berry); box-shadow:0 4px 0 #E9738E; }
 #open-gacha:active{ box-shadow:0 1px 0 #E9738E; }
 #open-attend{ background:var(--flame); box-shadow:0 4px 0 #E9822E; }
-#open-measure{ background:#5FB8E8; box-shadow:0 4px 0 #3F98C8; }
-#open-measure:active{ box-shadow:0 1px 0 #3F98C8; }
 /* ⏱️ 1분 실력 측정 */
 #measure-screen .ms-box{ width:min(760px,100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
 #measure-screen .ms-stats{ display:flex; gap:10px; width:100%; justify-content:center; flex-wrap:wrap; }
@@ -1068,7 +1089,6 @@ body.lang-en .key .kor{ opacity:.25; }
       <button class="menu-btn" id="open-closet">👕 옷장</button>
       <button class="menu-btn" id="open-gacha">🎁 뽑기<span class="menu-dot hidden" id="gacha-dot"></span></button>
       <button class="menu-btn" id="open-attend">📅 출석</button>
-      <button class="menu-btn" id="open-measure">⏱️ 실력 측정</button>
       <div id="gacha-alert" class="hidden">🎁 뽑기권이 있어요!</div>
     </div>
 
@@ -1230,6 +1250,11 @@ body.lang-en .key .kor{ opacity:.25; }
                 <span class="txt"><b>무한 마법사</b><br>모든 단어가 끝없이!<br>점점 빨라져요 · 무한 랭킹 따로
                   <span class="lock-note">🔒 고급 10단계 클리어 후 열려요</span></span>
               </button>
+              <button class="ms-pick locked" id="open-measure" type="button">
+                <span class="ico">⏱️</span>
+                <span class="txt"><b>1분 실력 측정</b> <span class="ms-sub">몬스터 없이 1분, 내 타수 재기</span></span>
+                <span class="lock-note">🔒 초급·고급 10단계 클리어 후</span>
+              </button>
             </div>
             <p id="mode-note" style="font-size:13px; min-height:20px;"></p>
           </section>
@@ -1338,8 +1363,8 @@ body.lang-en .key .kor{ opacity:.25; }
              천사 → 나비 → 요정 → 악마 → <b>200판 🌈 오로라 날개</b>까지 10종! 옷장 <b>[🪽 날개]</b>에서 지금 몇 판인지 볼 수 있어요.</p>
           <p>🎁 <b>뽑기에 새 아이템 6개!</b> 🌸 꽃 화관 · 🐰 토끼귀 머리띠 · 💗 하트 목걸이 · 🍓 딸기 참 · 🔔 방울 초커,
              그리고 ✨레어 <b>🇰🇷 태극 마법봉</b>! 뽑기 아이템이 12개가 됐어요.</p>
-          <p>⏱️ <b>1분 실력 측정</b>이 생겼어요! 오른쪽 <b>[⏱️ 실력 측정]</b>을 누르면 몬스터 없이 1분 동안 쳐서
-             한컴 타자연습처럼 <b>○○타</b>가 나와요. 다음에 또 재서 내 실력이 얼마나 늘었는지 확인해 봐요!</p>
+          <p>⏱️ <b>1분 실력 측정</b>이 생겼어요! <b>마법 배우기</b> 화면의 모드 고르는 곳 맨 아래 <b>[⏱️ 1분 실력 측정]</b>을 누르면
+             몬스터 없이 1분 동안 쳐서 한컴 타자연습처럼 <b>○○타</b>가 나와요. (<b>초급 또는 고급 10단계</b>를 깨면 열려요)</p>
           <p>🎟️ <b>뽑기권을 더 받는 방법!</b> 🏆 <b>주간 랭킹 TOP3</b>에 들면 다음 주 월요일에 1장,
              🔤 <b>영어 10단계</b>를 처음 깨면 2장! (뱃지 5개마다 1장은 그대로)</p>
           <p>🔤 영어 타자 · 🎁 뽑기 · 🏆 주간 랭킹 · 🔐 비밀번호도 그대로 있어요.</p>
@@ -2190,8 +2215,11 @@ async function loadProgress(learnerId, code){
     });
     if (!res.ok) return empty;
     const rows = await res.json();
-    const out = { practicePlays: 0, failsByStage: {} };
+    const out = { practicePlays: 0, failsByStage: {}, cleared10: false };
     for (const r of rows){
+      /* ⏱️ 초급·고급으로 10단계를 끝까지 깬 판이 있는지 (판 수 − 실패 수 > 0) */
+      if ((r.mode === "basic" || r.mode === "advanced") && Number(r.stage) === 10
+          && Number(r.plays) - Number(r.fails || 0) > 0) out.cleared10 = true;
       if (r.mode === "practice") out.practicePlays += r.plays;
       else out.failsByStage[r.stage] = (out.failsByStage[r.stage] || 0) + r.fails;
     }
@@ -3728,6 +3756,12 @@ function stageCleared(){
     state.newBadges.forEach(id => { if (BADGE_BY_ID[id]) myBadgeSet.add(id); });
   }
 
+  /* ⏱️ 초급·고급으로 10단계를 깨면 1분 실력 측정이 열려요 */
+  if (!state.practice && stage.num >= 10 && !stage.custom && !stage.revenge && !k10Owned){
+    grantK10(LEARNER_ID, state.code);
+    setTimeout(() => showBadgeToast({ icon:"⏱️", title:"새 기능 열림!", name:"1분 실력 측정이 열렸어요 → 마법 배우기 화면" }), 2600);
+  }
+
   /* 🔤 영어 10단계를 처음 깨면 뽑기권 2장! (badges 표에 evt_en10 한 줄로 기억) */
   if (LANG === "en" && stage.num >= 10 && !stage.custom && !en10Owned && !MASTER){
     en10Owned = true;
@@ -4116,8 +4150,27 @@ function isInfiniteUnlocked(){
   return myBadgeSet.has("advten") || readInfUnlockedLocal()
       || (state && state.earnedBadges && state.earnedBadges.has("advten"));
 }
+/* ⏱️ 1분 실력 측정 — 초급 또는 고급(견습 X)으로 10단계를 깨면 열려요
+   · 앞으로 깨는 건 badges 표에 "evt_k10" 한 줄로 기억
+   · 예전에 이미 깬 아이는 서버 플레이 기록(초급/고급 10단계 클리어)으로 찾아서 열어 줘요 */
+let k10Owned = false;
+function isMeasureUnlocked(){
+  return MASTER || adminUnlockActive() || k10Owned || myBadgeSet.has("advten")
+      || (state && state.earnedBadges && state.earnedBadges.has("advten"));
+}
+function updateMeasureLock(){
+  const b = $("open-measure");
+  if (b) b.classList.toggle("locked", !isMeasureUnlocked());
+}
+function grantK10(lid, code){
+  if (k10Owned || MASTER) return;
+  k10Owned = true;
+  saveBadges(lid, code, ["evt_k10"]);
+  updateMeasureLock();
+}
 /* 무한 마법사 버튼의 잠금 표시를 최신 상태로 맞춥니다 */
 function updateInfiniteLock(){
+  updateMeasureLock();
   const btn = document.querySelector('.mode-btn[data-speed="inf"]');
   if (!btn) return;
   btn.classList.toggle("locked", !isInfiniteUnlocked());
@@ -4169,6 +4222,12 @@ async function refreshStartBadges(){
   renderBadgeGrid("badge-grid-start", "badge-count-start", myBadgeSet, new Set());
   cosmeticsForLearner(lid, ids);           // 👕 이 아이의 캐릭터·아이템으로 갈아끼우기
   noticeNewWeeklyTickets();                // 🏆 지난주 TOP3 뽑기권이 새로 들어왔으면 알려줘요
+  updateMeasureLock();
+  if (!k10Owned && !MASTER){                // ⏱️ 예전에 초급/고급 10단계를 깬 적 있으면 측정 열어 주기
+    loadProgress(lid, code).then(p => {
+      if (my === startBadgeReq && p && p.cleared10) grantK10(lid, code);
+    });
+  }
   loadWins(lid, code).then(n => {          // 🪽 지금까지 클리어한 판 수 (20판마다 날개)
     if (my === startBadgeReq && n) cachePlays(n, false);
   });
@@ -4269,6 +4328,7 @@ function applyMasterUnlocks(){
   attendDaysKnown = 60;
   totalPlaysKnown = 200;
   en10Owned = true;
+  k10Owned = true;
   evt100Owned = true;
 }
 
@@ -4663,6 +4723,7 @@ function cosmeticsForLearner(lid, allBadgeIds){
   ownedItems = new Set((allBadgeIds || []).filter(id => id.startsWith("itm_")).map(id => id.slice(4)));
   evt100Owned = (allBadgeIds || []).includes(EVT100_ID);
   en10Owned = (allBadgeIds || []).includes("evt_en10");
+  k10Owned = (allBadgeIds || []).includes("evt_k10");
   bonusTicketIds = (allBadgeIds || []).filter(id => id.startsWith("tkt_"));
   attendDaysKnown = 0;
   loadLocalCosy();
@@ -5696,6 +5757,10 @@ function msCommitLine(){
 }
 
 async function openMeasure(){
+  if (!isMeasureUnlocked()){
+    $("mode-note").textContent = "🔒 1분 실력 측정은 초급 또는 고급 마법사로 10단계를 클리어하면 열려요!";
+    return;
+  }
   const nick = ($("nickname").value || "").trim();
   if (!nick){ alert("먼저 첫 화면에 별명을 적어 주세요! (내 기록을 저장해야 해요)"); $("nickname").focus(); return; }
   if (containsBlockedWord(nick)){ $("nickname-warn").classList.remove("hidden"); $("nickname").focus(); return; }
