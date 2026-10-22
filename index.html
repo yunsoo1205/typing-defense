@@ -636,6 +636,32 @@ body.night-mode #field::after{
 #open-gacha{ background:var(--berry); box-shadow:0 4px 0 #E9738E; }
 #open-gacha:active{ box-shadow:0 1px 0 #E9738E; }
 #open-attend{ background:var(--flame); box-shadow:0 4px 0 #E9822E; }
+#open-measure{ background:#5FB8E8; box-shadow:0 4px 0 #3F98C8; }
+#open-measure:active{ box-shadow:0 1px 0 #3F98C8; }
+/* ⏱️ 1분 실력 측정 */
+#measure-screen .ms-box{ width:min(760px,100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
+#measure-screen .ms-stats{ display:flex; gap:10px; width:100%; justify-content:center; flex-wrap:wrap; }
+#measure-screen .ms-stat{ background:#fff; border-radius:16px; padding:8px 18px; min-width:120px; box-shadow:0 3px 0 #EDE7F0; }
+#measure-screen .ms-stat b{ display:block; font-family:var(--font-display); font-size:30px; color:var(--grape); line-height:1.1; }
+#measure-screen .ms-stat span{ font-size:12px; color:var(--ink-soft); }
+#measure-screen .ms-timer b{ color:var(--berry); }
+#measure-screen .ms-lines{ width:100%; background:#fff; border-radius:18px; padding:14px 18px; text-align:left; box-shadow:0 3px 0 #EDE7F0; }
+#measure-screen .ms-line{ font-size:15px; color:#C4B8CB; min-height:24px; letter-spacing:.5px; }
+#measure-screen .ms-line.cur{ font-family:var(--font-display); font-size:26px; color:var(--ink); min-height:40px; letter-spacing:1px; }
+#measure-screen .ms-line.done{ color:#B9AEC4; text-decoration:none; }
+#measure-screen .ms-line .ok{ color:#4CB89A; }
+#measure-screen .ms-line .bad{ color:#fff; background:var(--berry); border-radius:4px; }
+#measure-screen .ms-line .now{ border-bottom:3px solid var(--grape); }
+#measure-input{ width:100%; font-family:var(--font-display); font-size:24px; padding:10px 16px; border-radius:16px;
+  border:3px solid var(--grape); outline:none; background:#FFFDF5; letter-spacing:1px; }
+#measure-input:disabled{ opacity:.5; }
+#measure-screen .ms-bar{ width:100%; height:10px; background:#EFEAF3; border-radius:5px; overflow:hidden; }
+#measure-screen .ms-bar i{ display:block; height:100%; width:100%; background:linear-gradient(90deg,var(--mint),var(--grape)); transition:width .1s linear; }
+#measure-screen .ms-big{ font-family:var(--font-display); font-size:64px; color:var(--grape); line-height:1; }
+#measure-screen .ms-hist{ width:100%; font-size:13px; }
+#measure-screen .ms-hist td{ padding:3px 8px; border-bottom:1px solid #F1ECF4; }
+#measure-screen .ms-note{ font-size:12px; color:var(--ink-soft); line-height:1.6; }
+#measure-screen .ms-box.hidden{ display:none; }
 #open-attend:active{ box-shadow:0 1px 0 #E9822E; }
 .menu-dot{
   position:absolute; top:-3px; right:-3px; width:13px; height:13px;
@@ -1042,6 +1068,7 @@ body.lang-en .key .kor{ opacity:.25; }
       <button class="menu-btn" id="open-closet">👕 옷장</button>
       <button class="menu-btn" id="open-gacha">🎁 뽑기<span class="menu-dot hidden" id="gacha-dot"></span></button>
       <button class="menu-btn" id="open-attend">📅 출석</button>
+      <button class="menu-btn" id="open-measure">⏱️ 실력 측정</button>
       <div id="gacha-alert" class="hidden">🎁 뽑기권이 있어요!</div>
     </div>
 
@@ -1311,6 +1338,8 @@ body.lang-en .key .kor{ opacity:.25; }
              천사 → 나비 → 요정 → 악마 → <b>200판 🌈 오로라 날개</b>까지 10종! 옷장 <b>[🪽 날개]</b>에서 지금 몇 판인지 볼 수 있어요.</p>
           <p>🎁 <b>뽑기에 새 아이템 6개!</b> 🌸 꽃 화관 · 🐰 토끼귀 머리띠 · 💗 하트 목걸이 · 🍓 딸기 참 · 🔔 방울 초커,
              그리고 ✨레어 <b>🇰🇷 태극 마법봉</b>! 뽑기 아이템이 12개가 됐어요.</p>
+          <p>⏱️ <b>1분 실력 측정</b>이 생겼어요! 오른쪽 <b>[⏱️ 실력 측정]</b>을 누르면 몬스터 없이 1분 동안 쳐서
+             한컴 타자연습처럼 <b>○○타</b>가 나와요. 다음에 또 재서 내 실력이 얼마나 늘었는지 확인해 봐요!</p>
           <p>🎟️ <b>뽑기권을 더 받는 방법!</b> 🏆 <b>주간 랭킹 TOP3</b>에 들면 다음 주 월요일에 1장,
              🔤 <b>영어 10단계</b>를 처음 깨면 2장! (뱃지 5개마다 1장은 그대로)</p>
           <p>🔤 영어 타자 · 🎁 뽑기 · 🏆 주간 랭킹 · 🔐 비밀번호도 그대로 있어요.</p>
@@ -1321,6 +1350,52 @@ body.lang-en .key .kor{ opacity:.25; }
     </div>
 
     <!-- 🎂 100일 기념 이벤트 안내 / 선물 받기 -->
+    <!-- ⏱️ 1분 실력 측정 (한컴 타자연습처럼 '타수'가 나와요) -->
+    <div class="overlay hidden" id="measure-screen" style="z-index:66;">
+      <div class="ms-box" id="ms-intro">
+        <div class="big-emoji">⏱️</div>
+        <h2>1분 실력 측정</h2>
+        <p>몬스터 없이 <b id="ms-title">같은 글</b>을 <b>딱 1분</b> 동안 쳐요.<br>
+           <b>첫 글자를 누르는 순간</b> 시간이 시작되고, <b>맞게 친 글자만</b> 타수로 세요.<br>
+           한 줄을 다 치면 <b>Enter</b>로 다음 줄! 틀린 글자는 지우고 다시 쳐도 돼요.</p>
+        <div class="ms-hist" id="ms-history"></div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn" id="ms-start">⏱️ 측정 시작</button>
+          <button class="btn mint" id="ms-close">닫기</button>
+        </div>
+      </div>
+      <div class="ms-box hidden" id="ms-test">
+        <div class="ms-stats">
+          <div class="ms-stat ms-timer"><b id="ms-time">60</b><span>남은 시간(초)</span></div>
+          <div class="ms-stat"><b id="ms-live">–</b><span>지금 타수</span></div>
+          <div class="ms-stat"><b id="ms-acc">–</b><span>정확도</span></div>
+        </div>
+        <div class="ms-bar"><i id="ms-bar"></i></div>
+        <div class="ms-lines">
+          <div class="ms-line done" id="ms-prev"></div>
+          <div class="ms-line cur" id="ms-cur"></div>
+          <div class="ms-line" id="ms-next"></div>
+        </div>
+        <input id="measure-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="여기에 위 글을 그대로 쳐요 (첫 글자부터 시간 시작!)">
+        <button class="btn mint" id="ms-quit" style="font-size:13px; padding:6px 16px;">그만하기</button>
+      </div>
+      <div class="ms-box hidden" id="ms-result">
+        <div class="big-emoji" id="ms-hero"></div>
+        <h2 id="ms-result-title">측정 끝!</h2>
+        <div class="ms-big"><span id="ms-kpm">0</span><span style="font-size:28px;">타</span></div>
+        <div class="ms-stats">
+          <div class="ms-stat"><b id="ms-r-acc">–</b><span>정확도</span></div>
+          <div class="ms-stat"><b id="ms-r-cpm">–</b><span>분당 글자 수</span></div>
+          <div class="ms-stat"><b id="ms-r-diff">–</b><span>지난번보다</span></div>
+        </div>
+        <p class="ms-note" id="ms-r-note"></p>
+        <div style="display:flex; gap:10px;">
+          <button class="btn" id="ms-again">🔁 다시 측정</button>
+          <button class="btn mint" id="ms-done">닫기</button>
+        </div>
+      </div>
+    </div>
+
     <div class="overlay hidden" id="evt100-screen" style="z-index:72;">
       <div class="menu-wrap" style="width:min(520px,100%); text-align:center;">
         <div id="evt100-art" style="display:flex; justify-content:center; gap:4px;"></div>
@@ -5514,6 +5589,240 @@ $("update-close").addEventListener("click", () => {
   $("update-screen").classList.add("hidden");
   maybeShowEvt100Intro();
 });
+
+/* =========================================================================
+   ⏱️ 1분 실력 측정 — 한컴 타자연습처럼 "○○타"
+   · 글: 사이트의 measure.txt (한 줄 = 한 줄, '#'으로 시작하는 줄은 메모). 없으면 기본 글.
+   · 시간: 화면을 연 순간이 아니라 '첫 글자를 누른 순간'부터 정확히 60초.
+   · 타수 = 맞게 친 글자를 두벌식 자판으로 치는 데 필요한 키 수 × (60 ÷ 걸린 초).
+     (쌍자음 ㄲ = Shift+ㄱ 한 번 = 1타, 겹모음 ㅘ = ㅗ+ㅏ = 2타, 띄어쓰기 = 1타)
+     틀린 글자는 0타, 지우고 고쳐서 맞으면 인정 — 대신 고치는 시간이 걸리니 저절로 손해.
+   · 붙여넣기·끌어다 놓기는 막아요. 기록은 measures 표에 저장(측정모드.sql).
+   ========================================================================= */
+const MEASURE_SEC = 60;
+const MEASURE_FALLBACK = [                 // measure.txt가 없을 때 쓰는 기본 글 (직접 지은 문장)
+  "오늘도 타자 수비대가 학교를 지켜요",
+  "손가락은 기본 자리에 살짝 올려 두고",
+  "화면을 보면서 천천히 정확하게 쳐요",
+  "틀리면 지우고 다시 치면 괜찮아요",
+  "매일 조금씩 연습하면 점점 빨라져요",
+  "우리 반 친구들과 함께 실력을 키워요",
+  "바른 자세로 앉아서 어깨에 힘을 빼요",
+  "한 줄을 다 치면 엔터를 눌러 다음 줄로"
+];
+const MS = { lines:null, title:"기본 글", textId:"default", li:0, done:[], started:false, t0:0, timer:null,
+             finished:false, composing:false, pendingEnter:false, lid:null, code:null };
+
+async function loadMeasureText(){
+  if (MS.lines) return;
+  try {
+    const res = await fetch("measure.txt", { cache:"no-cache" });
+    if (res.ok){
+      const raw = await res.text();
+      const all = raw.split(/\r?\n/).map(x => x.replace(/\s+/g, " ").trim());
+      const titleLine = all.find(x => x.startsWith("# 제목:"));
+      const lines = all.filter(x => x && !x.startsWith("#"));
+      if (lines.length){
+        MS.lines = lines;
+        MS.title = titleLine ? titleLine.replace("# 제목:", "").trim() : "측정 글";
+        const h = await sha256Hex(lines.join("\n"));
+        MS.textId = "txt_" + h.slice(0, 10);          // 글이 바뀌면 다른 id → 기록끼리 섞이지 않아요
+        return;
+      }
+    }
+  } catch(e){}
+  MS.lines = MEASURE_FALLBACK.slice(); MS.title = "기본 글"; MS.textId = "default";
+}
+function msLine(i){ return MS.lines[i % MS.lines.length]; }     // 글이 끝나면 처음부터 다시
+
+/* 한 줄 채점: 같은 자리 글자끼리 비교 (한컴 방식) */
+function msScoreLine(target, typed, isFinal, countSkip){
+  let okChars = 0, okKeys = 0, wrong = 0;
+  const n = Math.min(target.length, typed.length);
+  for (let i = 0; i < n; i++){
+    const last = i === typed.length - 1;
+    if (typed[i] === target[i]){ okChars++; okKeys += textToKeys(target[i]).length; }
+    else if (!(last && !isFinal && MS.composing)) wrong++;      // 아직 조합 중인 마지막 글자는 판정 보류
+  }
+  const extra = Math.max(0, typed.length - target.length);
+  const skipped = countSkip ? Math.max(0, target.length - typed.length) : 0;   // Enter로 건너뛴 글자 (시간이 다 돼서 못 친 건 X)
+  return { okChars, okKeys, wrong: wrong + extra, skipped, typed: typed.length };
+}
+function msTotals(includeCurrent, finalCur){
+  let okChars = 0, okKeys = 0, wrong = 0, skipped = 0, typed = 0;
+  const add = r => { okChars += r.okChars; okKeys += r.okKeys; wrong += r.wrong; skipped += r.skipped; typed += r.typed; };
+  MS.done.forEach(d => add(msScoreLine(d.target, d.typed, true, true)));
+  if (includeCurrent){
+    const v = $("measure-input").value;
+    if (v) add(msScoreLine(msLine(MS.li), v, finalCur, false));
+  }
+  const judged = okChars + wrong + skipped;
+  return { okChars, okKeys, wrong, skipped, typed, acc: judged ? Math.round(1000 * okChars / judged) / 10 : 100 };
+}
+function msElapsed(){ return MS.started ? Math.min(MEASURE_SEC, (performance.now() - MS.t0) / 1000) : 0; }
+
+function msRenderLines(){
+  const target = msLine(MS.li), typed = $("measure-input").value;
+  let html = "";
+  for (let i = 0; i < target.length; i++){
+    const ch = target[i] === " " ? "&nbsp;" : escapeHtml(target[i]);
+    let cls = "";
+    if (i < typed.length){
+      const last = i === typed.length - 1;
+      cls = typed[i] === target[i] ? "ok" : (last && MS.composing ? "now" : "bad");
+    } else if (i === typed.length) cls = "now";
+    html += `<span class="${cls}">${ch}</span>`;
+  }
+  $("ms-cur").innerHTML = html;
+  $("ms-prev").textContent = MS.done.length ? MS.done[MS.done.length - 1].target : "";
+  $("ms-next").textContent = msLine(MS.li + 1);
+}
+function msTick(){
+  if (!MS.started || MS.finished) return;
+  const el = msElapsed();
+  $("ms-time").textContent = Math.max(0, Math.ceil(MEASURE_SEC - el));
+  $("ms-bar").style.width = (100 * (1 - el / MEASURE_SEC)) + "%";
+  const t = msTotals(true, false);
+  $("ms-live").textContent = el >= 3 ? Math.round(t.okKeys * 60 / el) : "–";
+  $("ms-acc").textContent = t.typed ? t.acc + "%" : "–";
+  if (el >= MEASURE_SEC) msFinish(false);
+}
+function msCommitLine(){
+  if (MS.finished) return;
+  const inp = $("measure-input");
+  MS.done.push({ target: msLine(MS.li), typed: inp.value });
+  MS.li++; inp.value = ""; MS.composing = false;
+  msRenderLines(); msTick();
+}
+
+async function openMeasure(){
+  const nick = ($("nickname").value || "").trim();
+  if (!nick){ alert("먼저 첫 화면에 별명을 적어 주세요! (내 기록을 저장해야 해요)"); $("nickname").focus(); return; }
+  if (containsBlockedWord(nick)){ $("nickname-warn").classList.remove("hidden"); $("nickname").focus(); return; }
+  ensurePwOk(async () => {
+    MS.code = cleanCode($("roomcode").value);
+    MS.lid = await computeLearnerId(nick, MS.code);
+    await loadMeasureText();
+    $("ms-title").textContent = MS.title;
+    msShow("intro");
+    $("measure-screen").classList.remove("hidden");
+    msRenderHistory();
+  });
+}
+function msShow(which){
+  ["intro", "test", "result"].forEach(k => $("ms-" + k).classList.toggle("hidden", k !== which));
+}
+function msStart(){
+  clearInterval(MS.timer);
+  Object.assign(MS, { li:0, done:[], started:false, t0:0, finished:false, composing:false, pendingEnter:false });
+  $("ms-time").textContent = MEASURE_SEC; $("ms-live").textContent = "–"; $("ms-acc").textContent = "–";
+  $("ms-bar").style.width = "100%";
+  const inp = $("measure-input"); inp.value = ""; inp.disabled = false;
+  msShow("test"); msRenderLines();
+  setTimeout(() => inp.focus(), 50);
+  MS.timer = setInterval(msTick, 100);
+}
+function msClose(){
+  clearInterval(MS.timer); MS.finished = true;
+  $("measure-screen").classList.add("hidden");
+}
+
+/* 내 기록: 서버(get_my_measures) 우선, 안 되면 이 브라우저 기록 */
+function msLocalKey(){ return "measure_" + (MS.lid || "anon"); }
+function msLocalHistory(){ try { return JSON.parse(localStorage.getItem(msLocalKey()) || "[]"); } catch(e){ return []; } }
+async function msHistory(){
+  if (SUPA.on && MS.lid && !MASTER){
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_my_measures`, {
+        method:"POST", headers:SUPA.headers(),
+        body: JSON.stringify({ p_learner_id: MS.lid, p_code: MS.code, p_text_id: MS.textId })
+      });
+      if (res.ok){ const rows = await res.json(); if (Array.isArray(rows)) return rows.map(r => ({ at:r.created_at, kpm:r.kpm, acc:Number(r.accuracy) })); }
+    } catch(e){}
+  }
+  return msLocalHistory().filter(r => r.textId === MS.textId);
+}
+async function msRenderHistory(){
+  const box = $("ms-history"); box.innerHTML = "";
+  const h = await msHistory();
+  if (!h.length){ box.innerHTML = `<p class="ms-note">아직 측정 기록이 없어요. 오늘이 첫 기록! 🌱</p>`; return; }
+  const best = Math.max(...h.map(r => r.kpm));
+  const recent = h.slice(-5).reverse();
+  box.innerHTML = `<p class="ms-note">🏅 내 최고 기록 <b>${best}타</b> · 지금까지 ${h.length}번 측정</p>
+    <table style="margin:4px auto;">${recent.map(r => `<tr><td>${new Date(r.at).toLocaleDateString("ko-KR", { month:"numeric", day:"numeric" })}</td>
+      <td><b>${r.kpm}타</b></td><td class="ms-note">정확도 ${r.acc}%</td></tr>`).join("")}</table>`;
+}
+
+async function msFinish(quit){
+  if (MS.finished) return;
+  MS.finished = true; clearInterval(MS.timer);
+  const inp = $("measure-input"); inp.disabled = true;
+  if (!MS.started){ msShow("intro"); msRenderHistory(); return; }
+  const el = msElapsed();
+  const t = msTotals(true, true);
+  if (quit && el < 20){                                     // 20초도 안 하고 그만두면 기록 안 남겨요
+    msShow("intro"); msRenderHistory(); return;
+  }
+  const kpm = Math.min(2000, Math.round(t.okKeys * 60 / Math.max(1, el)));
+  const cpm = Math.min(999, Math.round(t.okChars * 60 / Math.max(1, el)));
+  const prev = await msHistory();
+  const last = prev.length ? prev[prev.length - 1].kpm : null;
+  const best = prev.length ? Math.max(...prev.map(r => r.kpm)) : null;
+  $("ms-kpm").textContent = kpm;
+  $("ms-r-acc").textContent = t.acc + "%";
+  $("ms-r-cpm").textContent = cpm + "자";
+  $("ms-r-diff").textContent = last == null ? "첫 기록!" : (kpm - last >= 0 ? "+" : "") + (kpm - last) + "타";
+  $("ms-hero").innerHTML = charSVG(COSMETIC);
+  $("ms-result-title").textContent = best != null && kpm > best ? "🎉 최고 기록 경신!" : (quit ? "측정 끝!" : "⏱️ 1분 끝!");
+  $("ms-r-note").innerHTML = (t.acc < 90 ? "정확도가 90%보다 낮아요. 빠르게보다 <b>정확하게</b> 치면 타수가 더 올라가요!<br>" : "")
+    + (quit ? `${Math.round(el)}초 동안 친 기록을 1분으로 환산했어요. ` : "")
+    + "맞게 친 글자만 셌어요. 틀린 글자는 0타!";
+  msShow("result");
+  if (!MASTER){
+    const row = { at: new Date().toISOString(), kpm, acc: t.acc, textId: MS.textId };
+    try { const all = msLocalHistory(); all.push(row); localStorage.setItem(msLocalKey(), JSON.stringify(all.slice(-50))); } catch(e){}
+    if (SUPA.on){
+      fetch(`${SUPABASE_URL}/rest/v1/measures`, {
+        method:"POST", headers: SUPA.headers({ "Prefer":"return=minimal" }),
+        body: JSON.stringify({ learner_id: MS.lid, code: MS.code, school: SCHOOL, lang: "ko", text_id: MS.textId,
+          kpm, cpm, accuracy: t.acc, correct_keys: t.okKeys, correct_chars: t.okChars, wrong_chars: t.wrong + t.skipped,
+          duration_ms: Math.round(el * 1000), full_minute: !quit })
+      }).catch(() => {});
+    }
+  }
+}
+
+(function setupMeasure(){
+  const inp = $("measure-input");
+  $("open-measure").addEventListener("click", openMeasure);
+  $("ms-start").addEventListener("click", msStart);
+  $("ms-again").addEventListener("click", () => { msShow("intro"); msRenderHistory(); setTimeout(msStart, 0); });
+  $("ms-close").addEventListener("click", msClose);
+  $("ms-done").addEventListener("click", msClose);
+  $("ms-quit").addEventListener("click", () => msFinish(true));
+  ["paste", "drop"].forEach(ev => inp.addEventListener(ev, e => e.preventDefault()));   // 붙여넣기 금지
+  inp.addEventListener("compositionstart", () => { MS.composing = true; });
+  inp.addEventListener("compositionend", () => {
+    MS.composing = false;
+    if (MS.pendingEnter){ MS.pendingEnter = false; setTimeout(msCommitLine, 0); }
+    else msRenderLines();
+  });
+  inp.addEventListener("input", () => {
+    if (MS.finished) return;
+    if (!MS.started && inp.value){ MS.started = true; MS.t0 = performance.now(); }   // ⏱️ 첫 글자 = 출발!
+    /* 줄 끝까지 다 치고 띄어쓰기를 한 번 더 누르면 Enter처럼 다음 줄로 */
+    const target = msLine(MS.li);
+    if (inp.value.length > target.length && inp.value.endsWith(" ")){ inp.value = inp.value.slice(0, -1); msCommitLine(); return; }
+    msRenderLines();
+  });
+  inp.addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (!MS.started) return;
+    if (e.isComposing || MS.composing){ MS.pendingEnter = true; return; }   // 한글 조합이 끝난 뒤 다음 줄로
+    msCommitLine();
+  });
+})();
 
 /* 🎉 축하 배경 — 100일 이벤트 기간(10/22~28)에 색종이와 가랜드가 나와요 */
 (function buildPartyBg(){
