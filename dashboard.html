@@ -134,6 +134,7 @@ tr:last-child td{ border-bottom:none; }
     <button class="tab-btn active" data-tab="main">메인</button>
     <button class="tab-btn" data-tab="typing">평균 타수</button>
     <button class="tab-btn" data-tab="cumulative">누적 현황</button>
+    <button class="tab-btn" data-tab="growth">👥 학생 · 성장</button>
   </div>
 
   <div class="tab-panel" data-tab="main">
@@ -406,6 +407,83 @@ tr:last-child td{ border-bottom:none; }
   </div>
 
   </div><!-- /tab-panel: cumulative -->
+
+  <div class="tab-panel hidden" data-tab="growth">
+
+  <div class="card">
+    <h2>🧹 이 탭은 "허수 뺀 데이터"만 써요</h2>
+    <p class="help" style="margin-bottom:0;">
+      모든 카드에서 <b>15초 미만 판 · 5글자 미만 판 · admin 계정</b>을 빼고 셉니다.
+      "학생"은 <b>2판 이상 한 학생</b>만(1판만 하고 떠난 경우는 따로 비율로 보여줘요).
+      위쪽 <b>데이터 범위</b> 체크박스(전국/학교)가 이 탭에도 적용돼요.
+      평균은 몇 명이 크게 끌어올리기 쉬워서 <b>중앙값</b>을 같이 보여줘요. (학생성장_대시보드.sql 실행 후 작동)
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>
+      👥 학생당 플레이
+      <span>
+        <select id="lp-days">
+          <option value="">전체 기간</option>
+          <option value="30" selected>최근 30일</option>
+          <option value="7">최근 7일</option>
+        </select>
+        <button id="load-lp">불러오기</button>
+      </span>
+    </h2>
+    <p class="help">
+      "한 학생이 얼마나 오래, 얼마나 자주 하나?"를 보는 카드예요.
+      <b>중앙값</b>은 학생들을 판 수로 줄 세웠을 때 딱 가운데 학생, <b>상위 10%</b>는 열심히 하는 아이들 기준선이에요.
+      <b>여러 날 접속 비율</b>이 높을수록 "한 번 해 보고 끝"이 아니라 꾸준히 돌아오는 거예요.
+    </p>
+    <div class="body" id="lp-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+  </div>
+
+  <div class="card">
+    <h2>
+      📈 학습 곡선 — N번째로 연습한 날의 실력
+      <span>
+        <select id="lc-min-days">
+          <option value="3">3일 이상 한 학생</option>
+          <option value="5" selected>5일 이상 한 학생</option>
+          <option value="7">7일 이상 한 학생</option>
+          <option value="10">10일 이상 한 학생</option>
+        </select>
+        <button id="load-lc">불러오기</button>
+      </span>
+    </h2>
+    <p class="help">
+      날짜가 아니라 <b>각 학생의 1번째·2번째·3번째… 연습일</b>로 줄을 세워요. 그래서 7월에 시작한 아이와 10월에 시작한 아이를 같은 출발선에서 비교할 수 있어요.<br>
+      <b>실력 지수</b> = 그 판 CPM ÷ (같은 모드·같은 단계 전체 학생의 중앙 CPM) × 100. <b>100 = 그 단계 보통 속도</b>, 120 = 20% 빠름.
+      쉬운 단계·어려운 단계를 오가도 숫자가 출렁이지 않게 맞춘 값이에요.<br>
+      견습·무한·우리 반 단계는 빼고, 30초 이상 · 10글자 이상 친 초급/고급 1~10단계 판만 써요.
+      막대 = 중앙값, 옅은 띠 = 가운데 50% 학생 범위.
+    </p>
+    <div class="body" id="lc-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+  </div>
+
+  <div class="card">
+    <h2>
+      🔁 같은 단계, 처음 vs 나중
+      <span>
+        <select id="sg-gap">
+          <option value="1">1일 이상 간격</option>
+          <option value="3" selected>3일 이상 간격</option>
+          <option value="7">7일 이상 간격</option>
+        </select>
+        <button id="load-sg">불러오기</button>
+      </span>
+    </h2>
+    <p class="help">
+      <b>가장 공정한 성장 비교</b>예요. 같은 학생이 <b>같은 모드·같은 단계</b>를 며칠 간격을 두고 다시 했을 때,
+      처음 한 날과 마지막으로 한 날의 CPM을 비교해요. 단계가 같으니 "어려운 데 도전해서 느려진 것"이 섞이지 않아요.<br>
+      <b>변화(중앙값)</b> = 학생별 변화율의 가운데 값, <b>빨라진 학생 비율</b> = 처음보다 빨라진 학생-단계 쌍의 비율 (50%면 운, 70%+면 뚜렷한 성장).
+    </p>
+    <div class="body" id="sg-body"><span class="muted">불러오기를 눌러주세요.</span></div>
+  </div>
+
+  </div><!-- /tab-panel: growth -->
 </main>
 
 <script>
@@ -473,7 +551,12 @@ const SCOPED_RPCS = new Set([
   "get_dashboard_week_summary",
   "get_dashboard_hourly_pattern_range",
   "get_dashboard_visits",
-  "get_dashboard_streak_learners"
+  "get_dashboard_streak_learners",
+  "get_dashboard_learner_play_stats",
+  "get_dashboard_learner_play_buckets",
+  "get_dashboard_school_plays_per_learner",
+  "get_dashboard_learning_curve",
+  "get_dashboard_same_stage_growth"
 ]);
 function dashScope(){
   const k = document.getElementById("scope-korea")?.checked;
@@ -1228,6 +1311,131 @@ async function loadCumulative(){
   }
 }
 
+/* ---------- 👥 학생당 플레이 ---------- */
+async function loadLearnerPlays(){
+  const body = document.getElementById("lp-body");
+  const dv = document.getElementById("lp-days").value;
+  const args = { p_days: dv ? Number(dv) : null };
+  const f = (n, d) => (n == null ? "–" : Number(n).toLocaleString("ko-KR", { maximumFractionDigits: d ?? 1 }));
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const [sumRows, buckets, schools] = await Promise.all([
+      rpc("get_dashboard_learner_play_stats", args),
+      rpc("get_dashboard_learner_play_buckets", args),
+      rpc("get_dashboard_school_plays_per_learner", args)
+    ]);
+    const r = sumRows[0] || {};
+    if (!r.learners_all){ body.innerHTML = `<span class="muted">이 기간에는 (허수 뺀) 기록이 없어요.</span>`; return; }
+    const bmax = Math.max(1, ...buckets.map(b => Number(b.learners) || 0));
+    const btotal = buckets.reduce((a, b) => a + (Number(b.learners) || 0), 0) || 1;
+    body.innerHTML = `
+      <div class="summary-row">
+        <div class="stat"><div class="num">${f(r.learners_real, 0)}</div><div class="label">실제로 해 본 학생 (2판+)</div></div>
+        <div class="stat"><div class="num">${f(r.median_plays)}</div><div class="label">학생당 판 수 · 중앙값</div></div>
+        <div class="stat"><div class="num">${f(r.avg_plays)}</div><div class="label">학생당 판 수 · 평균</div></div>
+        <div class="stat"><div class="num">${f(r.p90_plays)}</div><div class="label">상위 10% 학생 기준선</div></div>
+      </div>
+      <div class="summary-row" style="margin-top:10px;">
+        <div class="stat"><div class="num">${f(r.median_days)}일</div><div class="label">학생당 접속일 · 중앙값</div></div>
+        <div class="stat"><div class="num">${f(r.median_plays_per_day)}판</div><div class="label">접속한 날 하루 판 수 · 중앙값</div></div>
+        <div class="stat"><div class="num">${f(r.median_minutes)}분</div><div class="label">학생당 총 연습 시간 · 중앙값</div></div>
+        <div class="stat"><div class="num">${f(r.max_plays, 0)}</div><div class="label">가장 많이 한 학생</div></div>
+      </div>
+      <div class="summary-row" style="margin-top:10px;">
+        <div class="stat"><div class="num">${f(r.multi_day_pct)}%</div><div class="label">2일 이상 돌아온 학생</div></div>
+        <div class="stat"><div class="num">${f(r.five_day_pct)}%</div><div class="label">5일 이상 꾸준한 학생</div></div>
+        <div class="stat"><div class="num">${f(r.one_and_done_pct)}%</div><div class="label">1판만 하고 떠난 학생</div></div>
+        <div class="stat"><div class="num">${f(r.plays_real, 0)}</div><div class="label">집계에 쓰인 판 수</div></div>
+      </div>
+      <p style="margin:16px 0 6px; font-weight:bold;">📊 몇 판 한 학생이 몇 명일까?</p>
+      <table>
+        ${buckets.map(b => {
+          const v = Number(b.learners) || 0;
+          return `<tr><td style="width:92px;">${esc(b.label)}</td>
+            <td><div style="display:flex; align-items:center; gap:6px;">
+              <div style="height:14px; width:${Math.round(100 * v / bmax)}%; min-width:2px; background:${b.ord == 1 ? 'var(--berry)' : 'var(--grape)'}; border-radius:7px;"></div>
+              <span>${v.toLocaleString("ko-KR")}명 <span class="muted">(${(100 * v / btotal).toFixed(1)}%)</span></span></div></td></tr>`;
+        }).join("")}
+      </table>
+      ${schools.length ? `
+      <p style="margin:16px 0 6px; font-weight:bold;">🏫 학교(학급 코드)별 학생당 판 수 <span class="muted" style="font-weight:normal;">— 학생 5명 이상인 곳, 중앙값 순</span></p>
+      <table>
+        <tr><th>학교</th><th>코드</th><th>학생</th><th>학생당 판 수</th><th>학생당 접속일</th><th>2일+ 비율</th></tr>
+        ${schools.map(x => `<tr><td>${esc(x.school || "-")}</td><td>${esc(x.code)}</td><td>${esc(x.learners)}</td>
+          <td>${f(x.median_plays)}</td><td>${f(x.median_days)}</td><td>${f(x.multi_day_pct)}%</td></tr>`).join("")}
+      </table>` : ""}`;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 — 학생성장_대시보드.sql을 아직 실행하지 않았을 수 있어요. (${esc(e.message).slice(0,120)})</span>`;
+  }
+}
+
+/* ---------- 📈 학습 곡선 ---------- */
+async function loadLearningCurve(){
+  const body = document.getElementById("lc-body");
+  const minDays = Number(document.getElementById("lc-min-days").value) || 5;
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_learning_curve", { p_min_days: minDays, p_max_day: 10 });
+    if (!rows.length){ body.innerHTML = `<span class="muted">${minDays}일 이상 연습한 학생이 아직 충분하지 않아요.</span>`; return; }
+    const top = Math.max(130, ...rows.map(r => Number(r.p75) || 0)) * 1.05;
+    const pct = v => (100 * (Number(v) || 0) / top).toFixed(1);
+    const first = Number(rows[0].median), last = Number(rows[rows.length - 1].median);
+    const diff = last - first;
+    body.innerHTML = `
+      <div class="summary-row" style="margin-bottom:12px;">
+        <div class="stat"><div class="num">${esc(rows[0].learners)}</div><div class="label">곡선에 쓰인 학생 수</div></div>
+        <div class="stat"><div class="num">${esc(first)} → ${esc(last)}</div><div class="label">1일차 → ${esc(rows[rows.length-1].day_no)}일차 실력 지수 (중앙값)</div></div>
+        <div class="stat"><div class="num" style="color:${diff >= 0 ? 'var(--grape)' : 'var(--berry)'};">${diff > 0 ? "+" : ""}${diff}</div><div class="label">변화 (지수 포인트)</div></div>
+      </div>
+      <table>
+        <tr><th style="width:62px;">연습일</th><th>실력 지수 (100 = 그 단계 보통)</th><th style="width:70px;">학생</th><th style="width:70px;">판 수</th></tr>
+        ${rows.map(r => `<tr>
+          <td>${esc(r.day_no)}일차</td>
+          <td><div style="position:relative; height:16px; background:#F3EFF8; border-radius:8px;">
+                <div style="position:absolute; left:${pct(r.p25)}%; width:${(pct(r.p75) - pct(r.p25)).toFixed(1)}%; top:0; bottom:0; background:rgba(155,140,240,.28); border-radius:8px;"></div>
+                <div style="position:absolute; left:0; width:${pct(r.median)}%; top:5px; height:6px; background:var(--grape); border-radius:3px;"></div>
+                <div style="position:absolute; left:${pct(100)}%; top:-2px; bottom:-2px; width:2px; background:#E9C58A;"></div>
+              </div>
+              <span class="muted" style="font-size:11.5px;">중앙 ${esc(r.median)} · 가운데 50%: ${esc(r.p25)}~${esc(r.p75)}</span></td>
+          <td>${esc(r.learners)}</td><td>${esc(r.plays)}</td></tr>`).join("")}
+      </table>
+      <p class="muted" style="margin-top:8px;">노란 세로선 = 100(그 단계 보통 속도). 뒤로 갈수록 막대가 길어지면 같은 아이들이 실제로 빨라지고 있다는 뜻이에요.
+        뒤쪽 날짜는 학생 수가 줄어 흔들릴 수 있으니 <b>학생 수</b>도 같이 보세요.</p>`;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 — 학생성장_대시보드.sql을 아직 실행하지 않았을 수 있어요. (${esc(e.message).slice(0,120)})</span>`;
+  }
+}
+
+/* ---------- 🔁 같은 단계 처음 vs 나중 ---------- */
+async function loadSameStage(){
+  const body = document.getElementById("sg-body");
+  const gap = Number(document.getElementById("sg-gap").value) || 3;
+  body.innerHTML = `불러오는 중...`;
+  try {
+    const rows = await rpc("get_dashboard_same_stage_growth", { p_min_gap_days: gap });
+    const all = rows.find(r => r.mode === "all");
+    if (!all || !Number(all.pairs)){ body.innerHTML = `<span class="muted">같은 단계를 ${gap}일 이상 간격으로 다시 한 학생이 아직 없어요.</span>`; return; }
+    const MODE = { basic: "🐣 초급", advanced: "🔥 고급" };
+    const chip = v => `<span class="pill ${Number(v) < 0 ? 'warn' : ''}">${Number(v) > 0 ? "+" : ""}${esc(v)}%</span>`;
+    body.innerHTML = `
+      <div class="summary-row" style="margin-bottom:12px;">
+        <div class="stat"><div class="num">${esc(all.pairs)}</div><div class="label">비교한 학생·단계 쌍</div></div>
+        <div class="stat"><div class="num">${esc(all.first_cpm)} → ${esc(all.last_cpm)}</div><div class="label">처음 → 나중 CPM (중앙값)</div></div>
+        <div class="stat"><div class="num">${Number(all.change_pct) > 0 ? "+" : ""}${esc(all.change_pct)}%</div><div class="label">학생별 변화율 (중앙값)</div></div>
+        <div class="stat"><div class="num">${esc(all.improved_pct)}%</div><div class="label">빨라진 비율</div></div>
+      </div>
+      <table>
+        <tr><th>모드</th><th>단계</th><th>쌍</th><th>처음 CPM</th><th>나중 CPM</th><th>변화</th><th>빨라진 비율</th></tr>
+        ${rows.filter(r => r.mode !== "all").map(r => `<tr>
+          <td>${esc(MODE[r.mode] || r.mode)}</td><td>${esc(r.stage)}</td><td>${esc(r.pairs)}</td>
+          <td>${esc(r.first_cpm)}</td><td>${esc(r.last_cpm)}</td><td>${chip(r.change_pct)}</td><td>${esc(r.improved_pct)}%</td></tr>`).join("")}
+      </table>
+      <p class="muted" style="margin-top:8px;">학생·단계 쌍이 3개 미만인 단계는 숨겼어요. ⚠️ 지금은 한글·영어 판이 구분되지 않아서 같은 단계 번호면 섞여 있어요(아래 개선안 참고).</p>`;
+  } catch(e){
+    body.innerHTML = `<span class="muted">불러오기 실패 — 학생성장_대시보드.sql을 아직 실행하지 않았을 수 있어요. (${esc(e.message).slice(0,120)})</span>`;
+  }
+}
+
 /* ---------- 탭 전환 ---------- */
 function switchTab(tab){
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
@@ -1257,6 +1465,9 @@ function initDashboard(){
       if (!k.checked && !s.checked){ e.target.checked = true; return; }
       loadToday(); loadWeekly(); loadTypingSpeed(); loadTypingSpeedByMode(); loadDifficulty(); loadInfBoard();
       if (!document.getElementById("english-body").innerHTML.includes("불러오기를 눌러주세요")) loadEnglish();
+      if (!document.getElementById("lp-body").innerHTML.includes("불러오기를 눌러주세요")) loadLearnerPlays();
+      if (!document.getElementById("lc-body").innerHTML.includes("불러오기를 눌러주세요")) loadLearningCurve();
+      if (!document.getElementById("sg-body").innerHTML.includes("불러오기를 눌러주세요")) loadSameStage();
     });
   });
 
@@ -1299,6 +1510,18 @@ function initDashboard(){
   document.getElementById("load-infboard").addEventListener("click", loadInfBoard);
   document.getElementById("load-english").addEventListener("click", loadEnglish);
   document.getElementById("load-grit").addEventListener("click", loadGrit);
+  document.getElementById("load-lp").addEventListener("click", loadLearnerPlays);
+  document.getElementById("lp-days").addEventListener("change", () => {
+    if (!document.getElementById("lp-body").innerHTML.includes("불러오기를 눌러주세요")) loadLearnerPlays();
+  });
+  document.getElementById("load-lc").addEventListener("click", loadLearningCurve);
+  document.getElementById("lc-min-days").addEventListener("change", () => {
+    if (!document.getElementById("lc-body").innerHTML.includes("불러오기를 눌러주세요")) loadLearningCurve();
+  });
+  document.getElementById("load-sg").addEventListener("click", loadSameStage);
+  document.getElementById("sg-gap").addEventListener("change", () => {
+    if (!document.getElementById("sg-body").innerHTML.includes("불러오기를 눌러주세요")) loadSameStage();
+  });
   document.getElementById("grit-days-select").addEventListener("change", () => {
     if (!document.getElementById("grit-body").innerHTML.includes("불러오기를 눌러주세요")) loadGrit();
   });
