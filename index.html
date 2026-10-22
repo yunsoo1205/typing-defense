@@ -683,6 +683,11 @@ body.night-mode #field::after{
 #measure-screen .ms-hist td{ padding:3px 8px; border-bottom:1px solid #F1ECF4; }
 #measure-screen .ms-note{ font-size:12px; color:var(--ink-soft); line-height:1.6; }
 #measure-screen .ms-box.hidden{ display:none; }
+#measure-screen .ms-reco{ width:min(560px,100%); background:#fff; border-radius:18px; padding:12px 18px; text-align:left;
+  box-shadow:0 3px 0 #EDE7F0; font-size:14px; line-height:1.6; color:var(--ink); }
+#measure-screen .ms-reco .lv{ font-family:var(--font-display); font-size:19px; color:var(--grape); }
+#measure-screen .ms-reco .go{ display:inline-block; margin-top:4px; background:#FFF4F7; color:var(--berry); border-radius:10px; padding:2px 10px; font-weight:bold; }
+#measure-screen .ms-reco .tip{ color:var(--ink-soft); font-size:12.5px; }
 #open-attend:active{ box-shadow:0 1px 0 #E9822E; }
 .menu-dot{
   position:absolute; top:-3px; right:-3px; width:13px; height:13px;
@@ -1250,10 +1255,9 @@ body.lang-en .key .kor{ opacity:.25; }
                 <span class="txt"><b>무한 마법사</b><br>모든 단어가 끝없이!<br>점점 빨라져요 · 무한 랭킹 따로
                   <span class="lock-note">🔒 고급 10단계 클리어 후 열려요</span></span>
               </button>
-              <button class="ms-pick locked" id="open-measure" type="button">
+              <button class="ms-pick" id="open-measure" type="button">
                 <span class="ico">⏱️</span>
                 <span class="txt"><b>1분 실력 측정</b> <span class="ms-sub">몬스터 없이 1분, 내 타수 재기</span></span>
-                <span class="lock-note">🔒 초급·고급 10단계 클리어 후</span>
               </button>
             </div>
             <p id="mode-note" style="font-size:13px; min-height:20px;"></p>
@@ -1364,7 +1368,7 @@ body.lang-en .key .kor{ opacity:.25; }
           <p>🎁 <b>뽑기에 새 아이템 6개!</b> 🌸 꽃 화관 · 🐰 토끼귀 머리띠 · 💗 하트 목걸이 · 🍓 딸기 참 · 🔔 방울 초커,
              그리고 ✨레어 <b>🇰🇷 태극 마법봉</b>! 뽑기 아이템이 12개가 됐어요.</p>
           <p>⏱️ <b>1분 실력 측정</b>이 생겼어요! <b>마법 배우기</b> 화면의 모드 고르는 곳 맨 아래 <b>[⏱️ 1분 실력 측정]</b>을 누르면
-             몬스터 없이 1분 동안 쳐서 한컴 타자연습처럼 <b>○○타</b>가 나와요. (<b>초급 또는 고급 10단계</b>를 깨면 열려요)</p>
+             몬스터 없이 1분 동안 쳐서 한컴 타자연습처럼 <b>○○타</b>가 나오고, 내 타수에 맞는 <b>연습 단계</b>도 알려줘요!</p>
           <p>🎟️ <b>뽑기권을 더 받는 방법!</b> 🏆 <b>주간 랭킹 TOP3</b>에 들면 다음 주 월요일에 1장,
              🔤 <b>영어 10단계</b>를 처음 깨면 2장! (뱃지 5개마다 1장은 그대로)</p>
           <p>🔤 영어 타자 · 🎁 뽑기 · 🏆 주간 랭킹 · 🔐 비밀번호도 그대로 있어요.</p>
@@ -1413,9 +1417,11 @@ body.lang-en .key .kor{ opacity:.25; }
           <div class="ms-stat"><b id="ms-r-cpm">–</b><span>분당 글자 수</span></div>
           <div class="ms-stat"><b id="ms-r-diff">–</b><span>지난번보다</span></div>
         </div>
+        <div class="ms-reco" id="ms-reco"></div>
         <p class="ms-note" id="ms-r-note"></p>
-        <div style="display:flex; gap:10px;">
-          <button class="btn" id="ms-again">🔁 다시 측정</button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+          <button class="btn" id="ms-go">🪄 추천 단계로 연습하기</button>
+          <button class="btn mint" id="ms-again">🔁 다시 측정</button>
           <button class="btn mint" id="ms-done">닫기</button>
         </div>
       </div>
@@ -3756,12 +3762,6 @@ function stageCleared(){
     state.newBadges.forEach(id => { if (BADGE_BY_ID[id]) myBadgeSet.add(id); });
   }
 
-  /* ⏱️ 초급·고급으로 10단계를 깨면 1분 실력 측정이 열려요 */
-  if (!state.practice && stage.num >= 10 && !stage.custom && !stage.revenge && !k10Owned){
-    grantK10(LEARNER_ID, state.code);
-    setTimeout(() => showBadgeToast({ icon:"⏱️", title:"새 기능 열림!", name:"1분 실력 측정이 열렸어요 → 마법 배우기 화면" }), 2600);
-  }
-
   /* 🔤 영어 10단계를 처음 깨면 뽑기권 2장! (badges 표에 evt_en10 한 줄로 기억) */
   if (LANG === "en" && stage.num >= 10 && !stage.custom && !en10Owned && !MASTER){
     en10Owned = true;
@@ -4154,10 +4154,7 @@ function isInfiniteUnlocked(){
    · 앞으로 깨는 건 badges 표에 "evt_k10" 한 줄로 기억
    · 예전에 이미 깬 아이는 서버 플레이 기록(초급/고급 10단계 클리어)으로 찾아서 열어 줘요 */
 let k10Owned = false;
-function isMeasureUnlocked(){
-  return MASTER || adminUnlockActive() || k10Owned || myBadgeSet.has("advten")
-      || (state && state.earnedBadges && state.earnedBadges.has("advten"));
-}
+function isMeasureUnlocked(){ return true; }        // ⏱️ 누구나 바로 측정할 수 있어요
 function updateMeasureLock(){
   const b = $("open-measure");
   if (b) b.classList.toggle("locked", !isMeasureUnlocked());
@@ -4223,11 +4220,7 @@ async function refreshStartBadges(){
   cosmeticsForLearner(lid, ids);           // 👕 이 아이의 캐릭터·아이템으로 갈아끼우기
   noticeNewWeeklyTickets();                // 🏆 지난주 TOP3 뽑기권이 새로 들어왔으면 알려줘요
   updateMeasureLock();
-  if (!k10Owned && !MASTER){                // ⏱️ 예전에 초급/고급 10단계를 깬 적 있으면 측정 열어 주기
-    loadProgress(lid, code).then(p => {
-      if (my === startBadgeReq && p && p.cleared10) grantK10(lid, code);
-    });
-  }
+
   loadWins(lid, code).then(n => {          // 🪽 지금까지 클리어한 판 수 (20판마다 날개)
     if (my === startBadgeReq && n) cachePlays(n, false);
   });
@@ -5818,6 +5811,62 @@ async function msRenderHistory(){
       <td><b>${r.kpm}타</b></td><td class="ms-note">정확도 ${r.acc}%</td></tr>`).join("")}</table>`;
 }
 
+/* 🎯 타수별 추천 — 맞게 친 타수 기준 (한글 1분 측정)
+   lv: 이름, mode: 0.6 견습 / 1 초급 / 2 고급 / "inf" 무한, stage: 시작 단계, why: 이유, tip: 연습 팁 */
+const MS_LEVELS = [
+  { max: 40,  lv:"🌱 자판 자리 익히기", mode:0.6, stage:1,
+    why:"아직 글자가 어디 있는지 찾는 중이에요.", tip:"자판 그림이 눌러야 할 자리를 반짝여 줘요. 손가락을 <b>기본 자리(ㅁㄴㅇㄹ · ㅓㅏㅣ)</b>에 올려 두고 시작해요." },
+  { max: 80,  lv:"🌿 글자 만들기", mode:1, stage:3,
+    why:"자음과 모음 자리는 익숙해졌어요!", tip:"이제 자음+모음으로 <b>글자 한 개</b>를 빨리 만드는 연습을 해요. 화면만 보고 쳐 보기!" },
+  { max: 120, lv:"🍀 받침 단어", mode:1, stage:5,
+    why:"받침 없는 글자는 잘 쳐요!", tip:"받침이 있는 단어를 연습할 차례예요. <b>받침을 빼먹지 않게</b> 천천히 정확하게!" },
+  { max: 170, lv:"🌳 Shift·복잡한 모음", mode:1, stage:6,
+    why:"단어를 꽤 빠르게 쳐요!", tip:"ㄲ·ㅆ 같은 <b>쌍자음(Shift)</b>과 ㅘ·ㅢ 같은 <b>복잡한 모음</b>이 다음 목표예요." },
+  { max: 230, lv:"🔥 겹받침과 띄어쓰기", mode:1, stage:8,
+    why:"웬만한 글자는 다 칠 수 있어요!", tip:"ㄳ·ㄺ 같은 겹받침, 그리고 <b>띄어쓰기</b>까지 리듬 있게 치는 연습을 해요." },
+  { max: 300, lv:"⭐ 문장 마법사", mode:1, stage:10,
+    why:"문장을 쭉쭉 쳐요. 대단해요!", tip:"10단계 <b>문장 완성</b>을 깨고, 재도전할 때 <b>더 빠른 속도</b>를 골라 보세요." },
+  { max: 400, lv:"👑 고급 마법사", mode:2, stage:5,
+    why:"초급은 이제 쉬울 거예요!", tip:"<b>고급 마법사(2배속)</b>로 도전해요. 빠른 몬스터에도 정확도를 지키는 게 목표!" },
+  { max: Infinity, lv:"🌌 전설의 타자왕", mode:"inf", stage:1,
+    why:"어른만큼, 아니 어른보다 빨라요!", tip:"<b>무한 마법사</b>에서 최고 기록에 도전해요. (고급 10단계를 깨야 열려요)" }
+];
+let msReco = null;
+function msRecommend(kpm, acc){
+  let i = MS_LEVELS.findIndex(L => kpm < L.max);
+  if (i < 0) i = MS_LEVELS.length - 1;
+  const lowAcc = acc < 85;
+  if (lowAcc && i > 0) i--;                                  // 정확도가 낮으면 한 칸 쉬운 곳부터
+  const L = MS_LEVELS[i];
+  let mode = L.mode, stage = L.stage;
+  if (mode === "inf" && !isInfiniteUnlocked()){ mode = 2; stage = 10; }
+  const modeName = mode === 0.6 ? "🐣 견습 마법사" : mode === 2 ? "🔥 고급 마법사" : mode === "inf" ? "♾️ 무한 마법사" : "🧙 초급 마법사";
+  const stObj = STAGES_KO.find(x => x.num === stage);
+  const where = mode === "inf" ? modeName : `${modeName} ${stage}단계${stObj ? " · " + stObj.name : ""}`;
+  const accLine = acc >= 95 ? "🎯 정확도도 아주 좋아요!"
+                : acc >= 85 ? `🎯 정확도 ${acc}% → <b>95%</b>까지 올리면 타수가 저절로 더 올라가요.`
+                : `🎯 정확도가 ${acc}%라서 <b>한 단계 쉬운 곳</b>을 추천했어요. 빠르게보다 <b>정확하게</b>가 먼저예요!`;
+  msReco = { mode, stage };
+  return `<div class="lv">${L.lv}</div>
+    <div>${L.why} 추천: <span class="go">${where}</span></div>
+    <div class="tip">💡 ${L.tip}</div>
+    <div class="tip">${accLine}</div>`;
+}
+function msGoPractice(){
+  if (!msReco) return msClose();
+  msClose();
+  if (typeof LANG !== "undefined" && LANG !== "ko" && typeof setLang === "function") setLang("ko");
+  $("start-screen").classList.add("hidden");        // 측정은 마법 배우기 화면에서 열지만, 혹시 몰라 확실히
+  $("howto-screen").classList.remove("hidden");
+  setMode(msReco.mode);
+  if (msReco.mode !== "inf"){
+    const sel = $("start-stage");
+    if ([...sel.options].some(o => o.value === String(msReco.stage))) sel.value = String(msReco.stage);
+    sel.dispatchEvent(new Event("change"));
+  }
+  $("mode-note").innerHTML = "⏱️ 측정 결과에 맞춰 골라 뒀어요! <b>🪄 마법 시작!</b>을 눌러 연습해요.";
+}
+
 async function msFinish(quit){
   if (MS.finished) return;
   MS.finished = true; clearInterval(MS.timer);
@@ -5839,8 +5888,8 @@ async function msFinish(quit){
   $("ms-r-diff").textContent = last == null ? "첫 기록!" : (kpm - last >= 0 ? "+" : "") + (kpm - last) + "타";
   $("ms-hero").innerHTML = charSVG(COSMETIC);
   $("ms-result-title").textContent = best != null && kpm > best ? "🎉 최고 기록 경신!" : (quit ? "측정 끝!" : "⏱️ 1분 끝!");
-  $("ms-r-note").innerHTML = (t.acc < 90 ? "정확도가 90%보다 낮아요. 빠르게보다 <b>정확하게</b> 치면 타수가 더 올라가요!<br>" : "")
-    + (quit ? `${Math.round(el)}초 동안 친 기록을 1분으로 환산했어요. ` : "")
+  $("ms-reco").innerHTML = msRecommend(kpm, t.acc);
+  $("ms-r-note").innerHTML = (quit ? `${Math.round(el)}초 동안 친 기록을 1분으로 환산했어요. ` : "")
     + "맞게 친 글자만 셌어요. 틀린 글자는 0타!";
   msShow("result");
   if (!MASTER){
@@ -5861,6 +5910,7 @@ async function msFinish(quit){
   const inp = $("measure-input");
   $("open-measure").addEventListener("click", openMeasure);
   $("ms-start").addEventListener("click", msStart);
+  $("ms-go").addEventListener("click", msGoPractice);
   $("ms-again").addEventListener("click", () => { msShow("intro"); msRenderHistory(); setTimeout(msStart, 0); });
   $("ms-close").addEventListener("click", msClose);
   $("ms-done").addEventListener("click", msClose);
