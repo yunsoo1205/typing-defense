@@ -345,7 +345,7 @@ tr:last-child td{ border-bottom:none; }
 
   <div class="card">
     <h2>가장 많이 틀리는 단계 <button id="load-difficulty">불러오기</button></h2>
-    <p class="help">최근 30일, 무한 모드 제외. 단어를 입력할 때 <b>틀리게 친 비율</b>이 높은 단계 순서예요 — 난이도 밸런스 참고용.</p>
+    <p class="help">최근 3일, 무한 모드 제외. (단어 로그는 용량 때문에 최근 3일치만 보관해요.) 단어를 입력할 때 <b>틀리게 친 비율</b>이 높은 단계 순서예요 — 난이도 밸런스 참고용.</p>
     <div class="body" id="difficulty-body"><span class="muted">불러오기를 눌러주세요.</span></div>
   </div>
 
@@ -358,7 +358,7 @@ tr:last-child td{ border-bottom:none; }
   <div class="card">
     <h2>🔤 영타 모드 현황 <button id="load-english">불러오기</button></h2>
     <p class="help">
-      최근 30일 영어 타자 기록이에요. 단계별 정답률, 아이들이 자주 틀리는 영어 단어,
+      최근 3일 영어 타자 기록이에요. (단어 로그는 최근 3일치만 보관해요.) 단계별 정답률, 아이들이 자주 틀리는 영어 단어,
       영타 무한 최고 기록을 한 번에 보여줍니다. (영타대시보드.sql을 실행해야 나와요)
     </p>
     <div class="body" id="english-body"><span class="muted">불러오기를 눌러주세요.</span></div>
@@ -1158,7 +1158,7 @@ async function loadDifficulty(){
   body.innerHTML = `불러오는 중...`;
   try {
     const rows = await rpc("get_dashboard_stage_difficulty", { p_days: 30 });
-    if (!rows.length){ body.innerHTML = `<span class="muted">최근 30일 데이터가 없어요.</span>`; return; }
+    if (!rows.length){ body.innerHTML = `<span class="muted">최근 3일 데이터가 없어요.</span>`; return; }
     body.innerHTML = `
       <table>
         <tr><th>단계</th><th>시도</th><th>실패</th><th>실패율</th></tr>
@@ -1214,7 +1214,7 @@ async function loadEnglish(){
       rpc("get_dashboard_english_infinite", { p_limit: 10 })
     ]);
     if (!stages.length && !words.length && !inf.length){
-      body.innerHTML = `<span class="muted">최근 30일 영타 기록이 아직 없어요. 아이들이 영어 모드로 플레이하면 여기에 쌓입니다.</span>`;
+      body.innerHTML = `<span class="muted">최근 3일 영타 기록이 아직 없어요. 아이들이 영어 모드로 플레이하면 여기에 쌓입니다.</span>`;
       return;
     }
     const totalTry  = stages.reduce((a, r) => a + Number(r.attempts), 0);
@@ -1258,7 +1258,7 @@ async function loadEnglish(){
     }
     body.innerHTML = `
       <div class="summary-row">
-        <div class="stat"><div class="num">${esc(totalTry)}</div><div class="label">최근 30일 영어 단어 시도</div></div>
+        <div class="stat"><div class="num">${esc(totalTry)}</div><div class="label">최근 3일 영어 단어 시도</div></div>
         <div class="stat"><div class="num">${esc(acc)}%</div><div class="label">전체 정답률</div></div>
       </div>
       ${stageTable}${wordTable}${infTable}`;

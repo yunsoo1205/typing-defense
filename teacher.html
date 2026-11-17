@@ -166,6 +166,7 @@ tr:hover{ background:#FAFAFA; }
   <header>
     <h1>👩‍🏫 <span id="display-code"></span> 학급 리포트</h1>
     <p>선생님을 위한 우리 반 학생들의 타자 수비대 수행 현황입니다.</p>
+    <p id="trunc-note" class="hidden" style="color:var(--berry); font-weight:bold;">기록이 아주 많은 코드라서 최근 6만 건까지만 불러왔어요. 오래된 기간의 숫자는 실제보다 적을 수 있어요.</p>
   </header>
 
   <!-- 기간 필터 탭 -->
@@ -436,6 +437,25 @@ async function refreshPeriodRanks(){
   });
 }
 
+
+/* Supabase는 한 번에 최대 1,000줄까지만 돌려줍니다.
+   그래서 플레이가 1,000판이 넘는 반은 기록이 잘려서 출석일·플레이 횟수가 실제보다 적게 나왔어요.
+   → 끝까지 여러 번 나눠서 모두 받아옵니다. (최신 기록부터, 최대 MAX_ROWS줄) */
+const MAX_ROWS = 60000;
+async function fetchAllRows(baseUrl, errMsg){
+  const PAGE = 1000;
+  const sep = baseUrl.includes("?") ? "&" : "?";
+  let all = [];
+  while (all.length < MAX_ROWS){
+    const res = await fetch(`${baseUrl}${sep}order=id.desc&limit=${PAGE}&offset=${all.length}`, { headers: getHeaders() });
+    if (!res.ok) throw new Error(errMsg || "데이터를 불러오지 못했습니다.");
+    const rows = await res.json();
+    if (!Array.isArray(rows) || rows.length === 0) return { rows: all, truncated: false };
+    all = all.concat(rows);
+  }
+  return { rows: all, truncated: true };
+}
+
 /* =========================================================================
    2. 데이터 가져오기 및 가공 (Client-side Data Aggregation)
    ========================================================================= */
@@ -449,9 +469,8 @@ async function fetchClassData() {
     // ⚠️ user_high_scores 테이블의 code 컬럼에는 난이도 접미사가 붙어서 저장됩니다
     //    (예: WHKS-E/-H/-I, 영타는 -A/-B/-C). 순수 학급코드로 eq 매칭하면 항상 0건이
     //    나오므로, "학급코드-*" 패턴에 매칭되는 like 검색으로 가져옵니다.
-    const hsRes = await fetch(`${SUPABASE_URL}/rest/v1/user_high_scores?code=like.${encodeURIComponent(classCode + "-*")}&select=learner_id,name,stage`, { headers: getHeaders() });
-    if (!hsRes.ok) throw new Error("학생 데이터를 불러오지 못했습니다.");
-    const highScores = await hsRes.json();
+    const hsAll = await fetchAllRows(`${SUPABASE_URL}/rest/v1/user_high_scores?code=like.${encodeURIComponent(classCode + "-*")}&select=learner_id,name,stage`, "학생 데이터를 불러오지 못했습니다.");
+    const highScores = hsAll.rows;
 
     if(highScores.length === 0) {
       document.getElementById("code-err").textContent = "해당 학급 코드의 기록이 없습니다.";
@@ -461,12 +480,12 @@ async function fetchClassData() {
     }
 
     // 2. 해당 코드의 전체 플레이 로그 가져오기 (출석일, 타수, 플레이 횟수 계산용)
-    const playsRes = await fetch(`${SUPABASE_URL}/rest/v1/plays?code=eq.${encodeURIComponent(classCode)}&select=learner_id,cpm,created_at,stage`, { headers: getHeaders() });
-    const plays = await playsRes.json();
+    const playsAll = await fetchAllRows(`${SUPABASE_URL}/rest/v1/plays?code=eq.${encodeURIComponent(classCode)}&select=learner_id,cpm,created_at,stage`, "플레이 기록을 불러오지 못했습니다.");
+    const plays = playsAll.rows;
 
     // 3. 해당 코드의 뱃지 데이터 가져오기
-    const badgesRes = await fetch(`${SUPABASE_URL}/rest/v1/badges?code=eq.${encodeURIComponent(classCode)}&select=learner_id,badge_id`, { headers: getHeaders() });
-    const badges = await badgesRes.json();
+    const badgesAll = await fetchAllRows(`${SUPABASE_URL}/rest/v1/badges?code=eq.${encodeURIComponent(classCode)}&select=learner_id,badge_id`, "뱃지 기록을 불러오지 못했습니다.");
+    const badges = badgesAll.rows;
 
     // 4. 데이터 조립 (학생 기준)
     const studentMap = {};
@@ -509,6 +528,7 @@ async function fetchClassData() {
     document.getElementById("gate").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
     document.getElementById("display-code").textContent = classCode;
+    document.getElementById("trunc-note").classList.toggle("hidden", !(hsAll.truncated || playsAll.truncated || badgesAll.truncated));
     weekOffset = 0;
     monthOffset = 0;
     
