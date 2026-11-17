@@ -1359,8 +1359,6 @@ body.lang-en .key .kor{ opacity:.25; }
         <div class="big-emoji">🎉</div>
         <h2>타자 수비대가 새로워졌어요!</h2>
         <div class="update-list">
-          <p>🎂 <b>타자 수비대 100일!</b> 10월 22일~28일에 <b>한 판</b>만 해도
-             <b>🐹 몽실 햄찌</b>와 <b>🎂 100일 케이크 모자</b>를 선물로 줘요. (이번 주에만 받을 수 있어요!)</p>
           <p>📅 <b>출석 도장판 2탄!</b> 30일을 넘긴 친구들을 위한 두 번째 도장판이 열렸어요.
              <b>35일 🧸 몽글 곰돌이 · 40일 🐑 몽실 구름양 · 45일 🐣 아기 친구 · 50일 🐥 황금 병아리</b></p>
           <p>🪽 <b>판 수 보상 — 날개가 생겼어요!</b> 한글·영어 합쳐서 <b>단계를 깨고 끝낸 판 20판마다</b> 새 날개를 하나씩 받아요. (게임오버는 안 세요!)
@@ -2139,7 +2137,7 @@ function renderStampBoard(filledDays, todayCell, boardId){
   const rewardDays = new Set(ATTEND_MILESTONES.map(m => m.days));            // ⭐ 3,7,14,30
   const charDays = new Set([...CHARS.filter(c => c.unlock > 0).map(c => c.unlock),
                             ...HATS.filter(h => h.attend).map(h => h.attend)]); // 🎁 캐릭터·아이템 선물날
-  const start = filledDays > 30 ? 31 : 1;                                     // 30일을 넘기면 두 번째 판(31~60)
+  const start = Math.floor(Math.max(filledDays - 1, 0) / 30) * 30 + 1;        // 30일마다 다음 판: 1~30, 31~60, 61~90, 91~120 …
   let html = "";
   for (let d = start; d < start + 30; d++){
     const filled = d <= filledDays;
@@ -2176,14 +2174,17 @@ async function runAttendance(learnerId, code){
   // 오늘 처음 출석했을 때만 모달을 띄웁니다.
   if (!firstToday) return;
 
-  const charHit = CHARS.find(c => c.unlock === days);            // 🎁 오늘 새 캐릭터를 받는 날!
-  const itemHit = HATS.find(h => h.attend === days);             // 🌸 오늘 새 아이템을 받는 날!
+  const hadEvt = evt100Owned;                                    // 🎂 100일 이벤트 때 이미 받은 친구는 '새 선물' 안내를 건너뜀
+  const charHit = CHARS.find(c => c.unlock === days && !(c.legacyEvt && hadEvt));   // 🎁 오늘 새 캐릭터를 받는 날!
+  const itemHit = HATS.find(h => h.attend === days && !(h.legacyEvt && hadEvt));    // 🌸 오늘 새 아이템을 받는 날!
   const justHit = ATTEND_MILESTONES.find(m => m.days === days);
   const emoji = $("attend-emoji"), title = $("attend-title"), desc = $("attend-desc");
   if (charHit){
     if (emoji) emoji.innerHTML = charSVG({ char: charHit.id, hat: "hat_magic", acc: null });
     if (title) title.textContent = `새 친구 등장! 🎉`;
-    if (desc)  desc.innerHTML = `출석 <b>${days}일</b> 선물로 <b>${charHit.name} 마법사</b>를 얻었어요!<br>👕 옷장에서 갈아입을 수 있어요.`;
+    if (desc)  desc.innerHTML = `출석 <b>${days}일</b> 선물로 <b>${charHit.name} 마법사</b>를 얻었어요!`
+                              + (itemHit ? `<br>🎁 <b>${itemHit.name}</b> 모자도 함께 받았어요!` : "")
+                              + `<br>👕 옷장에서 갈아입을 수 있어요.`;
   } else if (itemHit){
     if (emoji) emoji.innerHTML = charSVG({ char: COSMETIC.char || "chick", hat: itemHit.id, acc: null });
     if (title) title.textContent = `새 아이템 선물! 🎉`;
@@ -2198,8 +2199,8 @@ async function runAttendance(learnerId, code){
     if (title) title.textContent = `오늘도 출석 완료!`;
     if (desc)  desc.innerHTML = `지금까지 <b>${days}일</b> 접속했어요 ✨`;
   }
-  // 30칸 도장판을 그립니다. 오늘 찍힌 칸(days, 30 초과면 30)을 통 튀게 표시.
-  renderStampBoard(Math.min(days, 60), Math.min(days, 60));
+  // 30칸 도장판을 그립니다. 오늘 찍힌 칸(days)을 통 튀게 표시. (30일마다 다음 판으로 넘어가요)
+  renderStampBoard(days, days);
   renderAttendDrawer(); renderCloset();     // 서랍들도 최신 상태로
 
   const screen = $("attend-screen");
@@ -4244,8 +4245,8 @@ const CHARS = [
   { id:"bear",    name:"몽글 곰돌이", unlock:35 },   // 🧸 출석 시즌 2 (31~60일)
   { id:"sheep",   name:"몽실 구름양", unlock:40 },
   { id:"goldchick", name:"황금 병아리", unlock:50 },   // 🐥 출석 50일
-  // 🎂 100일 기념 한정: 이벤트 기간에 한 판 하면!
-  { id:"hamster", name:"몽실 햄찌", unlock:-1, special:"event100" },
+  // 🎂 출석 100일 선물 (10월 100일 기념 이벤트 때 이미 받은 친구는 그대로 갖고 있어요 → legacyEvt)
+  { id:"hamster", name:"몽실 햄찌", unlock:100, legacyEvt:true, tag:"🎂100일" },
   // 🌈 전설: 뱃지 30개를 전부 모으면!
   { id:"dragon",  name:"무지개 용", unlock:-1, special:"allbadges" }
 ];
@@ -4254,7 +4255,7 @@ const HATS = [
   { id:"hat_band",  name:"하트별 머리띠", gacha:true },
   { id:"hat_straw", name:"밀짚모자",      gacha:true },
   { id:"hat_crown", name:"왕관",          gacha:true, rare:true },   // ✨ 레어!
-  { id:"hat_cake",  name:"100일 케이크",  gacha:false, event:true }, // 🎂 100일 기념 한정
+  { id:"hat_cake",  name:"100일 케이크",  gacha:false, attend:100, legacyEvt:true, tag:"🎂100일" }, // 🎂 출석 100일 (이벤트 때 받은 친구는 그대로)
   { id:"hat_chick", name:"아기 친구",     gacha:false, attend:45 },  // 🐣 출석 45일
   // 🎁 뽑기 시즌 2
   { id:"hat_flower",name:"꽃 화관",       gacha:true },
@@ -4284,10 +4285,9 @@ let bonusTicketIds = [];                                       // 이 학습자�
 let en10Owned = false;
 function bonusTickets(){ return bonusTicketIds.length + (en10Owned ? 2 : 0); }
 
-/* 🎂 타자 수비대 100일 기념 이벤트 (10/22 ~ 10/28, 일주일)
-   · 기간 안에 게임을 한 판 끝내면(글자를 1개라도 쳤으면) 🐹 몽실 햄찌 + 🎂 100일 케이크 모자를 영원히 소장!
-   · badges 테이블에 "evt_100day" 한 줄로 저장 (뱃지·뽑기권 개수에는 안 들어가요)
-   · 기간이 끝나면 못 받은 친구에게는 옷장에서 안 보입니다. */
+/* 🎂 몽실 햄찌 + 100일 케이크 모자 = 출석 100일 선물 (다른 출석 선물과 같은 '누적 출석일' 기준)
+   · 예전: 100일 기념 이벤트(10/22 ~ 10/28) 기간에 한 판 하면 지급 → badges 테이블에 "evt_100day" 한 줄로 저장
+   · 그때 받은 친구는 evt_100day 기록으로 계속 갖고 있어요. (아래 이벤트 날짜 코드는 기간이 끝나 더는 동작하지 않아요) */
 const EVT100_START = new Date(2026, 9, 22, 0, 0, 0);    // 10월 22일 0시 (월은 0부터 → 9 = 10월)
 const EVT100_END   = new Date(2026, 9, 29, 0, 0, 0);    // 10월 29일 0시 직전까지 = 28일 밤까지
 const EVT100_ID    = "evt_100day";
@@ -4297,8 +4297,8 @@ try { updateNightTheme(); } catch(e){}                   // 이벤트 날짜가 
 function hasEvt100(){ return evt100Owned || MASTER || adminUnlockActive(); }
 function ownsItem(id){
   const it = ITEM_BY_ID[id];
-  if (it && it.event) return hasEvt100();
-  if (it && it.attend) return attendDaysKnown >= it.attend;      // 🌸 출석 선물
+  if (it && it.attend) return attendDaysKnown >= it.attend       // 🌸 출석 선물
+                              || (!!it.legacyEvt && hasEvt100()); // 🎂 100일 이벤트 때 이미 받은 친구
   const w = WING_BY_ID[id];
   if (w) return totalPlaysKnown >= w.plays;                       // 🪽 20판마다 날개
   return ownedItems.has(id);
@@ -4685,7 +4685,7 @@ function isCharUnlocked(id){
   const c = CHARS.find(c => c.id === id);
   if (!c) return false;
   if (c.special === "allbadges") return myBadgeSet.size >= BADGES.length;   // 🌈 뱃지 30개 전부!
-  if (c.special === "event100")  return hasEvt100();                         // 🎂 100일 기념
+  if (c.legacyEvt && hasEvt100()) return true;                              // 🎂 100일 이벤트 때 이미 받은 친구
   return attendDaysKnown >= c.unlock;
 }
 /* 🎟️ 뽑기권 = 뱃지 5개당 1장 − 이미 뽑은 수 */
@@ -4764,21 +4764,19 @@ function closetTile(kind, id, name, svg, on, locked, hint, rare){
 function renderCloset(){
   const body = $("closet-body");
   if (!body) return;
-  const showEvt = hasEvt100() || evt100Active();      // 기간이 끝났고 못 받았으면 숨김
-  const charTiles = CHARS.filter(c => c.special !== "event100" || showEvt).map(c => {
+  const charTiles = CHARS.map(c => {
     const locked = !isCharUnlocked(c.id);
-    const hint = c.special === "allbadges" ? "뱃지 30개 전부!"
-               : c.special === "event100"  ? "100일 기념 한 판!" : `출석 ${c.unlock}일`;
-    const tag  = c.special === "event100" ? "🎂100일" : !!c.special;
+    const hint = c.special === "allbadges" ? "뱃지 30개 전부!" : `출석 ${c.unlock}일`;
+    const tag  = c.tag || !!c.special;
     return closetTile("char", c.id, c.name,
       charSVG({ char:c.id, hat:null, acc:null }), COSMETIC.char === c.id, locked, hint, tag);
   }).join("");
   const hatTiles = closetTile("hat", "none", "안 쓰기", charSVG({ char:COSMETIC.char, hat:null, acc:null }), !COSMETIC.hat, false)
-    + HATS.filter(h => !h.event || showEvt).map(h => {
-      const locked = (h.gacha || h.event || h.attend) && !ownsItem(h.id);
-      const hint = h.event ? "100일 기념 한 판!" : h.attend ? `출석 ${h.attend}일` : "뽑기에서!";
+    + HATS.map(h => {
+      const locked = (h.gacha || h.attend) && !ownsItem(h.id);
+      const hint = h.attend ? `출석 ${h.attend}일` : "뽑기에서!";
       return closetTile("hat", h.id, h.name, charSVG({ char:COSMETIC.char, hat:h.id, acc:null }),
-        COSMETIC.hat === h.id, locked, hint, h.event ? "🎂100일" : !!h.rare);
+        COSMETIC.hat === h.id, locked, hint, h.tag || !!h.rare);
     }).join("");
   const accTiles = closetTile("acc", "none", "없음", charSVG({ char:COSMETIC.char, hat:null, acc:null }), !COSMETIC.acc, false)
     + ACCS.map(a => {
@@ -4884,6 +4882,14 @@ function rollGacha(){
 }
 
 /* ---- 📅 출석 서랍 ---- */
+/* 지금 몇 번째 도장판인지 한 줄 안내 (첫 판에서는 안 보여요) */
+function stampBoardNote(d){
+  const n = Math.floor(Math.max(d - 1, 0) / 30) + 1;                 // 몇 번째 판
+  if (n < 2) return "";
+  const ORD = ["", "첫", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉", "열"];
+  const start = (n - 1) * 30 + 1;
+  return `<br>🎉 ${start - 1}일 완주! ${ORD[n] ? ORD[n] + " 번째" : n + "번째"} 도장판(${start}~${start + 29}일)이에요`;
+}
 function renderAttendDrawer(){
   const body = $("attend-body");
   if (!body) return;
@@ -4892,17 +4898,17 @@ function renderAttendDrawer(){
     <p style="font-size:12.5px; color:var(--ink-soft); text-align:center; margin-bottom:8px;">
       지금까지 <b>${d}일</b> 출석했어요!<br>단계를 하나 클리어하면 그날 출석 도장이 찍혀요.</p>
     <div class="stamp-board" id="stamp-board-drawer" style="max-width:100%;"></div>
-    <p class="stamp-legend" style="text-align:center;">⭐ 뱃지 · 🎁 새 친구·아이템을 받는 날!${d > 30 ? "<br>🎉 30일 완주! 두 번째 도장판(31~60일)이에요" : ""}</p>
+    <p class="stamp-legend" style="text-align:center;">⭐ 뱃지 · 🎁 새 친구·아이템을 받는 날!${stampBoardNote(d)}</p>
     <p class="closet-sub">🎁 출석 선물</p>
-    ${[...CHARS.filter(c => c.unlock > 0).map(c => ({ day:c.unlock, name:c.name, svg:charSVG({ char:c.id, hat:null, acc:null }) })),
-       ...HATS.filter(h => h.attend).map(h => ({ day:h.attend, name:h.name, svg:charSVG({ char:"chick", hat:h.id, acc:null }) }))]
+    ${[...CHARS.filter(c => c.unlock > 0).map(c => ({ day:c.unlock, name:c.name, have:isCharUnlocked(c.id), svg:charSVG({ char:c.id, hat:null, acc:null }) })),
+       ...HATS.filter(h => h.attend).map(h => ({ day:h.attend, name:h.name, have:ownsItem(h.id), svg:charSVG({ char:"chick", hat:h.id, acc:null }) }))]
       .sort((a, b) => a.day - b.day).map(r => `
-      <div class="reward-row ${d >= r.day ? "" : "locked"}">
+      <div class="reward-row ${r.have ? "" : "locked"}">
         ${r.svg}
         <div class="rr-txt"><b>${r.name}</b> · 출석 ${r.day}일</div>
-        <span class="rr-ok">${d >= r.day ? "✅" : "🔒"}</span>
+        <span class="rr-ok">${r.have ? "✅" : "🔒"}</span>
       </div>`).join("")}`;
-  renderStampBoard(Math.min(d, 60), 0, "stamp-board-drawer");
+  renderStampBoard(d, 0, "stamp-board-drawer");
 }
 
 /* ---- 🔔 뽑기 가능 알림 ---- */
