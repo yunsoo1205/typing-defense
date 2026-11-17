@@ -270,8 +270,8 @@ tr:last-child td{ border-bottom:none; }
   </div>
 
   <div class="card">
-    <h2>뱃지 현황 <button id="load-badges">불러오기</button></h2>
-    <p class="help">뱃지별로 몇 번 지급됐고, 몇 명이 획득했는지예요.</p>
+    <h2>뱃지 · 아이템 현황 <button id="load-badges">불러오기</button></h2>
+    <p class="help">뱃지 · 옷장 아이템별로 몇 번 지급됐고, 몇 명이 받았는지예요. (비밀번호 기록은 빼고, 보너스 뽑기권은 한 줄로 합쳐서 보여 줘요.)</p>
     <div class="body" id="badges-body"><span class="muted">버튼을 눌러 불러오세요.</span></div>
   </div>
 
@@ -962,22 +962,59 @@ async function loadSessionPattern(){
 }
 
 /* ---------- 뱃지 현황 ---------- */
+/* 코드(enter, itm_hat_chick …) 대신 게임에 나오는 한글 이름으로 보여 줘요. (index.html 의 뱃지·옷장 목록과 같은 이름) */
+const BADGE_NAMES = {"enter": "🎒 마법 학교 입학", "sweat": "💦 견습생의 땀방울", "grind10": "🫗 땀방울 마스터", "half": "🌗 절반의 기적", "captain": "👑 타자 수비대장", "advten": "🔓 고급 정복자", "grit": "🩹 칠전팔기", "sniper": "🎯 백발백중 명사수", "notape": "🚫 수정테이프 압수", "careful": "🐢 돌다리도 두들겨라", "shield": "🛡️ 철벽 방어", "perfect": "💯 완벽주의자", "lightning": "⚡ 번개 마법사", "burning": "🔥 불타는 키보드", "timelord": "⏳ 시간 여행자", "score10k": "🪙 일만 점 마법사", "score20k": "🥈 이만 점 마법사", "score30k": "🥇 삼만 점 마법사", "score40k": "💎 사만 점 대마법사", "score50k": "🏆 오만 점 전설", "lucky77": "🍀 행운의 77", "meteor": "☄️ 메테오 샤워", "classhero": "🏫 우리 반 챔피언", "inf50": "♾️ 끝없는 도전자", "inf100": "🌌 영원의 마법사", "firstgacha": "🎁 첫 뽑기!", "attend3": "📅 출석 3일", "attend7": "🗓️ 출석 7일", "attend14": "⭐ 출석 14일", "attend30": "🏅 출석 30일"};
+const ITEM_NAMES = {"hat_magic": "마법 고깔 (모자)", "hat_band": "하트별 머리띠 (모자)", "hat_straw": "밀짚모자 (모자)", "hat_crown": "왕관 (모자)", "hat_cake": "100일 케이크 (모자)", "hat_chick": "아기 친구 (모자)", "hat_flower": "꽃 화관 (모자)", "hat_bunny": "토끼귀 머리띠 (모자)", "acc_glasses": "둥근 안경 (액세서리)", "acc_bow": "나비 리본 (액세서리)", "acc_heart": "하트 목걸이 (액세서리)", "acc_berrycharm": "딸기 참 (액세서리)", "acc_bell": "방울 초커 (액세서리)", "wand_rainbow": "무지개 마법봉 (마법봉)", "wand_taegeuk": "태극 마법봉 (마법봉)", "wing_angel": "천사 날개 (날개)", "wing_angel2": "분홍 천사 날개 (날개)", "wing_angel3": "황금 천사 날개 (날개)", "wing_bfly": "나비 날개 (날개)", "wing_bfly2": "무지개 나비 날개 (날개)", "wing_fairy": "요정 날개 (날개)", "wing_fairy2": "보라 요정 날개 (날개)", "wing_bat": "악마 날개 (날개)", "wing_bat2": "붉은 악마 날개 (날개)", "wing_aurora": "오로라 날개 (날개)", "chick": "병아리 (캐릭터)", "cat": "고양이 (캐릭터)", "dog": "강아지 (캐릭터)", "rabbit": "토끼 (캐릭터)", "redpanda": "래서판다 (캐릭터)", "penguin": "펭귄 (캐릭터)", "owl": "부엉이 (캐릭터)", "bear": "몽글 곰돌이 (캐릭터)", "sheep": "몽실 구름양 (캐릭터)", "goldchick": "황금 병아리 (캐릭터)", "hamster": "몽실 햄찌 (캐릭터)", "dragon": "무지개 용 (캐릭터)"};
+const EVENT_NAMES = {
+  evt_en10:   "🔤 영어 10단계 첫 클리어 (보너스 뽑기권 2장)",
+  evt_k10:    "⏱️ 한글 10단계 클리어 (1분 실력 측정 열림)",
+  evt_100day: "🎂 100일 기념 이벤트 참여"
+};
+function badgeLabel(id){
+  id = String(id || "");
+  if (id === "tkt")              return { kind:"뽑기권", label:"🎟️ 보너스 뽑기권 (주간 TOP3 등, 전체 합계)" };
+  if (BADGE_NAMES[id])           return { kind:"뱃지",   label:BADGE_NAMES[id] };
+  if (id.startsWith("itm_")){
+    const key = id.slice(4);
+    return { kind:"아이템", label:"🎁 " + (ITEM_NAMES[key] || key) };
+  }
+  if (id.startsWith("evt_"))     return { kind:"이벤트", label:EVENT_NAMES[id] || id };
+  return { kind:"기타", label:id };                       // 목록에 없는 새 코드는 코드 그대로 보여 줘요
+}
 async function loadBadges(){
   const body = document.getElementById("badges-body");
   body.innerHTML = `불러오는 중...`;
   try {
-    const rows = await rpc("get_dashboard_badges_summary");
+    const raw = await rpc("get_dashboard_badges_summary");
+    /* 비밀번호 기록(pw_)은 뱃지가 아니라서 빼고, 뽑기권(tkt_)은 한 줄로 합쳐요 */
+    const rows = [];
+    let tktTimes = 0, tktStudents = null;
+    raw.forEach(r => {
+      const id = String(r.badge_id || "");
+      if (id.startsWith("pw_")) return;
+      if (id === "tkt" || id.startsWith("tkt_")){
+        tktTimes += Number(r.times_awarded) || 0;
+        if (id === "tkt") tktStudents = r.distinct_students;
+        return;
+      }
+      rows.push(r);
+    });
+    if (tktTimes) rows.push({ badge_id:"tkt", times_awarded:tktTimes, distinct_students:(tktStudents ?? "–") });
+    rows.sort((a, b) => (Number(b.times_awarded) || 0) - (Number(a.times_awarded) || 0));
     if (!rows.length){ body.innerHTML = `<span class="muted">아직 지급된 뱃지가 없어요.</span>`; return; }
     body.innerHTML = `
       <table>
-        <tr><th>뱃지</th><th>지급 횟수</th><th>획득한 학생 수</th></tr>
-        ${rows.map(r => `
+        <tr><th>종류</th><th>이름</th><th>지급 횟수</th><th>받은 학생 수</th></tr>
+        ${rows.map(r => {
+          const b = badgeLabel(r.badge_id);
+          return `
           <tr>
-            <td>${esc(r.badge_id)}</td>
+            <td class="muted">${esc(b.kind)}</td>
+            <td>${esc(b.label)}</td>
             <td>${esc(r.times_awarded)}</td>
             <td>${esc(r.distinct_students)}</td>
-          </tr>
-        `).join("")}
+          </tr>`;
+        }).join("")}
       </table>
     `;
   } catch(e){
