@@ -271,7 +271,7 @@ tr:last-child td{ border-bottom:none; }
 
   <div class="card">
     <h2>뱃지 · 아이템 현황 <button id="load-badges">불러오기</button></h2>
-    <p class="help">뱃지 · 옷장 아이템별로 몇 번 지급됐고, 몇 명이 받았는지예요. (비밀번호 기록은 빼고, 보너스 뽑기권은 한 줄로 합쳐서 보여 줘요.)</p>
+    <p class="help">뱃지 · 뽑기 아이템 · 날개 · 출석 선물별로 몇 명이 받았는지예요. 날개와 출석 선물은 게임이 클리어 판 수 · 출석일로 주는 선물이라, 지금 조건을 채운 학생 수로 보여 줘요. (비밀번호 기록은 빼고, 보너스 뽑기권은 한 줄로 합쳐요.)</p>
     <div class="body" id="badges-body"><span class="muted">버튼을 눌러 불러오세요.</span></div>
   </div>
 
@@ -970,13 +970,30 @@ const EVENT_NAMES = {
   evt_k10:    "⏱️ 한글 10단계 클리어 (1분 실력 측정 열림)",
   evt_100day: "🎂 100일 기념 이벤트 참여"
 };
+/* 🪽 날개(클리어 20판마다)와 🎁 출석 선물은 badges 표에 저장되지 않아요. 게임이 판 수 · 출석일로 계산해요.
+   그래서 이 두 가지는 get_dashboard_reward_counts(선물현황_함수.sql)로 실제 학생 수를 따로 받아 와요.
+   ※ 기준 숫자는 게임(index.html)의 WINGS_FX · CHARS · HATS 와 같아야 해요. 게임에서 바꾸면 여기도 바꿔 주세요. */
+const WING_REWARDS = [
+  { id:"wing_angel", plays:20 }, { id:"wing_angel2", plays:40 }, { id:"wing_angel3", plays:60 }, { id:"wing_bfly", plays:80 },
+  { id:"wing_bfly2", plays:100 }, { id:"wing_fairy", plays:120 }, { id:"wing_fairy2", plays:140 }, { id:"wing_bat", plays:160 },
+  { id:"wing_bat2", plays:180 }, { id:"wing_aurora", plays:200 }
+];
+const ATTEND_REWARDS = [   // evt:true = 10월 100일 이벤트 때 받은 학생도 갖고 있는 선물
+  { id:"cat", days:5 }, { id:"dog", days:10 }, { id:"rabbit", days:15 }, { id:"redpanda", days:20 }, { id:"penguin", days:25 },
+  { id:"owl", days:30 }, { id:"bear", days:35 }, { id:"sheep", days:40 }, { id:"hat_chick", days:45 }, { id:"goldchick", days:50 },
+  { id:"hamster", days:100, evt:true }, { id:"hat_cake", days:100, evt:true }
+];
+/* badges 표에 남아 있는 이 선물들의 줄은 예전 테스트 흔적이라 숫자가 맞지 않아요 → 목록에서 빼요 */
+const COMPUTED_ITEM_IDS = new Set([...WING_REWARDS.map(w => "itm_" + w.id), ...ATTEND_REWARDS.map(r => "itm_" + r.id), "itm_hat_magic", "itm_chick"]);
+const KIND_ORDER = ["뱃지", "뽑기 아이템", "날개", "출석 선물", "이벤트", "뽑기권", "기타"];
+
 function badgeLabel(id){
   id = String(id || "");
   if (id === "tkt")              return { kind:"뽑기권", label:"🎟️ 보너스 뽑기권 (주간 TOP3 등, 전체 합계)" };
   if (BADGE_NAMES[id])           return { kind:"뱃지",   label:BADGE_NAMES[id] };
   if (id.startsWith("itm_")){
     const key = id.slice(4);
-    return { kind:"아이템", label:"🎁 " + (ITEM_NAMES[key] || key) };
+    return { kind:"뽑기 아이템", label:"🎁 " + (ITEM_NAMES[key] || key) };
   }
   if (id.startsWith("evt_"))     return { kind:"이벤트", label:EVENT_NAMES[id] || id };
   return { kind:"기타", label:id };                       // 목록에 없는 새 코드는 코드 그대로 보여 줘요
@@ -985,36 +1002,61 @@ async function loadBadges(){
   const body = document.getElementById("badges-body");
   body.innerHTML = `불러오는 중...`;
   try {
-    const raw = await rpc("get_dashboard_badges_summary");
-    /* 비밀번호 기록(pw_)은 뱃지가 아니라서 빼고, 뽑기권(tkt_)은 한 줄로 합쳐요 */
+    const [raw, counts] = await Promise.all([
+      rpc("get_dashboard_badges_summary"),
+      rpc("get_dashboard_reward_counts", {
+        p_win_steps: WING_REWARDS.map(w => w.plays),
+        p_day_steps: [...new Set(ATTEND_REWARDS.map(r => r.days))]
+      }).catch(() => null)                                  // 선물현황_함수.sql 실행 전이면 조용히 건너뜀
+    ]);
+    /* ① badges 표에 저장되는 것: 뱃지 · 뽑기 아이템 · 이벤트 · 뽑기권
+          비밀번호 기록(pw_)은 빼고, 뽑기권(tkt_)은 한 줄로, 날개 · 출석 선물의 테스트 흔적은 빼요 */
     const rows = [];
-    let tktTimes = 0, tktStudents = null;
+    let tktTimes = 0, tktStudents = null, evt100 = 0;
     raw.forEach(r => {
       const id = String(r.badge_id || "");
-      if (id.startsWith("pw_")) return;
+      if (id.startsWith("pw_") || COMPUTED_ITEM_IDS.has(id)) return;
       if (id === "tkt" || id.startsWith("tkt_")){
         tktTimes += Number(r.times_awarded) || 0;
         if (id === "tkt") tktStudents = r.distinct_students;
         return;
       }
-      rows.push(r);
+      if (id === "evt_100day") evt100 = Number(r.distinct_students) || 0;
+      const b = badgeLabel(id);
+      rows.push({ kind:b.kind, label:b.label, times:r.times_awarded, students:r.distinct_students });
     });
-    if (tktTimes) rows.push({ badge_id:"tkt", times_awarded:tktTimes, distinct_students:(tktStudents ?? "–") });
-    rows.sort((a, b) => (Number(b.times_awarded) || 0) - (Number(a.times_awarded) || 0));
+    if (tktTimes){
+      const b = badgeLabel("tkt");
+      rows.push({ kind:b.kind, label:b.label, times:tktTimes, students:(tktStudents ?? "–") });
+    }
+    /* ② 게임이 계산해서 주는 것: 날개(클리어 판 수) · 출석 선물(누적 출석일) */
+    if (counts){
+      const get = (kind, step) => { const c = counts.find(x => x.kind === kind && Number(x.step) === step); return c ? Number(c.students) || 0 : 0; };
+      WING_REWARDS.forEach(w => {
+        const n = get("wins", w.plays);
+        rows.push({ kind:"날개", label:`🪽 ${(ITEM_NAMES[w.id] || w.id).replace(" (날개)", "")} · 클리어 ${w.plays}판`, times:n, students:n, ord:w.plays });
+      });
+      ATTEND_REWARDS.forEach(r => {
+        const n = r.evt ? get("days100_not_evt", 100) + evt100 : get("days", r.days);
+        rows.push({ kind:"출석 선물", label:`🎁 ${ITEM_NAMES[r.id] || r.id} · 출석 ${r.days}일${r.evt ? " (100일 이벤트 때 받은 학생 포함)" : ""}`, times:n, students:n, ord:r.days });
+      });
+    }
+    /* 종류별로 묶고, 날개 · 출석 선물은 받는 순서(판 수 · 출석일)대로, 나머지는 많이 받은 순서대로 */
+    rows.sort((a, b) => (KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind))
+                     || ((a.ord || 0) - (b.ord || 0))
+                     || ((Number(b.times) || 0) - (Number(a.times) || 0)));
     if (!rows.length){ body.innerHTML = `<span class="muted">아직 지급된 뱃지가 없어요.</span>`; return; }
     body.innerHTML = `
+      ${counts ? "" : `<p class="muted" style="margin-bottom:8px;">🪽 날개 · 🎁 출석 선물 숫자는 "1_선물현황_함수.sql"을 실행하면 함께 나와요.</p>`}
       <table>
         <tr><th>종류</th><th>이름</th><th>지급 횟수</th><th>받은 학생 수</th></tr>
-        ${rows.map(r => {
-          const b = badgeLabel(r.badge_id);
-          return `
+        ${rows.map(r => `
           <tr>
-            <td class="muted">${esc(b.kind)}</td>
-            <td>${esc(b.label)}</td>
-            <td>${esc(r.times_awarded)}</td>
-            <td>${esc(r.distinct_students)}</td>
-          </tr>`;
-        }).join("")}
+            <td class="muted">${esc(r.kind)}</td>
+            <td>${esc(r.label)}</td>
+            <td>${esc(r.times)}</td>
+            <td>${esc(r.students)}</td>
+          </tr>`).join("")}
       </table>
     `;
   } catch(e){
